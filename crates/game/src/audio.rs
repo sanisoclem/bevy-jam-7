@@ -16,6 +16,7 @@ impl AudioExtensions for App {
     self
       .add_audio_source::<ProcessedAudio>()
       .init_resource::<AudioLibraryResource<L, C>>()
+      .add_message::<AudioCommand<L, C>>()
       .add_systems(
         Update,
         process_assets::<L, C>.run_if(should_process_assets::<L, C>),
@@ -26,7 +27,12 @@ impl AudioExtensions for App {
       )
       .add_systems(
         Update,
-        (update_channel_volume::<L, C>, update_entity_volumes::<L, C>).chain(),
+        (
+          update_channel_volume::<L, C>,
+          update_entity_volumes::<L, C>,
+          update_sink_volumes::<L, C>,
+        )
+          .chain(),
       )
     // .add_systems(Update, fade)
   }
@@ -36,9 +42,12 @@ pub trait AudioLibrary: Sized + Hash + Copy + Sync + Send + Eq + PartialEq + 'st
   fn load_all(asset_server: &AssetServer, guard: AssetBarrierGuard) -> HashMap<Self, AudioDef>;
 }
 
-pub trait AudioChannelLayout: Sized + Hash + Eq + PartialEq + Copy + Sync + Send + 'static {}
+pub trait AudioChannelLayout: Sized + Hash + Eq + PartialEq + Copy + Sync + Send + 'static {
+  fn initial_state() -> HashMap<Self, AudioChannelSettings>;
+}
 
 pub enum AudioDef {
+  Once(Handle<AudioSource>),
   Looped(Handle<AudioSource>),
   IntroLooped {
     intro: Handle<AudioSource>,
@@ -53,6 +62,16 @@ impl AudioDef {
     audio_assets: &Assets<AudioSource>,
   ) -> Option<Handle<ProcessedAudio>> {
     match self {
+      AudioDef::Once(s) => {
+        if let Some(ss) = audio_assets.get(s) {
+          let processed = asset_server.add(ProcessedAudio {
+            sources: vec![ss.clone()],
+            process: |sources| Box::new(sources.first().unwrap().decoder()),
+          });
+
+          return Some(processed);
+        }
+      }
       AudioDef::Looped(s) => {
         if let Some(ss) = audio_assets.get(s) {
           let processed = asset_server.add(ProcessedAudio {
@@ -147,11 +166,10 @@ where
       .expect("Unable to get AssetServer");
 
     let defs = <T as AudioLibrary>::load_all(asset_server, guard);
-
     Self {
       definitions: defs,
       processed: default(),
-      channels: default(),
+      channels: C::initial_state(),
       barrier,
     }
   }
@@ -204,6 +222,7 @@ where
 pub fn process_audio_commands<L, C>(
   mut commands: Commands,
   mut cmds: MessageReader<AudioCommand<L, C>>,
+  mut qry: Query<&mut AudioController<C>>,
   audio_lib: Res<AudioLibraryResource<L, C>>,
 ) where
   L: AudioLibrary,
@@ -215,11 +234,28 @@ pub fn process_audio_commands<L, C>(
 
   for cmd in cmds.read() {
     match cmd {
-      AudioCommand::ReplaceAllAndFadeInto(_to_play, _channel) => {
-        // TODO:
-        // - set all entities in channel to fade
-        // - spawn new entity with replacement audio
-        todo!()
+      AudioCommand::ReplaceAllAndFadeInto(to_play, channel) => {
+        // TODO: this can be further optimized if slow
+        for mut ctl in qry.iter_mut() {
+          if &ctl.channel != channel {
+            continue;
+          }
+          ctl.current_volume_cmd = Some(EasingGoal::Instant(0.));
+          info!("setting goal to 0");
+        }
+        let Some(handle) = lib.get(to_play) else {
+          continue;
+        };
+        // TODO: set initial volume to 0 and set an easing goal to 1.0
+        commands
+          .spawn(AudioPlayer(handle.clone()))
+          .insert(AudioController {
+            channel: *channel,
+            volume: 1.0,
+            current_volume_cmd: None,
+            despawn_on_stop: true,
+            despawn_on_zero_volume: true,
+          });
       }
       AudioCommand::InsertOnce(to_play, channel) => {
         let Some(handle) = lib.get(to_play) else {

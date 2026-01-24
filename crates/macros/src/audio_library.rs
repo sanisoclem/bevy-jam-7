@@ -12,6 +12,9 @@ struct AudioInfo {
 
 #[derive(Debug)]
 enum AudioDefInfo {
+  Once {
+    asset_path: String,
+  },
   Loop {
     asset_path: String,
   },
@@ -32,6 +35,27 @@ impl syn::parse::Parse for IntroLoopParsed {
 
 fn extract_def_from_variant(variant: &Variant) -> Result<Option<AudioDefInfo>> {
   for attr in &variant.attrs {
+    if attr.path().segments.len() == 1 && attr.path().segments[0].ident == "once" {
+      match &attr.meta {
+        Meta::List(meta_list) => {
+          let tokens = &meta_list.tokens;
+          let expr: Expr = syn::parse2(tokens.clone()).unwrap();
+          if let Expr::Lit(expr_lit) = expr
+            && let Lit::Str(lit_str) = &expr_lit.lit
+          {
+            return Ok(Some(AudioDefInfo::Once {
+              asset_path: lit_str.value(),
+            }));
+          }
+        }
+        _ => {
+          return Err(syn::Error::new_spanned(
+            attr,
+            "once attribute must be in the form #[once(\"asset_path\")]",
+          ));
+        }
+      }
+    }
     if attr.path().segments.len() == 1 && attr.path().segments[0].ident == "looped" {
       match &attr.meta {
         Meta::List(meta_list) => {
@@ -117,6 +141,9 @@ pub fn derive_audio_library(ast: DeriveInput) -> Result<TokenStream> {
     let def = &info.def;
 
     match def {
+      AudioDefInfo::Once { asset_path } => quote! {
+        retval.insert(#enum_name::#variant_name, crate::audio::AudioDef::Once(asset_server.load_acquire(#asset_path, guard.clone())));
+      },
       AudioDefInfo::Loop { asset_path } => quote! {
         retval.insert(#enum_name::#variant_name, crate::audio::AudioDef::Looped(asset_server.load_acquire(#asset_path, guard.clone())));
       },

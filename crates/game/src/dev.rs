@@ -12,7 +12,7 @@ impl Plugin for DevGamePlugin {
       config: FpsOverlayConfig {
         text_config: TextFont {
           // Here we define size of our overlay
-          font_size: 42.0,
+          font_size: 32.0,
           // If we want, we can use a custom font
           font: default(),
           // We could also disable font smoothing,
@@ -33,58 +33,5 @@ impl Plugin for DevGamePlugin {
         },
       },
     });
-
-    app
-      .add_systems(Startup, setup)
-      .add_systems(Update, customize_config);
-  }
-}
-
-struct OverlayColor;
-
-impl OverlayColor {
-  const RED: Color = Color::srgb(1.0, 0.0, 0.0);
-  const GREEN: Color = Color::srgb(0.0, 1.0, 0.0);
-}
-
-fn setup(mut commands: Commands) {
-  commands.spawn(Camera2d);
-  commands.spawn((
-    Text::new(concat!(
-      "Press 1 to toggle the overlay color.\n",
-      "Press 2 to decrease the overlay size.\n",
-      "Press 3 to increase the overlay size.\n",
-      "Press 4 to toggle the text visibility.\n",
-      "Press 5 to toggle the frame time graph."
-    )),
-    Node {
-      position_type: PositionType::Absolute,
-      bottom: px(12),
-      left: px(12),
-      ..default()
-    },
-  ));
-}
-
-fn customize_config(input: Res<ButtonInput<KeyCode>>, mut overlay: ResMut<FpsOverlayConfig>) {
-  if input.just_pressed(KeyCode::Digit1) {
-    // Changing resource will affect overlay
-    if overlay.text_color == OverlayColor::GREEN {
-      overlay.text_color = OverlayColor::RED;
-    } else {
-      overlay.text_color = OverlayColor::GREEN;
-    }
-  }
-  if input.just_pressed(KeyCode::Digit2) {
-    overlay.text_config.font_size -= 2.0;
-  }
-  if input.just_pressed(KeyCode::Digit3) {
-    overlay.text_config.font_size += 2.0;
-  }
-  if input.just_pressed(KeyCode::Digit4) {
-    overlay.enabled = !overlay.enabled;
-  }
-  if input.just_released(KeyCode::Digit5) {
-    overlay.frame_time_graph_config.enabled = !overlay.frame_time_graph_config.enabled;
   }
 }

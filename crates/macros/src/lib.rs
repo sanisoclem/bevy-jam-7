@@ -5,7 +5,7 @@ mod audio_library;
 use proc_macro::TokenStream;
 use syn::{Data, DeriveInput, parse_macro_input};
 
-#[proc_macro_derive(AudioLibrary, attributes(looped, intro_looped))]
+#[proc_macro_derive(AudioLibrary, attributes(looped, intro_looped, once))]
 pub fn derive_audio_library(input: TokenStream) -> TokenStream {
   let ast = parse_macro_input!(input as DeriveInput);
 
