@@ -17,6 +17,10 @@ members = ["crates/*"]
 [workspace.dependencies]
 bevy = { version = "0.18", default-features = false }
 
+# currently must match the same version used by bevy_audio
+# https://github.com/rust-lang/cargo/issues/14316
+rodio = "0.20.1"
+
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1

@@ -24,6 +24,7 @@ pub enum GameAudioLibrary {
   Menu,
 }
 
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum GameAudioChannels {
   Music,
   Effects,

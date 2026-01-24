@@ -118,20 +118,20 @@ pub fn derive_audio_library(ast: DeriveInput) -> Result<TokenStream> {
 
     match def {
       AudioDefInfo::Loop { asset_path } => quote! {
-        retval.insert(#enum_name::#variant_name, crate::audio::AudioDef::Looped(asset_server.load(#asset_path)));
+        retval.insert(#enum_name::#variant_name, crate::audio::AudioDef::Looped(asset_server.load_acquire(#asset_path, guard.clone())));
       },
       AudioDefInfo::IntroLoop {
         start_path,
         main_path,
       } => quote! {
-        retval.insert(#enum_name::#variant_name, crate::audio::AudioDef::IntroLooped { intro: asset_server.load(#start_path),main: asset_server.load(#main_path) });
+        retval.insert(#enum_name::#variant_name, crate::audio::AudioDef::IntroLooped { intro: asset_server.load_acquire(#start_path, guard.clone()), main: asset_server.load_acquire(#main_path, guard.clone()) });
       },
     }
   });
 
   Ok(quote! {
       impl #impl_generics crate::audio::AudioLibrary for #enum_name #type_generics #where_clause {
-        fn load_all(asset_server: &bevy::asset::AssetServer) -> bevy::platform::collections::HashMap<Self, crate::audio::AudioDef> {
+        fn load_all(asset_server: &bevy::asset::AssetServer, guard: utils::assets::AssetBarrierGuard) -> bevy::platform::collections::HashMap<Self, crate::audio::AudioDef> {
             let mut retval = bevy::platform::collections::HashMap::new();
 
             #(#nested_from_arms)*
