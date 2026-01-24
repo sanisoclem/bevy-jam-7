@@ -6,3 +6,8 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true }
 jam7 = { path = "../jam7", version = "0.1.0" }
+
+
+[features]
+default = []
+debug = ["jam7/debug"]

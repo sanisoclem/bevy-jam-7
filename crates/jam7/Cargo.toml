@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 bevy = { workspace = true }
+
+[features]
+default = []
+debug = []

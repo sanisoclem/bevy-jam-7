@@ -329,7 +329,6 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "game",
- "jam7",
 ]
 
 [[package]]
