@@ -1,28 +1,62 @@
 {
+  description = "bevy flake";
+
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-25.11";
-    utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils }:
-    utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      nixpkgs,
+      rust-overlay,
+      flake-utils,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
       in
       {
-        devShell = with pkgs; mkShell {
-          buildInputs = [
-            libiconv
-            gcc
-            cargo
-            rustc
-            rustfmt
-            rustPackages.clippy
-            rust-analyzer
-            bacon
-          ];
-          RUST_SRC_PATH = rustPlatform.rustLibSrc;
-        };
+        devShells.default =
+          with pkgs;
+          mkShell {
+            buildInputs =
+              [
+                # Rust dependencies
+                (rust-bin.stable.latest.default.override { extensions = [ "rust-src" ]; })
+                pkg-config
+              ]
+              ++ lib.optionals (lib.strings.hasInfix "linux" system) [
+                # for Linux
+                # Audio (Linux only)
+                alsa-lib
+                # Cross Platform 3D Graphics API
+                vulkan-loader
+                # For debugging around vulkan
+                vulkan-tools
+                # Other dependencies
+                libudev-zero
+                xorg.libX11
+                xorg.libXcursor
+                xorg.libXi
+                xorg.libXrandr
+                libxkbcommon
+              ];
+            RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+            LD_LIBRARY_PATH = lib.makeLibraryPath [
+              vulkan-loader
+              xorg.libX11
+              xorg.libXi
+              xorg.libXcursor
+              libxkbcommon
+            ];
+          };
       }
     );
 }
