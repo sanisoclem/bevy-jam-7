@@ -240,7 +240,7 @@ pub fn process_audio_commands<L, C>(
           if &ctl.channel != channel {
             continue;
           }
-          ctl.current_volume_cmd = Some(EasingGoal::Instant(0.));
+          ctl.current_volume_cmd = Some(EasingGoal::Instant(0.0));
         }
       }
       AudioCommand::ReplaceAllAndFadeInto(to_play, channel) => {
