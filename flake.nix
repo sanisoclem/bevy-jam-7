@@ -32,6 +32,16 @@
                 (rust-bin.stable.latest.default.override { extensions = [ "rust-src" ]; })
                 pkg-config
               ]
+              ++ [
+                libiconv
+                gcc
+                cargo
+                rustc
+                rustfmt
+                rustPackages.clippy
+                rust-analyzer
+                bacon
+              ]
               ++ lib.optionals (lib.strings.hasInfix "linux" system) [
                 # for Linux
                 # Audio (Linux only)
@@ -46,7 +56,7 @@
                 xorg.libXcursor
                 xorg.libXi
                 xorg.libXrandr
-                libxkbcommon
+                libxkbcommon wayland
               ];
             RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
             LD_LIBRARY_PATH = lib.makeLibraryPath [
