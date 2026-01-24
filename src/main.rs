@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use game::{GamePlugin, prelude::*};
+use game::GamePlugin;
 
 // #[cfg(feature = "debug")]
 // use bevy_egui::EguiPlugin;
