@@ -177,6 +177,7 @@ where
 
 #[derive(Message, Debug)]
 pub enum AudioCommand<L, C> {
+  StopAllInChannel(C),
   ReplaceAllAndFadeInto(L, C),
   InsertOnce(L, C),
   // SetChannelVolume(C, f32, u32),
@@ -234,6 +235,14 @@ pub fn process_audio_commands<L, C>(
 
   for cmd in cmds.read() {
     match cmd {
+      AudioCommand::StopAllInChannel(channel) => {
+        for mut ctl in qry.iter_mut() {
+          if &ctl.channel != channel {
+            continue;
+          }
+          ctl.current_volume_cmd = Some(EasingGoal::Instant(0.));
+        }
+      }
       AudioCommand::ReplaceAllAndFadeInto(to_play, channel) => {
         // TODO: this can be further optimized if slow
         for mut ctl in qry.iter_mut() {
@@ -241,7 +250,6 @@ pub fn process_audio_commands<L, C>(
             continue;
           }
           ctl.current_volume_cmd = Some(EasingGoal::Instant(0.));
-          info!("setting goal to 0");
         }
         let Some(handle) = lib.get(to_play) else {
           continue;

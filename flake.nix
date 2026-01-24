@@ -29,7 +29,10 @@
             buildInputs =
               [
                 # Rust dependencies
-                (rust-bin.stable.latest.default.override { extensions = [ "rust-src" ]; })
+                (rust-bin.stable.latest.default.override { 
+                  extensions = [ "rust-src" ];
+                  targets = [ "wasm32-unknown-unknown" ];
+                })
                 pkg-config
               ]
               ++ [
@@ -40,7 +43,9 @@
                 rustfmt
                 rustPackages.clippy
                 rust-analyzer
+                rustup
                 bacon
+                wasm-bindgen-cli_0_2_108
               ]
               ++ lib.optionals (lib.strings.hasInfix "linux" system) [
                 # for Linux

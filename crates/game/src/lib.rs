@@ -87,6 +87,9 @@ fn toggle_music(
       GameAudioChannels::Effects,
     ));
   }
+  if keyboard_input.just_pressed(KeyCode::KeyS) {
+    cmds.write(AudioCommand::StopAllInChannel(GameAudioChannels::Music));
+  }
 }
 
 pub mod audio;
