@@ -1,0 +1,17 @@
+[package]
+name = "macros"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+darling = "0.20.10"
+
+[dev-dependencies]
+prettyplease = "0.2.22"
+insta = "1.40.0"

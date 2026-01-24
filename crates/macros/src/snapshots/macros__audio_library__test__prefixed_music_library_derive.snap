@@ -1,0 +1,19 @@
+---
+source: crates/macros/src/audio_library.rs
+expression: formatted
+---
+impl crate::audio::AudioLibrary for GameMusic {
+    fn load_all(asset_server: &AssetServer) -> HashMap<Self, MusicDef> {
+        let mut retval = HashMap::new();
+        retval.insert(GameMusic::Menu, MusicDef::Looped(asset_server.load("menu.ogg")));
+        retval
+            .insert(
+                GameMusic::Battle,
+                MusicDef::IntroLooped {
+                    intro: asset_server.load("battle_intro.ogg"),
+                    main: asset_server.load("battle.ogg"),
+                },
+            );
+        retval
+    }
+}
