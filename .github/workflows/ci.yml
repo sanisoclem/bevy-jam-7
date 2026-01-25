@@ -48,7 +48,11 @@ jobs:
           key: ubuntu-latest-cargo-lint-${{ hashFiles('**/Cargo.toml') }}
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable, nightly
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
           components: rustfmt, clippy
       - name: Install alsa and udev
         run: sudo apt-get update; sudo apt-get install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev
