@@ -86,7 +86,7 @@ jobs:
       - name: Add wasm target
         run: |
           rustup target add wasm32-unknown-unknown
-          carego install wasm-bindgen-cli
+          cargo install wasm-bindgen-cli
       - name: Build Release
         run: |
           RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --profile wasm-release --target wasm32-unknown-unknown
