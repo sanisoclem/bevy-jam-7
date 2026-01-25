@@ -12,7 +12,7 @@ on:
         type: string
 
 env:
-  GAME_EXECUTABLE_NAME: jam7
+  GAME_EXECUTABLE_NAME: bevy-jam-7
   GAME_OSX_APP_NAME: Jam7
 
 permissions:
@@ -86,6 +86,7 @@ jobs:
       - name: Add wasm target
         run: |
           rustup target add wasm32-unknown-unknown
+          carego install wasm-bindgen-cli
       - name: Build Release
         run: |
           RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --profile wasm-release --target wasm32-unknown-unknown
