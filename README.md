@@ -27,6 +27,7 @@ $ RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --profile wasm-release --tar
 $ wasm-bindgen --out-name jam7 \
   --out-dir wasm/target \
   --target web target/wasm32-unknown-unknown/wasm-release/bevy-jam-7.wasm
+
 $ basic-http-server wasm
 ```
 

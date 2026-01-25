@@ -8,7 +8,13 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_plugins(DefaultPlugins)
+      .add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+          canvas: Some("#main-canvas".into()),
+          ..default()
+        }),
+        ..default()
+      }))
       .add_plugins(Jam7Plugin)
       .add_plugins(cam::CameraPlugin)
       .configure_audio::<GameAudioLibrary, GameAudioChannels>()
