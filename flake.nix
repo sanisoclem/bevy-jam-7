@@ -26,29 +26,21 @@
         devShells.default =
           with pkgs;
           mkShell {
+            name = "rust-bevy-toolchain";
+            shellHook = ''
+              echo "$(rustc --version)"
+            '';
             buildInputs =
               [
-                # Rust dependencies
-                (rust-bin.stable.latest.default.override { 
+                (rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
                   extensions = [ "rust-src" ];
                   targets = [ "wasm32-unknown-unknown" ];
-                })
+                }))
                 pkg-config
-              ]
-              ++ [
                 libiconv
                 gcc
-                cargo
-                rustc
-                rustfmt
-                rustPackages.clippy
-                rust-analyzer
-                rustup
                 bacon
                 wasm-bindgen-cli_0_2_108
-              ]
-              ++ lib.optionals (lib.strings.hasInfix "linux" system) [
-                # for Linux
                 # Audio (Linux only)
                 alsa-lib
                 # Cross Platform 3D Graphics API
