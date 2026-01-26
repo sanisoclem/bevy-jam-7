@@ -3,7 +3,6 @@ use bevy::{
   prelude::*,
   render::render_resource::AsBindGroup,
   shader::ShaderRef,
-  sprite::Text2dShadow,
   sprite_render::{AlphaMode2d, Material2d},
 };
 use jam7::{level::LevelChunk, player::Player};
@@ -21,9 +20,8 @@ pub fn generate_level_chunk_mesh(
       NoFrustumCulling,
       Mesh2d(meshes.add(Rectangle::from_size(Vec2::splat(chunk.size)))),
       MeshMaterial2d(materials.add(ChunkMaterial {
-        id: IVec2::new(chunk.id.x(), chunk.id.y()),
-        chunk_size: chunk.size,
-        player_pos: Vec2::default(),
+        id: IVec4::new(chunk.id.x(), chunk.id.y(), 0, 0),
+        player_pos: Vec2::default().extend(chunk.size).extend(0.),
       })),
     ));
   }
@@ -38,7 +36,8 @@ pub fn update_chunk_player_pos(
   };
 
   for mat in materials.iter_mut() {
-    mat.1.player_pos = player_transform.translation.xy();
+    mat.1.player_pos.x = player_transform.translation.x;
+    mat.1.player_pos.y = player_transform.translation.y;
   }
 }
 
@@ -47,11 +46,9 @@ const SHADER_ASSET_PATH: &str = "shaders/chunk.wgsl";
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct ChunkMaterial {
   #[uniform(0)]
-  id: IVec2,
+  id: IVec4,
   #[uniform(1)]
-  chunk_size: f32,
-  #[uniform(2)]
-  player_pos: Vec2,
+  player_pos: Vec4,
 }
 
 impl Material2d for ChunkMaterial {

@@ -3,9 +3,8 @@
     mesh2d_view_bindings::view,
 }
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> id: vec2<i32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(1) var<uniform> chunk_size: f32;
-@group(#{MATERIAL_BIND_GROUP}) @binding(2) var<uniform> player_pos: vec2<f32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> id: vec4<i32>;
+@group(#{MATERIAL_BIND_GROUP}) @binding(1) var<uniform> player_pos: vec4<f32>;
 
 struct VertexOutput {
     // this is `clip position` when the struct is used as a vertex stage output 
@@ -124,11 +123,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 fn fragment(
     in: VertexOutput,
 ) -> @location(0) vec4<f32> {
-    var color = vec4<f32>(hash_color(id), 1.0);
+    var color = vec4<f32>(hash_color(id.xy), 1.0);
 
     let pos = in.world_position.xy;
     
-    let dist = distance(pos, player_pos); 
+    let dist = distance(pos, player_pos.xy); 
     let intensity = mix(10.0, 1.0, saturate(dist / 100.0));
 
     color = color * (grid(pos / 100., 0.01, 10.1) * intensity);

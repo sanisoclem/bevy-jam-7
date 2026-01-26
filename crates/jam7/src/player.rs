@@ -1,4 +1,4 @@
-pub use bevy::prelude::*;
+use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 pub struct PlayerPlugin;
