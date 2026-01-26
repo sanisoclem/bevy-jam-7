@@ -1,24 +1,22 @@
-use bevy::{
-  camera::visibility::NoFrustumCulling,
-  color::palettes::css::{BLUE, GREEN, PURPLE, RED, YELLOW},
-  prelude::*,
-  sprite::Text2dShadow,
-};
+use bevy::{color::palettes::css::GREEN, prelude::*, sprite_render::Material2dPlugin};
 use bevy_enhanced_input::prelude::*;
 use jam7::{
-  level::{ChunkSpawner, LevelChunk, LevelCommand, LevelDescriptor, LevelId},
+  level::{ChunkSpawner, LevelCommand, LevelDescriptor, LevelId},
   player::{ActionMovePlayer, Player, PlayerCommand, PlayerId},
 };
+mod chunk;
 
 pub struct TestingPlugin;
 
 impl Plugin for TestingPlugin {
   fn build(&self, app: &mut App) {
     app
+      .add_plugins(Material2dPlugin::<chunk::ChunkMaterial>::default())
       .add_systems(
         Update,
         (
-          generate_level_chunk_mesh,
+          chunk::generate_level_chunk_mesh,
+          chunk::update_chunk_player_pos,
           generate_player_mesh,
           update_camera,
         ),
@@ -42,40 +40,6 @@ pub fn setup(
   player_cmd.write(PlayerCommand::SpawnPlayer(PlayerId(0), Vec2::splat(0.)));
 }
 
-pub fn generate_level_chunk_mesh(
-  asset_server: Res<AssetServer>,
-  mut cmd: Commands,
-  mut meshes: ResMut<Assets<Mesh>>,
-  mut materials: ResMut<Assets<ColorMaterial>>,
-  qry: Query<(&LevelChunk, Entity), Without<Mesh2d>>,
-) {
-  let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-  let text_font = TextFont {
-    font: font.clone(),
-    font_size: 50.0,
-    ..default()
-  };
-  let colors: Vec<_> = vec![PURPLE, RED, GREEN, BLUE, YELLOW]
-    .into_iter()
-    .map(Color::from)
-    .collect();
-  for (chunk, entity) in qry {
-    // TODO: generate create resource to track meshes and materials used by chunks and
-    // unload them when no longer needed
-    let i = (chunk.id.x() * chunk.id.y()).unsigned_abs() as usize;
-    cmd.entity(entity).insert((
-      Text2d::new(format!("{},{}", chunk.id.x(), chunk.id.y())),
-      NoFrustumCulling,
-      text_font.clone(),
-      TextLayout::new_with_justify(Justify::Center),
-      TextBackgroundColor(Color::BLACK.with_alpha(0.5)),
-      Text2dShadow::default(),
-      Mesh2d(meshes.add(Rectangle::from_size(Vec2::splat(chunk.size)))),
-      MeshMaterial2d(materials.add(*colors.get(i % colors.len()).unwrap())),
-    ));
-  }
-}
-
 pub fn generate_player_mesh(
   mut cmd: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
@@ -89,8 +53,8 @@ pub fn generate_player_mesh(
       MeshMaterial2d(materials.add(Color::from(GREEN))),
       ChunkSpawner {
         level: LevelId(0),
-        load_radius: 1,
-        unload_radius: 2,
+        load_radius: 2,
+        unload_radius: 3,
       },
       actions!(
         Player[(

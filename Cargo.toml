@@ -14,7 +14,8 @@ default = []
 dev = [
   "game/dev", 
   "dep:bevy_egui", 
-  "dep:bevy-inspector-egui"
+  "dep:bevy-inspector-egui",
+  "bevy/file_watcher"
 ]
 
 [workspace]

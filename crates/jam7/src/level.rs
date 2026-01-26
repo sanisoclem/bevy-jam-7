@@ -111,7 +111,9 @@ pub fn process_level_commands(
         if tracker.levels.contains_key(level_id) {
           continue;
         }
-        let root = cmd.spawn((ProceduralLevel, Transform::default())).id();
+        let root = cmd
+          .spawn((ProceduralLevel, Transform::default(), Visibility::default()))
+          .id();
         tracker.levels.insert(
           *level_id,
           LevelController {
