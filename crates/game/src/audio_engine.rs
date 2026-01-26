@@ -13,6 +13,9 @@ pub trait AudioExtensions {
 
 impl AudioExtensions for App {
   fn configure_audio<L: AudioLibrary, C: AudioChannelLayout>(&mut self) -> &mut Self {
+    // TODO: use a oneshot system to start asset loading instead of loading when resource is
+    // initialized
+    // TODO: (optimization) process_assets should be a one shot system
     self
       .add_audio_source::<ProcessedAudio>()
       .init_resource::<AudioLibraryResource<L, C>>()

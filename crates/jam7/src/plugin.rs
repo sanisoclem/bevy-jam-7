@@ -1,6 +1,11 @@
+use crate::{level::LevelPlugin, player::PlayerPlugin};
 use bevy::prelude::*;
+use bevy_enhanced_input::prelude::*;
+
 pub struct Jam7Plugin;
 
 impl Plugin for Jam7Plugin {
-  fn build(&self, _app: &mut App) {}
+  fn build(&self, app: &mut App) {
+    app.add_plugins((EnhancedInputPlugin, LevelPlugin, PlayerPlugin));
+  }
 }
