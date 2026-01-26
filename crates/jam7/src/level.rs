@@ -7,10 +7,13 @@ pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(
-      Update,
-      (spawn_chunks, despawn_chunks, process_level_commands),
-    );
+    app
+      .init_resource::<LevelTracker>()
+      .add_message::<LevelCommand>()
+      .add_systems(
+        Update,
+        (spawn_chunks, despawn_chunks, process_level_commands),
+      );
   }
 }
 
@@ -26,10 +29,10 @@ pub struct LevelDescriptor {
   pub seed: i64,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
 pub struct LevelId(pub i32);
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
 pub struct ChunkId(i32, i32);
 
 impl ChunkId {
@@ -43,8 +46,8 @@ impl ChunkId {
     ChunkId(self.0 + x, self.1 + y)
   }
   pub fn center_world(&self, chunk_size: f32) -> Vec2 {
-    let center_x = (self.0 as f32 + 0.5) * chunk_size;
-    let center_y = (self.1 as f32 + 0.5) * chunk_size;
+    let center_x = (self.0 as f32) * chunk_size;
+    let center_y = (self.1 as f32) * chunk_size;
     Vec2::new(center_x, center_y)
   }
   pub fn from_world_pos(world: Vec2, chunk_size: f32) -> ChunkId {
@@ -72,7 +75,8 @@ impl ChunkId {
 #[derive(Component)]
 pub struct ProceduralLevel;
 
-#[derive(Debug, Component)]
+#[derive(Clone, Component, Reflect)]
+#[reflect(Component, Clone)]
 pub struct LevelChunk {
   pub id: ChunkId,
   pub size: f32,
@@ -121,7 +125,7 @@ pub fn process_level_commands(
         if tracker.levels.contains_key(level_id) {
           continue;
         }
-        let root = cmd.spawn(ProceduralLevel).id();
+        let root = cmd.spawn((ProceduralLevel, Transform::default())).id();
         tracker.levels.insert(
           *level_id,
           LevelController {
@@ -170,15 +174,23 @@ pub fn spawn_chunks(
     .filter(|chunk_id| !loaded_chunks.contains(chunk_id))
     .collect();
 
+    if to_spawn.is_empty() {
+      continue;
+    }
+
     let mut children = Vec::new();
     // TODO: can we use spawn_batch() to spawn children???
     for chunk in to_spawn {
+      let center = chunk.center_world(controller.descriptor.chunk_size);
       let e = cmd
-        .spawn(LevelChunk {
-          id: chunk,
-          center: chunk.center_world(controller.descriptor.chunk_size),
-          size: controller.descriptor.chunk_size,
-        })
+        .spawn((
+          LevelChunk {
+            id: chunk,
+            center,
+            size: controller.descriptor.chunk_size,
+          },
+          Transform::default().with_translation(center.extend(0.0)),
+        ))
         .id();
       children.push(e);
       // controller.load_chunk(chunk, e);
@@ -210,7 +222,12 @@ pub fn despawn_chunks(
       .iter()
       .cloned()
       .filter(|(id, _, _)| id == level_id)
-      .map(|(_, radius, xy)| (radius as f32 * controller.descriptor.chunk_size, xy))
+      .map(|(_, radius, xy)| {
+        (
+          (radius as f32 * controller.descriptor.chunk_size).powi(2),
+          xy,
+        )
+      })
       .collect();
 
     let loaded_chunks: HashMap<_, _> = qry_chunk_children

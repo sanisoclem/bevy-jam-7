@@ -26,7 +26,7 @@ fn main() {
   app.add_plugins(GamePlugin);
 
   #[cfg(feature = "dev")]
-  app.add_plugins((EguiPlugin, WorldInspectorPlugin::default()));
+  app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()));
 
   app.run();
 }

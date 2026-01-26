@@ -37,7 +37,7 @@ pub fn process_player_commands(
         };
         cmd.spawn((
           Player { id: *player_id },
-          Transform::default().with_translation(location.extend(0.)),
+          Transform::default().with_translation(location.extend(1.)),
         ));
       }
       PlayerCommand::DespawnPlayer(player_id) => {
