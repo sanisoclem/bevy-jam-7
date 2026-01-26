@@ -1,4 +1,4 @@
-use crate::audio::AudioPlugin;
+use crate::{audio::AudioPlugin, testing::TestingPlugin};
 use bevy::prelude::*;
 use jam7::prelude::*;
 
@@ -16,7 +16,8 @@ impl Plugin for GamePlugin {
       }))
       .add_plugins(Jam7Plugin)
       .add_plugins(cam::CameraPlugin)
-      .add_plugins(AudioPlugin);
+      .add_plugins(AudioPlugin)
+      .add_plugins(TestingPlugin);
 
     #[cfg(feature = "dev")]
     app.add_plugins(dev::DevGamePlugin);
@@ -28,6 +29,7 @@ pub mod audio_engine;
 pub mod cam;
 #[cfg(feature = "dev")]
 pub mod dev;
+pub mod testing;
 pub mod prelude {
   pub use crate::GamePlugin;
 }

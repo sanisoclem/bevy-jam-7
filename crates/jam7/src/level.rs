@@ -1,4 +1,7 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{
+  platform::collections::{HashMap, HashSet},
+  prelude::*,
+};
 
 pub struct LevelPlugin;
 
@@ -12,19 +15,19 @@ impl Plugin for LevelPlugin {
 }
 
 #[derive(Debug, Message)]
-pub enum LevelCommands {
+pub enum LevelCommand {
   StartLevel(LevelId, LevelDescriptor),
   UnloadLevel(LevelId),
 }
 
 #[derive(Debug, Clone)]
 pub struct LevelDescriptor {
-  chunk_size: f32,
-  seed: i64,
+  pub chunk_size: f32,
+  pub seed: i64,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct LevelId(i32);
+pub struct LevelId(pub i32);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct ChunkId(i32, i32);
@@ -71,14 +74,16 @@ pub struct ProceduralLevel;
 
 #[derive(Debug, Component)]
 pub struct LevelChunk {
-  id: ChunkId,
+  pub id: ChunkId,
+  pub size: f32,
+  pub center: Vec2,
 }
 
 #[derive(Component, Debug)]
 pub struct ChunkSpawner {
-  level: LevelId,
-  load_radius: u32,
-  unload_radius: u32,
+  pub level: LevelId,
+  pub load_radius: u32,
+  pub unload_radius: u32,
 }
 
 #[derive(Resource, Default)]
@@ -89,25 +94,30 @@ pub struct LevelTracker {
 pub struct LevelController {
   descriptor: LevelDescriptor,
   root: Entity,
-  loaded_chunks: HashMap<ChunkId, Entity>,
+  // NOTE: might not need this, but currently it is hard to query
+  // all existing chunks under a parent, without having to list other
+  // chunks from other levels. This is not an issue if there will only be
+  // one level loaded at a time, but I don't want to make that assumption
+  // for now.
+  // loaded_chunks: HashMap<ChunkId, Entity>,
 }
-impl LevelController {
-  pub fn load_chunk(&mut self, chunk: ChunkId, entity: Entity) {
-    self.loaded_chunks.insert(chunk, entity);
-  }
-  pub fn unload_chunk(&mut self, chunk: &ChunkId) {
-    self.loaded_chunks.remove(chunk);
-  }
-}
+// impl LevelController {
+//   pub fn load_chunk(&mut self, chunk: ChunkId, entity: Entity) {
+//     self.loaded_chunks.insert(chunk, entity);
+//   }
+//   pub fn unload_chunk(&mut self, chunk: &ChunkId) {
+//     self.loaded_chunks.remove(chunk);
+//   }
+// }
 
 pub fn process_level_commands(
   mut cmd: Commands,
-  mut reader: MessageReader<LevelCommands>,
+  mut reader: MessageReader<LevelCommand>,
   mut tracker: ResMut<LevelTracker>,
 ) {
   for command in reader.read() {
     match command {
-      LevelCommands::StartLevel(level_id, descriptor) => {
+      LevelCommand::StartLevel(level_id, descriptor) => {
         if tracker.levels.contains_key(level_id) {
           continue;
         }
@@ -117,11 +127,11 @@ pub fn process_level_commands(
           LevelController {
             descriptor: descriptor.clone(),
             root,
-            loaded_chunks: HashMap::new(),
+            // loaded_chunks: HashMap::new(),
           },
         );
       }
-      LevelCommands::UnloadLevel(level_id) => {
+      LevelCommand::UnloadLevel(level_id) => {
         let Some(existing) = tracker.levels.remove(level_id) else {
           continue;
         };
@@ -134,28 +144,44 @@ pub fn process_level_commands(
 pub fn spawn_chunks(
   mut cmd: Commands,
   mut tracker: ResMut<LevelTracker>,
+  qry_chunk: Query<&LevelChunk>,
+  qry_chunk_children: Query<&Children>,
   qry_spawner: Query<(&ChunkSpawner, &Transform)>,
 ) {
   for (spawner, spawner_transform) in qry_spawner {
     let Some(controller) = tracker.levels.get_mut(&spawner.level) else {
       continue;
     };
+
+    let loaded_chunks: HashSet<_> = qry_chunk_children
+      .get(controller.root)
+      .ok()
+      .into_iter()
+      .flat_map(|children| children.iter())
+      .filter_map(|child| qry_chunk.get(child).ok().map(|c| c.id))
+      .collect();
+
     let to_spawn: Vec<_> = ChunkId::get_chunks_to_be_loaded(
       spawner_transform.translation.xy(),
       controller.descriptor.chunk_size,
       spawner.load_radius,
     )
     .into_iter()
-    .filter(|chunk_id| !controller.loaded_chunks.contains_key(chunk_id))
+    .filter(|chunk_id| !loaded_chunks.contains(chunk_id))
     .collect();
 
     let mut children = Vec::new();
-
     // TODO: can we use spawn_batch() to spawn children???
     for chunk in to_spawn {
-      let e = cmd.spawn(LevelChunk { id: chunk }).id();
+      let e = cmd
+        .spawn(LevelChunk {
+          id: chunk,
+          center: chunk.center_world(controller.descriptor.chunk_size),
+          size: controller.descriptor.chunk_size,
+        })
+        .id();
       children.push(e);
-      controller.load_chunk(chunk, e);
+      // controller.load_chunk(chunk, e);
     }
 
     cmd.entity(controller.root).add_children(&children);
@@ -165,6 +191,8 @@ pub fn spawn_chunks(
 pub fn despawn_chunks(
   mut cmd: Commands,
   mut tracker: ResMut<LevelTracker>,
+  qry_chunk: Query<&LevelChunk>,
+  qry_chunk_children: Query<&Children>,
   qry_spawner: Query<(&ChunkSpawner, &Transform)>,
 ) {
   let spawner_coords: Vec<_> = qry_spawner
@@ -184,9 +212,16 @@ pub fn despawn_chunks(
       .filter(|(id, _, _)| id == level_id)
       .map(|(_, radius, xy)| (radius as f32 * controller.descriptor.chunk_size, xy))
       .collect();
-    // gets all loaded chunks that are outside unload_radius of all spawners for that level
-    let to_despawn: Vec<_> = controller
-      .loaded_chunks
+
+    let loaded_chunks: HashMap<_, _> = qry_chunk_children
+      .get(controller.root)
+      .ok()
+      .into_iter()
+      .flat_map(|children| children.iter())
+      .filter_map(|child| qry_chunk.get(child).ok().map(|c| (c.id, child)))
+      .collect();
+
+    let to_despawn: Vec<_> = loaded_chunks
       .iter()
       .map(|(x, y)| (*x, *y))
       .filter(|(chunk_id, _entity)| {
@@ -196,9 +231,9 @@ pub fn despawn_chunks(
           .all(|(dist_squared, xy)| center.distance_squared(*xy) >= *dist_squared)
       })
       .collect();
-    for (chunk_id, e) in to_despawn {
+
+    for (_, e) in to_despawn {
       cmd.entity(e).despawn();
-      controller.unload_chunk(&chunk_id);
     }
   }
 }
