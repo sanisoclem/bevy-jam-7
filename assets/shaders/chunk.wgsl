@@ -1,6 +1,6 @@
 #import bevy_sprite::{
     mesh2d_functions as mesh_functions,
-    mesh2d_view_bindings::view,
+    mesh2d_view_bindings::{view,globals},
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> id: vec4<i32>;
@@ -125,12 +125,35 @@ fn fragment(
 ) -> @location(0) vec4<f32> {
     var color = vec4<f32>(hash_color(id.xy), 1.0);
 
-    let pos = in.world_position.xy;
-    
-    let dist = distance(pos, player_pos.xy); 
-    let intensity = mix(10.0, 1.0, saturate(dist / 100.0));
+    let grid_size = 60.;
+    let grid_size_half = grid_size / 2.;
 
-    color = color * (grid(pos / 100., 0.01, 10.1) * intensity);
+    let t_1 = 1+.2 * sin(globals.time * 3.);
+    let t_2 = abs(sin(globals.time * 1.1));
+
+    let pos = in.world_position.xy;
+
+    let fpos = vec2<f32>(player_pos.x - (player_pos.x % grid_size) + grid_size_half, player_pos.y - (player_pos.y % grid_size) + grid_size_half);
+    
+    //let dist = max(abs(pos.x - fpos.x), abs(pos.y - fpos.y));
+    //let dist2 = distance(pos, fpos); 
+    //let final_dist = mix(dist2, dist, t_1) * (1 - (t_2 * 0.1));
+    //let intensity = mix(10.0, 0.4, saturate(final_dist / 150.0));
+
+    var dist = max(abs(pos.x - fpos.x), abs(pos.y - fpos.y));
+    //dist = dist - (t_2 *grid_size * 10);
+    if dist <= 0 {
+      color = color * (grid(pos / grid_size, 0.01, 10.1) * 0.2);
+    }
+    else if dist <= grid_size_half + 1.5 {
+      color = color * (grid(pos / grid_size, 0.01, 10.1) * 10. * t_1 );
+    }
+    else if dist <= grid_size_half + grid_size + 1.5 {
+      color = color * (grid(pos / grid_size, 0.01, 10.1) * 0.5 * t_1);
+    }
+    else {
+      color = color * (grid(pos / grid_size, 0.01, 10.1) * 0.2);
+    };
 
 #ifdef TONEMAP_IN_SHADER
     color = tonemapping::tone_mapping(color, view.color_grading);

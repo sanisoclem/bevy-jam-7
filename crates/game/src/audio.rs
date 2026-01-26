@@ -82,7 +82,7 @@ fn toggle_music(
       GameAudioChannels::Effects,
     ));
   }
-  if keyboard_input.just_pressed(KeyCode::KeyS) {
+  if keyboard_input.just_pressed(KeyCode::KeyP) {
     cmds.write(AudioCommand::StopAllInChannel(GameAudioChannels::Music));
   }
 }
