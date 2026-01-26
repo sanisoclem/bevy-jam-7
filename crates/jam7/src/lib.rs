@@ -1,3 +1,4 @@
+pub mod level;
 pub mod plugin;
 pub mod ui;
 pub mod prelude {
