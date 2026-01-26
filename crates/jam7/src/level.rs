@@ -98,21 +98,7 @@ pub struct LevelTracker {
 pub struct LevelController {
   descriptor: LevelDescriptor,
   root: Entity,
-  // NOTE: might not need this, but currently it is hard to query
-  // all existing chunks under a parent, without having to list other
-  // chunks from other levels. This is not an issue if there will only be
-  // one level loaded at a time, but I don't want to make that assumption
-  // for now.
-  // loaded_chunks: HashMap<ChunkId, Entity>,
 }
-// impl LevelController {
-//   pub fn load_chunk(&mut self, chunk: ChunkId, entity: Entity) {
-//     self.loaded_chunks.insert(chunk, entity);
-//   }
-//   pub fn unload_chunk(&mut self, chunk: &ChunkId) {
-//     self.loaded_chunks.remove(chunk);
-//   }
-// }
 
 pub fn process_level_commands(
   mut cmd: Commands,
