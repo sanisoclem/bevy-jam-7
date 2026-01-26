@@ -14,6 +14,8 @@ impl Plugin for AudioPlugin {
   }
 }
 
+pub type GameAudioCommand = AudioCommand<GameAudioLibrary, GameAudioChannels>;
+
 #[derive(AudioLibrary, Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum GameAudioLibrary {
   #[looped("menu.ogg")]
@@ -55,7 +57,7 @@ impl AudioChannelLayout for GameAudioChannels {
 
 fn toggle_music(
   keyboard_input: Res<ButtonInput<KeyCode>>,
-  mut cmds: MessageWriter<AudioCommand<GameAudioLibrary, GameAudioChannels>>,
+  mut cmds: MessageWriter<GameAudioCommand>,
 ) {
   if keyboard_input.just_pressed(KeyCode::KeyM) {
     cmds.write(AudioCommand::ReplaceAllAndFadeInto(

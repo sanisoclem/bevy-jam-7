@@ -40,7 +40,7 @@ struct Vertex {
 
 fn hash_color(id_val: vec2<i32>) -> vec3<f32> {
     // Simple hash based on id values
-    let hash_x = u32(id_val.x * 374761393 + id_val.y * 668265263);
+    let hash_x = u32(max(id_val.x,1) * 374761393 + max(id_val.y,1) * 668265263);
     let hash_y = u32(id_val.y * 1274126177 + id_val.x * 1664525);
     let hash_z = u32((id_val.x + id_val.y) * 2147483647);
     

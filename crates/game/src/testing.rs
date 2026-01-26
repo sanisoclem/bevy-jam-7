@@ -1,8 +1,13 @@
-use bevy::{color::palettes::css::GREEN, prelude::*, sprite_render::Material2dPlugin};
+use bevy::{prelude::*, sprite_render::Material2dPlugin};
 use bevy_enhanced_input::prelude::*;
 use jam7::{
   level::{ChunkSpawner, LevelCommand, LevelDescriptor, LevelId},
   player::{ActionMovePlayer, Player, PlayerCommand, PlayerId},
+};
+
+use crate::{
+  audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary},
+  audio_engine::AudioCommand,
 };
 mod chunk;
 
@@ -26,9 +31,14 @@ impl Plugin for TestingPlugin {
 }
 
 pub fn setup(
+  mut cmds: MessageWriter<GameAudioCommand>,
   mut player_cmd: MessageWriter<PlayerCommand>,
   mut level_cmd: MessageWriter<LevelCommand>,
 ) {
+  cmds.write(AudioCommand::ReplaceAllAndFadeInto(
+    GameAudioLibrary::Menu,
+    GameAudioChannels::Music,
+  ));
   level_cmd.write(LevelCommand::StartLevel(
     LevelId(0),
     LevelDescriptor {
@@ -43,14 +53,14 @@ pub fn setup(
 pub fn generate_player_mesh(
   mut cmd: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
-  mut materials: ResMut<Assets<ColorMaterial>>,
+  // mut materials: ResMut<Assets<ColorMaterial>>,
   qry: Query<Entity, (Without<Mesh2d>, With<Player>)>,
 ) {
   for entity in qry {
     let mesh = Rectangle::from_size(Vec2::splat(30.0)).mesh().build();
     cmd.entity(entity).insert((
       Mesh2d(meshes.add(mesh)),
-      MeshMaterial2d(materials.add(Color::from(GREEN))),
+      // MeshMaterial2d(materials.add(Color::from(GREEN))),
       ChunkSpawner {
         level: LevelId(0),
         load_radius: 2,
