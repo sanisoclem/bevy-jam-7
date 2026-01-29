@@ -1,61 +1,39 @@
 #![recursion_limit = "256"]
 
-use burn::backend::Wgpu;
-use burn::{
-  nn::{
-    Dropout, DropoutConfig, Linear, LinearConfig, Relu,
-    conv::{Conv2d, Conv2dConfig},
-    pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
-  },
-  prelude::*,
-};
+use brains::PredictiveOrganism;
+use burn::prelude::*;
 
 fn main() {
-  // let device = Default::default();
-  // // Creation of two tensors, the first with explicit values and the second one with ones, with the same shape as the first
-  // let tensor_1 = Tensor::<Backend, 2>::from_data([[2., 3.], [4., 5.]], &device);
-  // let tensor_2 = Tensor::ones_like(&tensor_1);
-  //
-  // // Print the element-wise addition (done with the WGPU backend) of the two tensors.
-  // println!("{}", tensor_1 + tensor_2);
-  //
+  type Backend = burn::backend::NdArray;
 
   let device = Default::default();
-  let model = ModelConfig::new(10, 512).init::<Wgpu<f32, i32>>(&device);
+  let mut organism = PredictiveOrganism::<Backend>::new(&device);
 
-  println!("{model}");
-}
+  for episode in 0..10 {
+    println!("Episode {}", episode);
 
-#[derive(Module, Debug)]
-pub struct Model<B: Backend> {
-  conv1: Conv2d<B>,
-  conv2: Conv2d<B>,
-  pool: AdaptiveAvgPool2d,
-  dropout: Dropout,
-  linear1: Linear<B>,
-  linear2: Linear<B>,
-  activation: Relu,
-}
+    for timestep in 0..100 {
+      let input =
+        Tensor::<Backend, 1>::random([32], burn::tensor::Distribution::Uniform(0.0, 1.0), &device);
 
-#[derive(Config, Debug)]
-pub struct ModelConfig {
-  num_classes: usize,
-  hidden_size: usize,
-  #[config(default = "0.5")]
-  dropout: f64,
-}
+      let (state_acts, action_acts, pred_acts) = organism.forward(input);
 
-impl ModelConfig {
-  /// Returns the initialized model.
-  pub fn init<B: Backend>(&self, device: &B::Device) -> Model<B> {
-    Model {
-      conv1: Conv2dConfig::new([1, 8], [3, 3]).init(device),
-      conv2: Conv2dConfig::new([8, 16], [3, 3]).init(device),
-      pool: AdaptiveAvgPool2dConfig::new([8, 8]).init(),
-      activation: Relu::new(),
-      linear1: LinearConfig::new(16 * 8 * 8, self.hidden_size).init(device),
-      linear2: LinearConfig::new(self.hidden_size, self.num_classes).init(device),
-      dropout: DropoutConfig::new(self.dropout).init(),
+      if timestep == 50 {
+        organism.enter_reward_state(1.0);
+      }
+
+      if timestep % 10 == 0 {
+        let state_count: f32 = state_acts.clone().sum().into_scalar();
+        let action_count: f32 = action_acts.clone().sum().into_scalar();
+        let pred_count: f32 = pred_acts.clone().sum().into_scalar();
+
+        println!(
+          "  t={}: state={}, actions={}, predictive={}",
+          timestep, state_count, action_count, pred_count
+        );
+      }
     }
+
+    organism.end_episode();
   }
 }

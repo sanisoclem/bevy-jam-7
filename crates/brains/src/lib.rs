@@ -1,59 +1,72 @@
 use burn::prelude::*;
 use burn::tensor::backend::Backend;
+use core::f32;
 
 #[derive(Clone, Debug)]
-struct FiringEvent {
+pub struct FiringEvent {
   neuron_idx: usize,
   timestep: usize,
   neuron_type: NeuronType,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum NeuronType {
+pub enum NeuronType {
   State,
   Action,
   Predictive,
 }
 
 #[derive(Debug)]
-struct PredictiveOrganism<B: Backend> {
+pub struct PredictiveOrganism<B: Backend> {
+  // State Neurons
   state_weights_base: Tensor<B, 2>,
   state_weights_overlay: Tensor<B, 2>,
   state_bias: Tensor<B, 1>,
   state_threshold: f32,
 
+  // Action Neurons
   action_weights_base: Tensor<B, 2>,
   action_weights_overlay: Tensor<B, 2>,
   action_bias: Tensor<B, 1>,
   action_threshold: f32,
 
+  // Prediction Neurons
   predictive_weights_base: Tensor<B, 2>,
   predictive_weights_overlay: Tensor<B, 2>,
   predictive_bias: Tensor<B, 1>,
   predictive_threshold: f32,
 
+  // Prediction performance matrix
   prediction_matrix_base: Tensor<B, 2>,
   prediction_matrix_overlay: Tensor<B, 2>,
+  predictive_weight_change_magnitude: Tensor<B, 1>,
 
-  predictive_weight_change_magnitude: Vec<f32>,
-
+  // save firings for reward/punishment
+  // NOTE: we prob want to use some type of circular buffer
+  // to establish an upper bound on space used
   firing_history: Vec<FiringEvent>,
+
+  // are overflows significant?
   current_timestep: usize,
 
   reward_magnitude: f32,
-  reward_duration: usize,
   punishment_magnitude: f32,
-  punishment_duration: usize,
+  temporal_scaling_k: f32,
 
-  prediction_learning_rate: f32,
   action_learning_rate: f32,
   novelty_threshold: f32,
   temporal_window: usize,
   stable_link_threshold: f32,
-  base_decay_rate: f32,
+
+  prediction_learning_rate: f32,
+  prediction_max_negative_weight: f32,
+  prediction_max_positive_weight: f32,
 }
 
-impl<B: Backend> PredictiveOrganism<B> {
+impl<B: Backend> PredictiveOrganism<B>
+where
+  B: Backend<FloatElem = f32>,
+{
   pub fn new(device: &B::Device) -> Self {
     let state_weights_base = Tensor::random(
       [32, 64],
@@ -100,22 +113,22 @@ impl<B: Backend> PredictiveOrganism<B> {
 
       prediction_matrix_base,
       prediction_matrix_overlay,
-      predictive_weight_change_magnitude: vec![0.0; 128],
+      predictive_weight_change_magnitude: Tensor::zeros([128], device),
 
       firing_history: Vec::new(),
       current_timestep: 0,
 
       reward_magnitude: 0.0,
-      reward_duration: 0,
       punishment_magnitude: 0.0,
-      punishment_duration: 0,
+      temporal_scaling_k: 1.0,
 
       prediction_learning_rate: 0.01,
       action_learning_rate: 0.01,
       novelty_threshold: 5.0,
       temporal_window: 10,
       stable_link_threshold: 0.3,
-      base_decay_rate: 0.001,
+      prediction_max_negative_weight: -100.,
+      prediction_max_positive_weight: 1000.,
     }
   }
 
@@ -130,7 +143,7 @@ impl<B: Backend> PredictiveOrganism<B> {
       .clone()
       .unsqueeze_dim(0)
       .matmul(state_weights)
-      .squeeze(0)
+      .squeeze()
       + self.state_bias.clone();
 
     let state_activations = self.apply_threshold(state_logits.clone(), self.state_threshold);
@@ -144,7 +157,7 @@ impl<B: Backend> PredictiveOrganism<B> {
       .clone()
       .unsqueeze_dim(0)
       .matmul(action_weights)
-      .squeeze(0)
+      .squeeze()
       + self.action_bias.clone();
     let action_activations = self.apply_threshold(action_logits, self.action_threshold);
 
@@ -162,7 +175,7 @@ impl<B: Backend> PredictiveOrganism<B> {
       let predictive_logits = predictive_input
         .unsqueeze_dim(0)
         .matmul(predictive_weights)
-        .squeeze(0)
+        .squeeze()
         + self.predictive_bias.clone();
 
       let activations = self.apply_threshold(predictive_logits, self.predictive_threshold);
@@ -198,7 +211,7 @@ impl<B: Backend> PredictiveOrganism<B> {
   }
 
   fn record_firings(&mut self, activations: &Tensor<B, 1>, neuron_type: NeuronType) {
-    let acts: Vec<f32> = activations.clone().into_data().convert().value;
+    let acts: Vec<f32> = activations.clone().into_data().to_vec::<f32>().unwrap();
 
     for (idx, &value) in acts.iter().enumerate() {
       if value > 0.5 {
@@ -237,185 +250,117 @@ impl<B: Backend> PredictiveOrganism<B> {
     predictive_activations: &Tensor<B, 1>,
     state_activations: &Tensor<B, 1>,
   ) {
-    let pred_acts: Vec<f32> = predictive_activations.clone().into_data().convert().value;
-    let state_acts: Vec<f32> = state_activations.clone().into_data().convert().value;
+    // make into single column matrix (a vector!) and multiply both
+    let pred_fired = predictive_activations.clone().unsqueeze_dim(1);
+    let state_fired = state_activations.clone().unsqueeze();
+    let both_fired = pred_fired.matmul(state_fired);
 
-    let device = self.prediction_matrix_base.device();
-    let pred_matrix_base: Vec<f32> = self
-      .prediction_matrix_base
+    // create a matrix of same size but will be one only if P neuron fired
+    let pred_fired_2d = predictive_activations
       .clone()
-      .into_data()
-      .convert()
-      .value;
-    let pred_matrix_overlay: Vec<f32> = self
-      .prediction_matrix_overlay
-      .clone()
-      .into_data()
-      .convert()
-      .value;
+      .unsqueeze_dim(1)
+      .repeat(&[1, 64]);
 
-    let mut new_overlay = pred_matrix_overlay.clone();
+    // calculate base deltas
+    let positive_base = both_fired.clone() * self.prediction_learning_rate;
+    let pred_fired_state_not = pred_fired_2d.clone() - both_fired;
+    let negative_base = pred_fired_state_not * (-2.0 * self.prediction_learning_rate);
 
-    // check predictions for all state neurons
-    // maybe we should limit this spatially, but since the neuron count is low,
-    // its prob fine like this for now
-    for p in 0..128 {
-      if pred_acts[p] > 0.5 {
-        for s in 0..64 {
-          // TODO: no need to evaluate overly negative predictive wegihts
-          let idx = p * 64 + s;
-          let base_val = pred_matrix_base[idx];
-          let overlay_val = pred_matrix_overlay[idx];
-          let total_val = base_val + overlay_val;
+    // scale learning rate by weight change magnitude (since episode start)
+    let scaling_tensor = (self.predictive_weight_change_magnitude.clone() + 1.0)
+      .unsqueeze_dim(1) // [128, 1]
+      .repeat(&[1, 64]); // [128, 64]
 
-          let delta = if state_acts[s] > 0.5 {
-            self.prediction_learning_rate
-          } else {
-            -2.0 * self.prediction_learning_rate
-          };
+    let delta = (positive_base + negative_base) * scaling_tensor;
 
-          new_overlay[idx] = overlay_val + delta;
-
-          if total_val + delta < 0.0 {
-            let weight_change = self.predictive_weight_change_magnitude[p];
-            let decay_rate = self.base_decay_rate * (1.0 + weight_change);
-            new_overlay[idx] += decay_rate;
-          }
-        }
-      }
-    }
-
-    self.prediction_matrix_overlay =
-      Tensor::from_floats(new_overlay.as_slice(), &device).reshape([128, 64]);
+    self.prediction_matrix_overlay = self.prediction_matrix_overlay.clone() + delta;
   }
 
   fn check_novelty(&mut self, predictive_activations: &Tensor<B, 1>) {
-    let pred_acts: Vec<f32> = predictive_activations.clone().into_data().convert().value;
-    let pred_matrix_base: Vec<f32> = self
-      .prediction_matrix_base
+    // create matrix that has val 1 if fired
+    let pred_fired_mask = predictive_activations
       .clone()
-      .into_data()
-      .convert()
-      .value;
-    let pred_matrix_overlay: Vec<f32> = self
+      .unsqueeze_dim(1)
+      .repeat(&[1, 64]);
+
+    // overlay > threshold
+    let overlay_high = self
       .prediction_matrix_overlay
       .clone()
-      .into_data()
-      .convert()
-      .value;
+      .greater_elem(self.stable_link_threshold)
+      .float();
 
-    let mut new_stable_links = 0;
+    // base <= 0
+    let base_low = self
+      .prediction_matrix_base
+      .clone()
+      .lower_equal_elem(0.0)
+      .float();
 
-    for p in 0..128 {
-      if pred_acts[p] > 0.5 {
-        for s in 0..64 {
-          let idx = p * 64 + s;
-          let base_val = pred_matrix_base[idx];
-          let overlay_val = pred_matrix_overlay[idx];
+    // combine all, will be 1.0 for P neurons that fired that have high overlay and low base
+    let new_links_mask = pred_fired_mask * overlay_high * base_low;
 
-          if overlay_val > self.stable_link_threshold && base_val <= 0.0 {
-            new_stable_links += 1;
-          }
-        }
-      }
-    }
+    let new_stable_links = new_links_mask.sum().into_scalar();
 
-    if new_stable_links as f32 > self.novelty_threshold {
-      let magnitude = (new_stable_links as f32 / self.novelty_threshold) * 0.5;
-      // TODO: variable reward state duration based on how many stable links have formed
-      // how do we know which formed recently (not fired recently or does it matter?)
-      self.enter_reward_state(magnitude, 5);
+    if new_stable_links > self.novelty_threshold {
+      let magnitude = (new_stable_links / self.novelty_threshold) * 0.5;
+      self.enter_reward_state(magnitude);
     }
   }
 
-  pub fn enter_reward_state(&mut self, magnitude: f32, duration: usize) {
+  pub fn enter_reward_state(&mut self, magnitude: f32) {
     self.reward_magnitude += magnitude;
-    self.reward_duration = self.reward_duration.max(duration);
   }
-
-  pub fn enter_punishment_state(&mut self, magnitude: f32, duration: usize) {
+  pub fn enter_punishment_state(&mut self, magnitude: f32) {
     self.punishment_magnitude += magnitude;
-    self.punishment_duration = self.punishment_duration.max(duration);
   }
-
   fn decay_reward_punishment(&mut self) {
-    if self.reward_duration > 0 {
-      self.reward_duration -= 1;
-      if self.reward_duration == 0 {
-        self.reward_magnitude = 0.0;
-      }
-    }
-
-    if self.punishment_duration > 0 {
-      self.punishment_duration -= 1;
-      if self.punishment_duration == 0 {
-        self.punishment_magnitude = 0.0;
-      }
-    }
+    self.reward_magnitude *= 0.9; // Exponential decay
+    self.punishment_magnitude *= 0.9;
   }
-
   fn modulate_action_weights(&mut self) {
     if self.reward_magnitude == 0.0 && self.punishment_magnitude == 0.0 {
       return;
     }
 
     let device = self.action_weights_base.device();
-    let mut overlay: Vec<f32> = self
-      .action_weights_overlay
-      .clone()
-      .into_data()
-      .convert()
-      .value;
 
-    for event in &self.firing_history {
-      if event.neuron_type != NeuronType::Action {
-        continue;
-      }
+    // static temporal mask, using linear scaling for now
+    let temporal_mask: Vec<f32> = (0..self.temporal_window)
+      .map(|i| i as f32 / (self.temporal_window - 1) as f32)
+      .collect();
 
-      let time_distance = self.current_timestep.saturating_sub(event.timestep);
-      if time_distance > self.temporal_window {
-        continue;
-      }
+    let mut updates = Vec::new();
 
-      let action_idx = event.neuron_idx;
+    for (t, &mask_val) in temporal_mask.iter().enumerate() {
+      let steps_back = self.temporal_window - 1 - t; // most recent = highest mask
 
-      let state_activations = self.get_activations_at_timestep(NeuronType::State, event.timestep);
+      let state_fired = self.get_previous_activations(NeuronType::State, steps_back);
+      let action_fired = self.get_previous_activations(NeuronType::Action, steps_back);
 
-      let temporal_factor = 1.0 / (1.0 + time_distance as f32);
+      let state_2d = state_fired.unsqueeze_dim(1);
+      let action_2d = action_fired.unsqueeze();
+      let firing_mask = state_2d.matmul(action_2d);
 
-      for (state_idx, &was_active) in state_activations.iter().enumerate() {
-        if was_active > 0.5 {
-          let weight_idx = state_idx * 12 + action_idx;
+      // scale temporal mask by magnitude
+      let net_magnitude = self.reward_magnitude - self.punishment_magnitude;
+      let effective_weight = (mask_val * net_magnitude * self.temporal_scaling_k).max(0.0);
 
-          let reward_effect = self.reward_magnitude * temporal_factor * self.action_learning_rate;
-          let punishment_effect =
-            self.punishment_magnitude * temporal_factor * self.action_learning_rate;
-
-          overlay[weight_idx] += reward_effect - punishment_effect;
-        }
+      if effective_weight > 0.0 {
+        let delta = firing_mask * effective_weight * self.action_learning_rate;
+        updates.push(delta);
       }
     }
 
-    self.action_weights_overlay =
-      Tensor::from_floats(overlay.as_slice(), &device).reshape([64, 12]);
-  }
-
-  fn get_activations_at_timestep(&self, neuron_type: NeuronType, timestep: usize) -> Vec<f32> {
-    let size = match neuron_type {
-      NeuronType::State => 64,
-      NeuronType::Action => 12,
-      NeuronType::Predictive => 128,
+    let total_update = if updates.is_empty() {
+      Tensor::zeros([64, 12], &device)
+    } else {
+      updates
+        .into_iter()
+        .fold(Tensor::zeros([64, 12], &device), |acc, update| acc + update)
     };
 
-    let mut activations = vec![0.0; size];
-
-    for event in &self.firing_history {
-      if event.timestep == timestep && event.neuron_type == neuron_type {
-        activations[event.neuron_idx] = 1.0;
-      }
-    }
-
-    activations
+    self.action_weights_overlay = self.action_weights_overlay.clone() + total_update;
   }
 
   pub fn end_episode(&mut self) {
@@ -423,26 +368,30 @@ impl<B: Backend> PredictiveOrganism<B> {
 
     self.prediction_matrix_base =
       self.prediction_matrix_base.clone() + self.prediction_matrix_overlay.clone();
+    self.prediction_matrix_base = self.prediction_matrix_base.clone().clamp(
+      self.prediction_max_negative_weight,
+      self.prediction_max_positive_weight,
+    );
     self.prediction_matrix_overlay = Tensor::zeros([128, 64], &device);
 
+    self.update_predictive_weight_change_magnitude();
     let state_utilization = self.calculate_state_utilization();
+    let predictive_utilization = self.calculate_predictive_utilization();
 
-    self.consolidate_and_randomize_weights(
+    consolidate_and_randomize_weights(
       &mut self.state_weights_base,
       &mut self.state_weights_overlay,
       &state_utilization,
       [32, 64],
+      &device,
     );
 
-    let predictive_utilization = self.calculate_predictive_utilization();
-
-    self.update_predictive_weight_change_magnitude();
-
-    self.consolidate_and_randomize_weights(
+    consolidate_and_randomize_weights(
       &mut self.predictive_weights_base,
       &mut self.predictive_weights_overlay,
       &predictive_utilization,
       [76, 128],
+      &device,
     );
 
     self.action_weights_base =
@@ -453,154 +402,55 @@ impl<B: Backend> PredictiveOrganism<B> {
     self.current_timestep = 0;
 
     self.reward_magnitude = 0.0;
-    self.reward_duration = 0;
     self.punishment_magnitude = 0.0;
-    self.punishment_duration = 0;
   }
 
-  fn calculate_state_utilization(&self) -> Vec<f32> {
-    let pred_matrix: Vec<f32> = (self.prediction_matrix_base.clone()
-      + self.prediction_matrix_overlay.clone())
-    .into_data()
-    .convert()
-    .value;
+  fn calculate_state_utilization(&self) -> Tensor<B, 1> {
+    let pred_matrix = self.prediction_matrix_base.clone() + self.prediction_matrix_overlay.clone();
 
-    let predictive_weights: Vec<f32> = (self.predictive_weights_base.clone()
-      + self.predictive_weights_overlay.clone())
-    .into_data()
-    .convert()
-    .value;
+    let predictive_weights =
+      self.predictive_weights_base.clone() + self.predictive_weights_overlay.clone();
 
-    let mut utilization = vec![0.0; 64];
+    let state_to_pred = predictive_weights.slice([0..64, 0..128]);
 
-    for s in 0..64 {
-      let mut total = 0.0;
+    let pred_matrix_positive = pred_matrix.clone().greater_elem(0.0).float() * pred_matrix;
 
-      for p in 0..128 {
-        let pred_weight = pred_matrix[p * 64 + s];
+    let pred_transposed = pred_matrix_positive.transpose(); // [64, 128]
 
-        if pred_weight > 0.0 {
-          let state_to_pred_weight = predictive_weights[s * 128 + p];
-
-          total += pred_weight * state_to_pred_weight.abs();
-        }
-      }
-
-      utilization[s] = total;
-    }
-
-    utilization
+    (pred_transposed * state_to_pred.abs()).sum_dim(1).squeeze()
   }
+  fn calculate_predictive_utilization(&self) -> Tensor<B, 1> {
+    let pred_matrix = self.prediction_matrix_base.clone() + self.prediction_matrix_overlay.clone();
 
-  fn calculate_predictive_utilization(&self) -> Vec<f32> {
-    let pred_matrix: Vec<f32> = (self.prediction_matrix_base.clone()
-      + self.prediction_matrix_overlay.clone())
-    .into_data()
-    .convert()
-    .value;
+    let pred_matrix_positive = pred_matrix.clone().greater_elem(0.0).float() * pred_matrix;
 
-    let mut utilization = vec![0.0; 128];
-
-    for p in 0..128 {
-      let mut total = 0.0;
-
-      for s in 0..64 {
-        let pred_weight = pred_matrix[p * 64 + s];
-
-        if pred_weight > 0.0 {
-          total += pred_weight;
-        }
-      }
-
-      utilization[p] = total;
-    }
-
-    utilization
+    pred_matrix_positive.sum_dim(1).squeeze()
   }
-
   fn update_predictive_weight_change_magnitude(&mut self) {
-    let overlay: Vec<f32> = self
-      .predictive_weights_overlay
-      .clone()
-      .into_data()
-      .convert()
-      .value;
+    let overlay = self.predictive_weights_overlay.clone();
 
-    for p in 0..128 {
-      let mut total_change = 0.0;
-
-      for i in 0..76 {
-        let weight_idx = i * 128 + p;
-        total_change += overlay[weight_idx].abs();
-      }
-
-      self.predictive_weight_change_magnitude[p] = total_change;
-    }
-  }
-
-  fn consolidate_and_randomize_weights(
-    &mut self,
-    base: &mut Tensor<B, 2>,
-    overlay: &mut Tensor<B, 2>,
-    utilization: &[f32],
-    shape: [usize; 2],
-  ) {
-    let device = base.device();
-
-    *base = base.clone() + overlay.clone();
-
-    let base_data: Vec<f32> = base.clone().into_data().convert().value;
-    let mut new_overlay = Vec::new();
-
-    for i in 0..shape[0] {
-      for j in 0..shape[1] {
-        let idx = i * shape[1] + j;
-
-        let util = utilization[j];
-        let base_magnitude = base_data[idx].abs();
-
-        let overlay_magnitude = base_magnitude / (1.0 + util);
-
-        let random_val = (rand::random::<f32>() * 2.0 - 1.0) * overlay_magnitude;
-        new_overlay.push(random_val);
-      }
-    }
-
-    *overlay = Tensor::from_floats(new_overlay.as_slice(), &device).reshape(shape);
+    // sum absolute values across inputs  for each predictive neuron
+    self.predictive_weight_change_magnitude = overlay.abs().sum_dim(0).squeeze();
   }
 }
 
-fn main() {
-  type Backend = burn::backend::NdArray;
+fn consolidate_and_randomize_weights<B: Backend>(
+  base: &mut Tensor<B, 2>,
+  overlay: &mut Tensor<B, 2>,
+  utilization: &Tensor<B, 1>,
+  shape: [usize; 2],
+  device: &B::Device,
+) {
+  *base = base.clone() + overlay.clone();
 
-  let device = Default::default();
-  let mut organism = PredictiveOrganism::<Backend>::new(&device);
+  let base_magnitude = base.clone().abs();
+  let util_2d = utilization.clone().unsqueeze_dim(0).repeat(&[shape[0], 1]);
+  let overlay_magnitude = base_magnitude / (util_2d + 1.0);
+  let random_vals = Tensor::random(
+    shape,
+    burn::tensor::Distribution::Uniform(-1.0, 1.0),
+    device,
+  );
 
-  for episode in 0..10 {
-    println!("Episode {}", episode);
-
-    for timestep in 0..100 {
-      let input =
-        Tensor::<Backend, 1>::random([32], burn::tensor::Distribution::Uniform(0.0, 1.0), &device);
-
-      let (state_acts, action_acts, pred_acts) = organism.forward(input);
-
-      if timestep == 50 {
-        organism.enter_reward_state(1.0, 5);
-      }
-
-      if timestep % 10 == 0 {
-        let state_count: f32 = state_acts.clone().sum().into_scalar();
-        let action_count: f32 = action_acts.clone().sum().into_scalar();
-        let pred_count: f32 = pred_acts.clone().sum().into_scalar();
-
-        println!(
-          "  t={}: state={}, actions={}, predictive={}",
-          timestep, state_count, action_count, pred_count
-        );
-      }
-    }
-
-    organism.end_episode();
-  }
+  *overlay = random_vals * overlay_magnitude;
 }
