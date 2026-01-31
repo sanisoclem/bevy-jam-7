@@ -1,4 +1,3 @@
-use burn::prelude::*;
 use core::f32;
 use std::{collections::VecDeque, ops::Add};
 
@@ -42,7 +41,7 @@ where
   }
 
   pub fn push(&mut self, data: D) {
-    let mut tier0 = self
+    let tier0 = self
       .tiers
       .first_mut()
       .expect("there should always be a tier 0");
@@ -101,12 +100,12 @@ where
   fn push(&mut self, data: D) {
     self.buffer.push_front(data);
     self.total_samples += 1;
-    if (self.buffer.len() > self.capacity) {
+    if self.buffer.len() > self.capacity {
       self.buffer.pop_back();
     }
   }
   pub fn should_downsample(&self) -> bool {
-    self.total_samples % self.capacity == 0
+    self.total_samples.is_multiple_of(self.capacity)
   }
 
   pub fn sum_all(&self) -> Option<D> {

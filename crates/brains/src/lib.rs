@@ -103,13 +103,6 @@ pub struct PredictiveOrganism<B: Backend> {
   // if the neuron has changed a lot in the episode, otherwise, attenuates
   // any change
   volatility_amplification_rate: f32,
-  // how fast our prediction weight overlay is updated
-  // note that this is not affected by rewards, these values
-  // reflect how good a prediction is, just that
-  // a lower score, means delayed firing and rare false predictions
-  // false predictions are heavily penalized so too much false predictions quickly
-  // goes into negative territory and is deemed useless
-  prediction_learning_rate: f32,
   // max consolidated base predictive weights, we have to cap
   // these values to ensure we can unlearn old behaviors and learn new ones
   prediction_max_negative_weight: f32,
@@ -127,12 +120,6 @@ pub struct PredictiveOrganism<B: Backend> {
 
   // are overflows significant?
   current_timestep: usize,
-  // temporal stacking factor
-  temporal_stacking_factor: f32,
-  // base learning rate of action overlay weights (scaled by reward magnitude)
-  action_learning_rate: f32,
-  // base reward score rate of change (scaled by reward magnitude)
-  reward_learning_rate: f32,
 
   // determines if a newly formed predictive link (base predictive weight <= 0)
   // is novel must be high enough but not too high that we have seen it too many times
@@ -146,11 +133,11 @@ pub struct PredictiveOrganism<B: Backend> {
 
 #[derive(Debug)]
 pub struct ModelMetrics {
-  total_reward_amount: f32,
-  total_predictive_power: f32,
-  network_utilization: f32,
-  predictive_utilization: f32,
-  state_utilization: f32,
+  pub total_reward_amount: f32,
+  pub total_predictive_power: f32,
+  pub network_utilization: f32,
+  pub predictive_utilization: f32,
+  pub state_utilization: f32,
 }
 
 impl<B: Backend> PredictiveOrganism<B>
@@ -244,11 +231,6 @@ where
       reward_layers,
       activation_history: HierarchicalBuffer::new(vec![30, 60, 60, 24], 2.),
       current_timestep: 0,
-      temporal_stacking_factor: 8.0,
-      // TODO: this is prob wrong, there should be a limited budget for action weights
-      action_learning_rate: 0.01,
-      reward_learning_rate: 1.0,
-      prediction_learning_rate: 1.0,
       stable_link_threshold_min: 5.0,
       stable_link_threshold_max: 20.0,
       prediction_max_negative_weight: -100.,
@@ -306,8 +288,6 @@ where
   }
 
   pub fn forward(&mut self, input: Tensor<B, 1>) {
-    let device = input.device();
-
     // compute state neurons
     self.state_weights_effective =
       self.state_weights_base.clone() + self.state_weights_overlay.clone();
@@ -350,9 +330,16 @@ where
     });
 
     // calculate predictions for next timestep
-    self.update_predictions(state_activations.clone(), action_activations.clone());
+    let correct_predictions =
+      self.update_predictions(state_activations.clone(), action_activations.clone());
 
     // TODO: fire rewards
+    self.check_novelty(correct_predictions.clone());
+
+    // replenish rewards reservoir
+    for layer in self.reward_layers.iter_mut() {
+      layer.reservoir += layer.recovery_rate;
+    }
 
     self.current_timestep += 1;
   }
@@ -360,7 +347,6 @@ where
   fn compute_focus(&mut self, state_activations: &Tensor<B, 1>) -> Tensor<B, 1> {
     let device = state_activations.device();
     let reward_scores = self.reward_score_base.clone() + self.reward_score_overlay.clone();
-    let num_columns = self.reward_layers.len();
 
     let mut sum_per_layer: Vec<(usize, f32)> = reward_scores
       .clone()
@@ -373,7 +359,7 @@ where
       .map(|(idx, sum): (usize, f32)| (idx, sum * (1.0 - self.reward_layers[idx].fatigue)))
       .collect();
 
-    sum_per_layer.sort_by(|(idx, sum1), (idx2, sum2)| {
+    sum_per_layer.sort_by(|(_idx, sum1), (_idx2, sum2)| {
       sum2
         .partial_cmp(sum1)
         .expect("sum comparison should succeed")
@@ -383,10 +369,10 @@ where
       .iter()
       .copied()
       .enumerate() // include ranks
-      .map(|(rank, (idx, sum))| (idx, 0.5f32.powi(rank as i32 + 1)))
+      .map(|(rank, (idx, _sum))| (idx, 0.5f32.powi(rank as i32 + 1)))
       .collect();
 
-    idx_mult.sort_by(|(idx1, m1), (idx2, m2)| {
+    idx_mult.sort_by(|(idx1, _m1), (idx2, _m2)| {
       idx1
         .partial_cmp(idx2)
         .expect("idx comparison should succeed")
@@ -428,7 +414,7 @@ where
     };
 
     // accumulate/consume fatigue
-    for (rank, (layer_idx, layer_sum)) in sum_per_layer.into_iter().enumerate() {
+    for (rank, (layer_idx, _layer_sum)) in sum_per_layer.into_iter().enumerate() {
       if rank == 0 {
         // dominant layers get fatigue over time
         self.reward_layers[layer_idx].fatigue += self.reward_layers[layer_idx].fatigue_rate;
@@ -451,7 +437,7 @@ where
     &mut self,
     state_activations: Tensor<B, 1>,
     action_activations: Tensor<B, 1>,
-  ) {
+  ) -> Tensor<B, 1> {
     let correct_predictions = self.predictions.clone() * state_activations.clone().unsqueeze_dim(1);
 
     // remove "claimed" predictions
@@ -505,6 +491,14 @@ where
     // update prediction performance matrix
     self.prediction_matrix_overlay = self.prediction_matrix_overlay.clone()
       + (correct_predictions.clone() + decayed.equal_elem(0.0).float() * -2.0) * scaling_tensor;
+
+    // return all P neurons that have at least one correct prediction
+    correct_predictions
+      .clone()
+      .sum_dim(1)
+      .squeeze_dim(1)
+      .greater_equal_elem(1.0)
+      .float()
   }
 
   fn apply_threshold(&self, tensor: Tensor<B, 1>, threshold: f32) -> Tensor<B, 1> {
@@ -512,9 +506,9 @@ where
     mask.float()
   }
 
-  fn check_novelty(&mut self, predictive_activations: &Tensor<B, 1>) {
+  fn check_novelty(&mut self, correct_predictions: Tensor<B, 1>) {
     // novelty = new stable predictive links discovered
-    let pred_fired_mask = predictive_activations
+    let pred_fired_mask = correct_predictions
       .clone()
       .unsqueeze_dim(1)
       .repeat(&[1, NUM_STATE_NEURONS]);
@@ -549,7 +543,6 @@ where
       .reward_layers
       .get_mut(layer_idx)
       .expect("reward layer should exit");
-    let device = self.state_weights_base.device();
 
     if amount > layer.reservoir {
       // unable to apply reward, no more in reservoir

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true, features = ["2d", "ui"] }
 bevy_enhanced_input.workspace = true
+# brains = { path = "../brains", version = "0.1.0" }
 
 [features]
 default = []
