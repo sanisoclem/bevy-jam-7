@@ -396,11 +396,11 @@ where
     //   - how do those neurons learn - reward experience?
 
     // amplify rewards from layers that have more active rewarding neurons
-    let scaled_reward_scores = reward_scores.clone() * multipliers_tensor.clone();
+    let scaled_reward_scores = reward_scores.clone() * multipliers_tensor.clone().transpose();
 
     // calculate total rewards across all layers per neuron
     let total_scaled_rewards_per_neuron: Tensor<B, 1> =
-      scaled_reward_scores.sum_dim(0).flatten(0, 1);
+      scaled_reward_scores.sum_dim(1).flatten(0, 1);
 
     // normalize so the highest value is 1.0
     // depending on the score distribution, this might only focus on few neurons
@@ -438,7 +438,7 @@ where
     state_activations: Tensor<B, 1>,
     action_activations: Tensor<B, 1>,
   ) -> Tensor<B, 1> {
-    let correct_predictions = self.predictions.clone() * state_activations.clone().unsqueeze_dim(1);
+    let correct_predictions = self.predictions.clone() * state_activations.clone().unsqueeze_dim(0);
 
     // remove "claimed" predictions
     self.predictions = self.predictions.clone() - correct_predictions.clone();
@@ -460,9 +460,7 @@ where
     // get nodes that have no predictions
     let no_predictions = self.predictions.clone().equal_elem(0.0).float();
     // get new prediction candidates
-    // TODO: check if broadcasting actually works
     let has_predictions = activations.clone().equal_elem(1.0).float().unsqueeze_dim(1);
-
     // get new predictions that have no existing predictions
     let new_predictions = no_predictions.clone() * has_predictions;
     // get existing (not new) predictions andcalc decayed value

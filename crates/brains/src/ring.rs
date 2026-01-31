@@ -105,7 +105,7 @@ where
     }
   }
   pub fn should_downsample(&self) -> bool {
-    self.total_samples.is_multiple_of(self.capacity)
+    self.total_samples > 0 && self.total_samples.is_multiple_of(self.capacity)
   }
 
   pub fn sum_all(&self) -> Option<D> {

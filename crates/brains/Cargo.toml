@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 bevy.workspace = true
-burn = { version = "~0.20", features = ["std", "tui", "train", "vision", "wgpu", "fusion", "ndarray"] }
+burn = { version = "~0.20", features = [ "ndarray"] }
 # burn = { version = "0.20.1", features = ["wgpu"] }
 rand = "0.8"
 
