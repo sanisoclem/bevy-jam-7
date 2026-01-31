@@ -16,21 +16,16 @@ fn main() {
       let input =
         Tensor::<Backend, 1>::random([32], burn::tensor::Distribution::Uniform(0.0, 1.0), &device);
 
-      let (state_acts, action_acts, pred_acts) = organism.forward(input);
+      organism.forward(input);
 
       if timestep == 50 {
-        organism.enter_reward_state(1.0);
+        organism.apply_reward(2, 10.0);
       }
 
       if timestep % 10 == 0 {
-        let state_count: f32 = state_acts.clone().sum().into_scalar();
-        let action_count: f32 = action_acts.clone().sum().into_scalar();
-        let pred_count: f32 = pred_acts.clone().sum().into_scalar();
+        let metrics = organism.metrics();
 
-        println!(
-          "  t={}: state={}, actions={}, predictive={}",
-          timestep, state_count, action_count, pred_count
-        );
+        println!("t={},{:?}", timestep, metrics);
       }
     }
 
