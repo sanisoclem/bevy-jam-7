@@ -49,12 +49,14 @@ pub struct ProceduralLevel {
 
 pub fn process_level_commands(
   mut cmd: Commands,
+  asset_server: Res<AssetServer>,
   mut reader: MessageReader<LevelCommand>,
   qry_levels: Query<(Entity, &ProceduralLevel)>,
 ) {
   for command in reader.read() {
     match command {
       LevelCommand::StartLevel(level_id, descriptor) => {
+        let tileset = asset_server.load(format!("tilesets/{}.png", descriptor.tileset_name));
         cmd.spawn((
           ProceduralLevel { id: *level_id },
           Transform::default(),
@@ -64,6 +66,7 @@ pub fn process_level_commands(
             chunk_size: descriptor.chunk_size,
             seed: descriptor.seed,
             tile_size: UVec2::new(320, 160), // TODO: get this from the tileset
+            tileset,
           },
         ));
       }

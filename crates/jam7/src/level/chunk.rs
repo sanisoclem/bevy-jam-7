@@ -59,6 +59,7 @@ pub fn spawn_chunks(
             center,
             size: generator.chunk_size,
             tile_size: generator.tile_size,
+            tileset: generator.tileset.clone(),
           },
           Transform::default().with_translation((center).extend(-chunk.x().max(chunk.y()) as f32)),
         ))
@@ -135,26 +136,38 @@ pub fn generate_level_chunk_mesh(
   mut cmd: Commands,
   mut cache: ResMut<IsoTilemapChunkMeshCache>,
   mut meshes: ResMut<Assets<Mesh>>,
+  mut images: ResMut<Assets<Image>>,
   mut materials: ResMut<Assets<ChunkMaterial>>,
   qry: Query<(&LevelChunk, Entity), Without<Mesh2d>>,
 ) {
   for (chunk, entity) in qry {
-    // TODO: generate create resource to track meshes and materials used by chunks and
-    // unload them when no longer needed
+    // TODO: load the tileset during level spawn
 
+    let packed_tile_data: Vec<PackedTileData> = (0..chunk.size)
+      .flat_map(move |x| (0..chunk.size).map(move |y| (x, y)))
+      .map(|(x, y)| {
+        PackedTileData {
+          tileset_index: 0,
+          color: [0, 0, 0, 0],
+          flags: 0,
+        }
+        .into()
+      })
+      .collect();
+
+    let tile_data_image = make_chunk_tile_data_image(&UVec2::splat(chunk.size), &packed_tile_data);
+
+    let tile_data = images.add(tile_data_image);
     let mesh = mesh::get_chunk_mesh(chunk.size, chunk.tile_size, &mut cache, &mut meshes);
     cmd.entity(entity).insert((
       NoFrustumCulling,
       Mesh2d(mesh),
       // MeshMaterial2d(materials.add(Color::from(PURPLE))),
-      MeshMaterial2d(
-        materials.add(ChunkMaterial {
-          id: IVec4::new(chunk.id.x(), chunk.id.y(), 0, 0),
-          player_pos: Vec2::default()
-            .extend(chunk.size as f32 * chunk.tile_size.x.max(chunk.tile_size.y) as f32)
-            .extend(0.),
-        }),
-      ),
+      MeshMaterial2d(materials.add(ChunkMaterial {
+        tileset: chunk.tileset.clone(),
+        tile_data,
+        alpha_mode: bevy::sprite_render::AlphaMode2d::Blend,
+      })),
     ));
   }
 }
@@ -168,7 +181,7 @@ pub fn update_chunk_spawner_pos(
   };
 
   for mat in materials.iter_mut() {
-    mat.1.player_pos.x = player_transform.translation.x;
-    mat.1.player_pos.y = player_transform.translation.y;
+    // mat.1.player_pos.x = player_transform.translation.x;
+    // mat.1.player_pos.y = player_transform.translation.y;
   }
 }

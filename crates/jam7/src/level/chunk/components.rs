@@ -6,6 +6,7 @@ pub struct ChunkGenerator {
   pub chunk_size: u32,
   pub tile_size: UVec2,
   pub seed: i64,
+  pub tileset: Handle<Image>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
@@ -65,6 +66,7 @@ pub struct LevelChunk {
   pub size: u32,
   pub tile_size: UVec2,
   pub center: Vec2,
+  pub tileset: Handle<Image>,
 }
 
 #[derive(Component, Debug)]
