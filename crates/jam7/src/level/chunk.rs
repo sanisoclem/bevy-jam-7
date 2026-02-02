@@ -5,6 +5,7 @@ use bevy::{
 
 #[derive(Debug, Clone, Component)]
 pub struct ChunkGenerator {
+  pub owner_id: u32,
   pub chunk_size: f32,
   pub seed: i64,
 }
@@ -59,24 +60,28 @@ pub struct LevelChunk {
 
 #[derive(Component, Debug)]
 pub struct ChunkSpawner {
-  pub generator: Entity,
+  pub owner_id: u32,
   pub load_radius: u32,
   pub unload_radius: u32,
 }
 
 pub fn spawn_chunks(
   mut cmd: Commands,
-  qry_generator: Query<&ChunkGenerator>,
+  qry_generator: Query<(Entity, &ChunkGenerator)>,
   qry_chunk: Query<&LevelChunk>,
   qry_chunk_children: Query<&Children>,
   qry_spawner: Query<(&ChunkSpawner, &Transform)>,
 ) {
   for (spawner, spawner_transform) in qry_spawner {
-    let Ok(generator) = qry_generator.get(spawner.generator) else {
+    let Some((generator_entity, generator)) = qry_generator
+      .iter()
+      .filter(|(_, x)| x.owner_id == spawner.owner_id)
+      .next()
+    else {
       continue;
     };
     let loaded_chunks: HashSet<_> = qry_chunk_children
-      .get(spawner.generator)
+      .get(generator_entity)
       .ok()
       .into_iter()
       .flat_map(|children| children.iter())
@@ -114,7 +119,7 @@ pub fn spawn_chunks(
       // controller.load_chunk(chunk, e);
     }
 
-    cmd.entity(spawner.generator).add_children(&children);
+    cmd.entity(generator_entity).add_children(&children);
   }
 }
 
@@ -129,7 +134,7 @@ pub fn despawn_chunks(
     .iter()
     .map(|(spawner, spawner_transform)| {
       (
-        spawner.generator,
+        spawner.owner_id,
         spawner.unload_radius,
         spawner_transform.translation.xy(),
       )
@@ -139,7 +144,7 @@ pub fn despawn_chunks(
     let to_check: Vec<_> = spawner_coords
       .iter()
       .cloned()
-      .filter(|(id, _, _)| *id == entity_root)
+      .filter(|(id, _, _)| *id == generator.owner_id)
       .map(|(_, radius, xy)| ((radius as f32 * generator.chunk_size).powi(2), xy))
       .collect();
 

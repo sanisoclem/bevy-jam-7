@@ -1,5 +1,6 @@
-mod chunk;
-mod procgen;
+pub(crate) mod chunk;
+pub(crate) mod procgen;
+pub(crate) mod tile;
 
 use bevy::prelude::*;
 use chunk::{ChunkGenerator, despawn_chunks, spawn_chunks};
@@ -18,21 +19,19 @@ impl Plugin for LevelPlugin {
 #[derive(Clone, Debug)]
 pub struct LevelDescriptor {
   pub tileset_name: String,
-  pub chunk_generator: ChunkGenerator,
+  pub chunk_size: f32,
+  pub seed: i64,
 }
 
 #[derive(Debug, Message)]
 pub enum LevelCommand {
-  StartLevel(LevelId, LevelDescriptor),
-  UnloadLevel(LevelId),
+  StartLevel(u32, LevelDescriptor),
+  UnloadLevel(u32),
 }
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
-pub struct LevelId(pub i32);
 
 #[derive(Component)]
 pub struct ProceduralLevel {
-  pub id: LevelId,
+  pub id: u32,
 }
 
 pub fn process_level_commands(
@@ -47,7 +46,11 @@ pub fn process_level_commands(
           ProceduralLevel { id: *level_id },
           Transform::default(),
           Visibility::default(),
-          descriptor.chunk_generator.clone(),
+          ChunkGenerator {
+            owner_id: *level_id,
+            chunk_size: descriptor.chunk_size,
+            seed: descriptor.seed,
+          },
         ));
       }
       LevelCommand::UnloadLevel(level_id) => {
