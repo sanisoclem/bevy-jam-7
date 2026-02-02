@@ -2,24 +2,37 @@ pub(crate) mod chunk;
 pub(crate) mod procgen;
 pub(crate) mod tile;
 
-use bevy::prelude::*;
-use chunk::{ChunkGenerator, despawn_chunks, spawn_chunks};
+use bevy::{prelude::*, sprite_render::Material2dPlugin};
+use chunk::{
+  ChunkGenerator, ChunkMaterial, IsoTilemapChunkMeshCache, despawn_chunks,
+  generate_level_chunk_mesh, spawn_chunks, update_chunk_spawner_pos,
+};
 
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
   fn build(&self, app: &mut App) {
-    app.add_message::<LevelCommand>().add_systems(
-      Update,
-      (spawn_chunks, despawn_chunks, process_level_commands),
-    );
+    app
+      .init_resource::<IsoTilemapChunkMeshCache>()
+      .add_plugins(Material2dPlugin::<ChunkMaterial>::default())
+      .add_message::<LevelCommand>()
+      .add_systems(
+        Update,
+        (
+          spawn_chunks,
+          despawn_chunks,
+          process_level_commands,
+          generate_level_chunk_mesh,
+          update_chunk_spawner_pos,
+        ),
+      );
   }
 }
 
 #[derive(Clone, Debug)]
 pub struct LevelDescriptor {
   pub tileset_name: String,
-  pub chunk_size: f32,
+  pub chunk_size: u32,
   pub seed: i64,
 }
 
@@ -50,6 +63,7 @@ pub fn process_level_commands(
             owner_id: *level_id,
             chunk_size: descriptor.chunk_size,
             seed: descriptor.seed,
+            tile_size: UVec2::new(320, 160), // TODO: get this from the tileset
           },
         ));
       }

@@ -140,20 +140,6 @@ fn fragment(
     //let final_dist = mix(dist2, dist, t_1) * (1 - (t_2 * 0.1));
     //let intensity = mix(10.0, 0.4, saturate(final_dist / 150.0));
 
-    var dist = max(abs(pos.x - fpos.x), abs(pos.y - fpos.y));
-    //dist = dist - (t_2 *grid_size * 10);
-    if dist <= 0 {
-      color = color * (grid(pos / grid_size, 0.01, 10.1) * 0.2);
-    }
-    else if dist <= grid_size_half + 1.5 {
-      color = color * (grid(pos / grid_size, 0.01, 10.1) * 10. * t_1 );
-    }
-    else if dist <= grid_size_half + grid_size + 1.5 {
-      color = color * (grid(pos / grid_size, 0.01, 10.1) * 0.5 * t_1);
-    }
-    else {
-      color = color * (grid(pos / grid_size, 0.01, 10.1) * 0.2);
-    };
 
 #ifdef TONEMAP_IN_SHADER
     color = tonemapping::tone_mapping(color, view.color_grading);

@@ -1,69 +1,16 @@
 use bevy::{
+  camera::visibility::NoFrustumCulling,
+  color::palettes::css::PURPLE,
   platform::collections::{HashMap, HashSet},
   prelude::*,
 };
+pub use components::*;
+pub use material::*;
+pub use mesh::*;
 
-#[derive(Debug, Clone, Component)]
-pub struct ChunkGenerator {
-  pub owner_id: u32,
-  pub chunk_size: f32,
-  pub seed: i64,
-}
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
-pub struct ChunkId(i32, i32);
-
-impl ChunkId {
-  pub fn x(&self) -> i32 {
-    self.0
-  }
-  pub fn y(&self) -> i32 {
-    self.1
-  }
-  pub const fn offset(&self, x: i32, y: i32) -> ChunkId {
-    ChunkId(self.0 + x, self.1 + y)
-  }
-  pub fn center_world(&self, chunk_size: f32) -> Vec2 {
-    let center_x = (self.0 as f32) * chunk_size;
-    let center_y = (self.1 as f32) * chunk_size;
-    Vec2::new(center_x, center_y)
-  }
-  pub fn from_world_pos(world: Vec2, chunk_size: f32) -> ChunkId {
-    let x = (world.x / chunk_size).floor() as i32;
-    let y = (world.y / chunk_size).floor() as i32;
-    ChunkId(x, y)
-  }
-  pub fn get_chunks_to_be_loaded(origin: Vec2, chunk_size: f32, load_radius: u32) -> Vec<ChunkId> {
-    let origin_chunk = ChunkId::from_world_pos(origin, chunk_size);
-    let radius = load_radius as i32;
-    let radius_squared = (load_radius as f32 * chunk_size).powi(2);
-
-    (-radius..=radius)
-      .flat_map(|dx| {
-        (-radius..=radius).filter_map(move |dy| {
-          let new_chunk = origin_chunk.offset(dx, dy);
-          let dist_squared = new_chunk.center_world(chunk_size).distance_squared(origin);
-          (dist_squared <= radius_squared).then_some(new_chunk)
-        })
-      })
-      .collect()
-  }
-}
-
-#[derive(Clone, Component, Reflect)]
-#[reflect(Component, Clone)]
-pub struct LevelChunk {
-  pub id: ChunkId,
-  pub size: f32,
-  pub center: Vec2,
-}
-
-#[derive(Component, Debug)]
-pub struct ChunkSpawner {
-  pub owner_id: u32,
-  pub load_radius: u32,
-  pub unload_radius: u32,
-}
+mod components;
+mod material;
+mod mesh;
 
 pub fn spawn_chunks(
   mut cmd: Commands,
@@ -75,8 +22,7 @@ pub fn spawn_chunks(
   for (spawner, spawner_transform) in qry_spawner {
     let Some((generator_entity, generator)) = qry_generator
       .iter()
-      .filter(|(_, x)| x.owner_id == spawner.owner_id)
-      .next()
+      .find(|(_, x)| x.owner_id == spawner.owner_id)
     else {
       continue;
     };
@@ -91,6 +37,7 @@ pub fn spawn_chunks(
     let to_spawn: Vec<_> = ChunkId::get_chunks_to_be_loaded(
       spawner_transform.translation.xy(),
       generator.chunk_size,
+      generator.tile_size,
       spawner.load_radius,
     )
     .into_iter()
@@ -104,18 +51,20 @@ pub fn spawn_chunks(
     let mut children = Vec::new();
     // TODO: can we use spawn_batch() to spawn children???
     for chunk in to_spawn {
-      let center = chunk.center_world(generator.chunk_size);
+      let center = chunk.center_world(generator.chunk_size, generator.tile_size);
       let e = cmd
         .spawn((
           LevelChunk {
             id: chunk,
             center,
             size: generator.chunk_size,
+            tile_size: generator.tile_size,
           },
-          Transform::default().with_translation(center.extend(0.0)),
+          Transform::default().with_translation((center).extend(-chunk.x().max(chunk.y()) as f32)),
         ))
         .id();
       children.push(e);
+      info!("Spawning {:?}", chunk);
       // controller.load_chunk(chunk, e);
     }
 
@@ -145,7 +94,15 @@ pub fn despawn_chunks(
       .iter()
       .cloned()
       .filter(|(id, _, _)| *id == generator.owner_id)
-      .map(|(_, radius, xy)| ((radius as f32 * generator.chunk_size).powi(2), xy))
+      .map(|(_, radius, xy)| {
+        (
+          (radius as f32
+            * generator.chunk_size as f32
+            * generator.tile_size.x.max(generator.tile_size.y) as f32)
+            .powi(2),
+          xy,
+        )
+      })
       .collect();
 
     let loaded_chunks: HashMap<_, _> = qry_chunk_children
@@ -160,15 +117,58 @@ pub fn despawn_chunks(
       .iter()
       .map(|(x, y)| (*x, *y))
       .filter(|(chunk_id, _entity)| {
-        let center = chunk_id.center_world(generator.chunk_size);
+        let center = chunk_id.center_world(generator.chunk_size, generator.tile_size);
         to_check
           .iter()
           .all(|(dist_squared, xy)| center.distance_squared(*xy) >= *dist_squared)
       })
       .collect();
 
-    for (_, e) in to_despawn {
+    for (x, e) in to_despawn {
+      info!("Despawning {:?}", x);
       cmd.entity(e).despawn();
     }
+  }
+}
+
+pub fn generate_level_chunk_mesh(
+  mut cmd: Commands,
+  mut cache: ResMut<IsoTilemapChunkMeshCache>,
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut materials: ResMut<Assets<ChunkMaterial>>,
+  qry: Query<(&LevelChunk, Entity), Without<Mesh2d>>,
+) {
+  for (chunk, entity) in qry {
+    // TODO: generate create resource to track meshes and materials used by chunks and
+    // unload them when no longer needed
+
+    let mesh = mesh::get_chunk_mesh(chunk.size, chunk.tile_size, &mut cache, &mut meshes);
+    cmd.entity(entity).insert((
+      NoFrustumCulling,
+      Mesh2d(mesh),
+      // MeshMaterial2d(materials.add(Color::from(PURPLE))),
+      MeshMaterial2d(
+        materials.add(ChunkMaterial {
+          id: IVec4::new(chunk.id.x(), chunk.id.y(), 0, 0),
+          player_pos: Vec2::default()
+            .extend(chunk.size as f32 * chunk.tile_size.x.max(chunk.tile_size.y) as f32)
+            .extend(0.),
+        }),
+      ),
+    ));
+  }
+}
+
+pub fn update_chunk_spawner_pos(
+  mut materials: ResMut<Assets<ChunkMaterial>>,
+  qry: Query<&Transform, With<ChunkSpawner>>,
+) {
+  let Ok(player_transform) = qry.single() else {
+    return;
+  };
+
+  for mat in materials.iter_mut() {
+    mat.1.player_pos.x = player_transform.translation.x;
+    mat.1.player_pos.y = player_transform.translation.y;
   }
 }
