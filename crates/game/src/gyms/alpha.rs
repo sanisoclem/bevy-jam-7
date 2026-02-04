@@ -27,15 +27,15 @@ pub fn setup(
   mut player_cmd: MessageWriter<PlayerCommand>,
   mut level_cmd: MessageWriter<LevelCommand>,
 ) {
-  cmds.write(AudioCommand::ReplaceAllAndFadeInto(
-    GameAudioLibrary::Menu,
-    GameAudioChannels::Music,
-  ));
+  // cmds.write(AudioCommand::ReplaceAllAndFadeInto(
+  //   GameAudioLibrary::Menu,
+  //   GameAudioChannels::Music,
+  // ));
   level_cmd.write(LevelCommand::StartLevel(
     LEVEL_ID,
     LevelDescriptor {
       tileset_name: "alpha".to_owned(),
-      chunk_size: 3,
+      chunk_size: 10,
       seed: 0,
     },
   ));
@@ -50,14 +50,14 @@ pub fn generate_player_mesh(
   qry: Query<Entity, (Without<Mesh2d>, With<Player>)>,
 ) {
   for entity in qry {
-    let mesh = Rectangle::from_size(Vec2::splat(30.0)).mesh().build();
+    let mesh = Rectangle::from_size(Vec2::splat(32.0)).mesh().build();
     cmd.entity(entity).insert((
       Mesh2d(meshes.add(mesh)),
       MeshMaterial2d(materials.add(Color::from(GREEN))),
       ChunkSpawner {
         owner_id: LEVEL_ID,
-        load_radius: 2,
-        unload_radius: 3,
+        load_radius: 5,
+        unload_radius: 8,
       },
       actions!(
         Player[(

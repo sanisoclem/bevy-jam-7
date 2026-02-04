@@ -36,7 +36,7 @@ fn apply_movement(
   mut players: Query<&mut Transform, With<Player>>,
 ) {
   let mut transform = players.get_mut(movement.context).unwrap();
-  transform.translation += (movement.value.normalize() * 20.).extend(0.0);
+  transform.translation += (movement.value.normalize() * 10.).extend(0.0);
 }
 
 fn process_player_commands(
