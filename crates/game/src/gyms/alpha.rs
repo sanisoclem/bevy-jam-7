@@ -35,7 +35,7 @@ pub fn setup(
     LEVEL_ID,
     LevelDescriptor {
       tileset_name: "alpha".to_owned(),
-      chunk_size: 10,
+      chunk_size: 3,
       seed: 0,
     },
   ));
