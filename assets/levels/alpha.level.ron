@@ -1,0 +1,28 @@
+
+LevelAsset(
+  seed: 123123,
+  tiles_per_chunk: 33,
+  moisture_scale: 1.0,
+  biopresence_scale: 1.0,
+  tileset: (
+    spritesheet: "beta",
+    layout_x: 6,
+    layout_y: 9,
+    tile_height_screen: 16,
+    tile_width_screen: 32,
+    tile_height_world: 32,
+    tile_width_world: 32,
+    tile_height_sprite: 32,
+    tile_width_sprite: 32,
+    tiles: [
+      (
+        index: 0,
+        surface_height: 0,
+      ),
+      (
+        index: 18,
+        surface_height: 0,
+      ),
+    ]
+  )
+)

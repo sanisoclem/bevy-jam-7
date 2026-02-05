@@ -1,21 +1,17 @@
 use bevy::{
-  ecs::world,
   platform::collections::{HashMap, HashSet},
   prelude::*,
 };
-
-use crate::level::procgen;
+use utils::iso::IsoWorldCoords;
 
 #[derive(Debug, Clone, Component)]
 pub struct ChunkGenerator {
-  pub owner_id: u32,
-  pub chunk_size: u32,
-  pub tile_size: UVec2,
-  pub seed: i64,
-  pub tileset: Handle<Image>,
+  pub level_id: u32,
+  pub chunk_size_world: Vec2,
+  pub chunk_size_screen: Vec2,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub struct ChunkId(i32, i32);
 
 impl ChunkId {
@@ -24,9 +20,6 @@ impl ChunkId {
   }
   pub fn y(&self) -> i32 {
     self.1
-  }
-  pub fn get_absolute_tile_coords(&self, chunk_size: u32, tile_local: UVec2) -> IVec2 {
-    chunk_size as i32 * self.as_ivec2() + tile_local.as_ivec2()
   }
   pub fn as_vec2(&self) -> Vec2 {
     Vec2::new(self.0 as f32, self.1 as f32)
@@ -37,38 +30,52 @@ impl ChunkId {
   pub const fn offset(&self, x: i32, y: i32) -> ChunkId {
     ChunkId(self.0 + x, self.1 + y)
   }
-  pub fn origin(&self, chunk_size: u32, tile_size: UVec2) -> Vec2 {
-    let effective_chunk_size = chunk_size as f32 * tile_size.as_vec2();
-    let origin = self.as_vec2() * effective_chunk_size;
-    utils::iso::world_to_screen(origin, effective_chunk_size)
+  pub fn origin_world(&self, chunk_size_world: Vec2) -> IsoWorldCoords {
+    (self.as_vec2() * chunk_size_world).into()
   }
-  pub fn from_screen_pos(screen: Vec2, effective_chunk_size: Vec2) -> ChunkId {
-    let world = utils::iso::screen_to_world(screen, effective_chunk_size);
-    let x = (world.x / effective_chunk_size.x).floor() as i32;
-    let y = (world.y / effective_chunk_size.y).floor() as i32;
+  pub fn from_world(coords: IsoWorldCoords, chunk_size_world: Vec2) -> ChunkId {
+    let x = (coords.x / chunk_size_world.x).floor() as i32;
+    let y = (coords.y / chunk_size_world.y).floor() as i32;
     ChunkId(x, y)
   }
+  pub fn origin_screen(&self, chunk_size_world: Vec2, chunk_size_screen: Vec2) -> Vec2 {
+    self
+      .origin_world(chunk_size_world)
+      .to_screen(chunk_size_screen.y / chunk_size_screen.x)
+  }
+  pub fn from_screen_pos(screen: Vec2, chunk_size_world: Vec2, chunk_size_screen: Vec2) -> ChunkId {
+    Self::from_world(
+      IsoWorldCoords::from_screen(screen, chunk_size_screen.y / chunk_size_screen.x),
+      chunk_size_world,
+    )
+  }
+  pub fn should_despawn(
+    &self,
+    origin: IsoWorldCoords,
+    chunk_size_world: Vec2,
+    load_radius: u32,
+  ) -> bool {
+    let radius_squared = (load_radius as f32 * chunk_size_world.x.max(chunk_size_world.y)).powi(2);
+    let dist_squared = self.origin_world(chunk_size_world).distance_squared(origin);
+    dist_squared > radius_squared
+  }
   pub fn get_chunks_to_be_loaded(
-    origin: Vec2,
-    chunk_size: u32,
-    tile_size: UVec2,
+    origin: IsoWorldCoords,
+    chunk_size_world: Vec2,
     load_radius: u32,
   ) -> Vec<ChunkId> {
-    let effective_chunk_size = chunk_size as f32 * tile_size.as_vec2();
-    let origin_chunk = ChunkId::from_screen_pos(origin, effective_chunk_size);
+    let origin_chunk = ChunkId::from_world(origin, chunk_size_world);
     let radius = load_radius as i32;
-    // // let radius_squared =
-    //   (load_radius as f32 * effective_chunk_size.x.max(effective_chunk_size.y)).powi(2);
+    let radius_squared = (load_radius as f32 * chunk_size_world.x.max(chunk_size_world.y)).powi(2);
 
     (-radius..=radius)
       .flat_map(|dx| {
         (-radius..=radius).filter_map(move |dy| {
           let new_chunk = origin_chunk.offset(dx, dy);
           let dist_squared = new_chunk
-            .origin(chunk_size, tile_size)
+            .origin_world(chunk_size_world)
             .distance_squared(origin);
-          // (dist_squared <= radius_squared).then_some(new_chunk)
-          Some(new_chunk)
+          (dist_squared <= radius_squared).then_some(new_chunk)
         })
       })
       .collect()
@@ -79,10 +86,6 @@ impl ChunkId {
 #[reflect(Component, Clone)]
 pub struct LevelChunk {
   pub id: ChunkId,
-  pub size: u32,
-  pub tile_size: UVec2,
-  pub origin: Vec2,
-  pub tileset: Handle<Image>,
 }
 
 #[derive(Component, Debug)]
@@ -94,7 +97,6 @@ pub struct ChunkSpawner {
 
 pub fn spawn_chunks(
   mut cmd: Commands,
-  mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
   qry_generator: Query<(Entity, &ChunkGenerator)>,
   qry_chunk: Query<&LevelChunk>,
   qry_chunk_children: Query<&Children>,
@@ -103,7 +105,7 @@ pub fn spawn_chunks(
   for (spawner, spawner_transform) in qry_spawner {
     let Some((generator_entity, generator)) = qry_generator
       .iter()
-      .find(|(_, x)| x.owner_id == spawner.owner_id)
+      .find(|(_, x)| x.level_id == spawner.owner_id)
     else {
       continue;
     };
@@ -115,83 +117,36 @@ pub fn spawn_chunks(
       .filter_map(|child| qry_chunk.get(child).ok().map(|c| c.id))
       .collect();
 
-    let to_spawn: Vec<_> = ChunkId::get_chunks_to_be_loaded(
+    // TODO: get world coords from spawner instead of screen coords
+    // after this has ben done, chunk module doesn't need to know screen sizes anymore
+    let origin = IsoWorldCoords::from_screen(
       spawner_transform.translation.xy(),
-      generator.chunk_size,
-      generator.tile_size,
-      spawner.load_radius,
-    )
-    .into_iter()
-    .filter(|chunk_id| !loaded_chunks.contains(chunk_id))
-    .collect();
+      generator.chunk_size_screen.y / generator.chunk_size_screen.x,
+    );
+
+    let to_spawn: Vec<_> =
+      ChunkId::get_chunks_to_be_loaded(origin, generator.chunk_size_world, spawner.load_radius)
+        .into_iter()
+        .filter(|chunk_id| !loaded_chunks.contains(chunk_id))
+        .collect();
 
     if to_spawn.is_empty() {
       continue;
     }
 
-    let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 11, 11, None, None);
-    let texture_atlas_layout = texture_atlas_layouts.add(layout);
-
-    let mut children = Vec::new();
-    // TODO: can we use spawn_batch() to spawn children???
-    for chunk in to_spawn {
-      let origin = chunk.origin(generator.chunk_size, generator.tile_size);
-      let coords = origin.extend(-(chunk.0 as f32 + chunk.1 as f32) / 10000.);
-      let e = cmd
-        .spawn((
-          LevelChunk {
-            id: chunk,
-            origin,
-            size: generator.chunk_size,
-            tile_size: generator.tile_size,
-            tileset: generator.tileset.clone(),
-          },
-          Transform::default().with_translation(coords),
-          InheritedVisibility::VISIBLE,
-        ))
-        .with_children(|c| {
-          for x in 0..generator.chunk_size as i32 {
-            for y in 0..generator.chunk_size as i32 {
-              let world_coords = Vec2::new(x as f32, y as f32) * generator.tile_size.as_vec2();
-              let index = procgen::get_tile_index(
-                chunk,
-                generator.chunk_size,
-                UVec2::new(x as u32, y as u32),
-              );
-              c.spawn((
-                Transform::default().with_translation(
-                  (utils::iso::world_to_screen(world_coords, generator.tile_size.as_vec2())
-                    + Vec2::new(
-                      0.,
-                      -(generator.chunk_size as f32 * generator.tile_size.y as f32 * 0.5),
-                    ))
-                  .extend(
-                    (-((chunk.0 * generator.chunk_size as i32
-                      + chunk.1 * generator.chunk_size as i32
-                      + x
-                      + y) as f32))
-                      / 10000.,
-                  ),
-                ),
-                Sprite::from_atlas_image(
-                  generator.tileset.clone(),
-                  TextureAtlas {
-                    layout: texture_atlas_layout.clone(),
-                    index: (index.y * 11 + index.x) as usize,
-                  },
-                ),
-              ));
-            }
-          }
-        })
-        .id();
-      children.push(e);
-      info!(
-        "Spawning {:?} in {:?} ({:?},{:?})",
-        chunk, coords, generator.chunk_size, generator.tile_size
-      );
-      // controller.load_chunk(chunk, e);
-    }
+    let children: Vec<_> = to_spawn
+      .into_iter()
+      .map(|chunk| {
+        let coords = Vec3::new(0., 0., -(chunk.0 as f32 + chunk.1 as f32) / 10000.);
+        cmd
+          .spawn((
+            LevelChunk { id: chunk },
+            Transform::default().with_translation(coords),
+            Visibility::default(),
+          ))
+          .id()
+      })
+      .collect();
 
     cmd.entity(generator_entity).add_children(&children);
   }
@@ -214,18 +169,19 @@ pub fn despawn_chunks(
       )
     })
     .collect();
+
   for (entity_root, generator) in qry_generator.iter() {
-    let to_check: Vec<_> = spawner_coords
+    let spawners: Vec<_> = spawner_coords
       .iter()
       .cloned()
-      .filter(|(id, _, _)| *id == generator.owner_id)
+      .filter(|(id, _, _)| *id == generator.level_id)
       .map(|(_, radius, xy)| {
         (
-          (radius as f32
-            * generator.chunk_size as f32
-            * generator.tile_size.x.max(generator.tile_size.y) as f32)
-            .powi(2),
-          xy,
+          IsoWorldCoords::from_screen(
+            xy,
+            generator.chunk_size_screen.y / generator.chunk_size_screen.x,
+          ),
+          radius,
         )
       })
       .collect();
@@ -238,14 +194,14 @@ pub fn despawn_chunks(
       .filter_map(|child| qry_chunk.get(child).ok().map(|c| (c.id, child)))
       .collect();
 
+    // despawn if too far from ALL spawners
     let to_despawn: Vec<_> = loaded_chunks
       .iter()
       .map(|(x, y)| (*x, *y))
       .filter(|(chunk_id, _entity)| {
-        let center = chunk_id.origin(generator.chunk_size, generator.tile_size);
-        to_check
-          .iter()
-          .all(|(dist_squared, xy)| center.distance_squared(*xy) >= *dist_squared)
+        spawners.iter().all(|(spawner_coords, unload_radius)| {
+          chunk_id.should_despawn(*spawner_coords, generator.chunk_size_world, *unload_radius)
+        })
       })
       .collect();
 
@@ -253,38 +209,5 @@ pub fn despawn_chunks(
       info!("Despawning {:?}", x);
       cmd.entity(e).despawn();
     }
-  }
-}
-
-pub fn update_chunk_spawner_pos(
-  // mut materials: ResMut<Assets<ChunkMaterial>>,
-  qry: Query<&Transform, With<ChunkSpawner>>,
-) {
-  let Ok(player_transform) = qry.single() else {
-    return;
-  };
-
-  // for mat in materials.iter_mut() {
-  //   // mat.1.player_pos.x = player_transform.translation.x;
-  //   // mat.1.player_pos.y = player_transform.translation.y;
-  // }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  pub fn test_chunk_id_origin() {
-    let chunk = ChunkId(532, 41);
-    let chunk_size = 13;
-    let tile_size = UVec2::new(31, 33);
-    assert_eq!(
-      ChunkId::from_screen_pos(
-        chunk.origin(chunk_size, tile_size),
-        chunk_size as f32 * tile_size.as_vec2()
-      ),
-      chunk
-    );
   }
 }

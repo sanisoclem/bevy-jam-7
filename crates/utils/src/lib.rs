@@ -2,23 +2,58 @@ pub mod assets;
 
 pub mod iso {
   use bevy::prelude::*;
-  pub fn world_to_screen(world: Vec2, chunk_size: Vec2) -> Vec2 {
-    let rev = world / chunk_size;
-    (rev + Vec2::new(-rev.y, rev.x)) * (chunk_size / 2.)
+  use std::ops::Deref;
+
+  #[derive(Debug, Default, PartialEq, Clone, Copy, Reflect)]
+  pub struct IsoWorldCoords(Vec2);
+  impl Deref for IsoWorldCoords {
+    type Target = Vec2;
+
+    fn deref(&self) -> &Self::Target {
+      &self.0
+    }
+  }
+  impl From<Vec2> for IsoWorldCoords {
+    fn from(value: Vec2) -> Self {
+      IsoWorldCoords(value)
+    }
   }
 
-  //   pub fn screen_to_world(screen: Vec2, chunk_size: Vec2) -> Vec2 {
-  //     // map.x = (screen.x / TILE_WIDTH_HALF + screen.y / TILE_HEIGHT_HALF) /2;
-  //     // map.y = (screen.y / TILE_HEIGHT_HALF -(screen.x / TILE_WIDTH_HALF)) /2;
-  //     // map.x = screen.x / TILE_WIDTH + screen.y / TILE_HEIGHT;
-  //     // map.y = screen.y / TILE_HEIGHT - screen.x / TILE_WIDTH;
-  //
-  // //        (screen / chunk_size) + Vec2::new(screen.y / chunk_size.y, screen.x / chunk_size.x)
-  //         screen / (chunk_size / 2.)
-  //   }
+  impl IsoWorldCoords {
+    pub fn distance_squared(&self, other: IsoWorldCoords) -> f32 {
+      self.0.distance_squared(other.0)
+    }
+    pub fn to_screen(&self, aspect_ratio: f32) -> Vec2 {
+      world_to_screen(*self, aspect_ratio)
+    }
+    pub fn from_screen(screen: Vec2, aspect_ratio: f32) -> Self {
+      screen_to_world(screen, aspect_ratio)
+    }
+  }
 
-  pub fn screen_to_world(screen: Vec2, chunk_size: Vec2) -> Vec2 {
-    let scaled = screen * 2. / chunk_size;
-    Vec2::new((scaled.x + scaled.y) / 2., (scaled.y - scaled.x) / 2.) * chunk_size
+  pub fn world_to_screen(world: IsoWorldCoords, aspect_ratio: f32) -> Vec2 {
+    Vec2::new(
+      (world.x - world.y) / 2.,
+      (world.x + world.y) * aspect_ratio / 2.,
+    )
+  }
+  pub fn screen_to_world(screen: Vec2, aspect_ratio: f32) -> IsoWorldCoords {
+    Vec2::new(
+      screen.x + screen.y / aspect_ratio,
+      screen.y / aspect_ratio - screen.x,
+    )
+    .into()
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+
+    #[test]
+    pub fn iso_coords_reversable() {
+      let ar = 23. / 11.;
+      let world = Vec2::new(314., 43.).into();
+      assert_eq!(screen_to_world(world_to_screen(world, ar), ar), world);
+    }
   }
 }

@@ -1,7 +1,7 @@
 use bevy::{color::palettes::css::GREEN, prelude::*};
 use bevy_enhanced_input::prelude::*;
 use jam7::{
-  level::{LevelCommand, LevelDescriptor},
+  level::LevelCommand,
   player::{ActionMovePlayer, Player, PlayerCommand, PlayerId},
   prelude::*,
 };
@@ -31,15 +31,7 @@ pub fn setup(
     GameAudioLibrary::T1,
     GameAudioChannels::Effects,
   ));
-  level_cmd.write(LevelCommand::StartLevel(
-    LEVEL_ID,
-    LevelDescriptor {
-      tileset_name: "alpha".to_owned(),
-      chunk_size: 10,
-      seed: 0,
-    },
-  ));
-
+  level_cmd.write(LevelCommand::StartLevel(LEVEL_ID, "alpha".to_owned()));
   player_cmd.write(PlayerCommand::SpawnPlayer(PlayerId(0), Vec2::splat(0.)));
 }
 

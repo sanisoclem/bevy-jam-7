@@ -1,36 +1,89 @@
 use bevy::prelude::*;
 use libnoise::prelude::*;
 
-use crate::level::chunk::ChunkId;
+use crate::{level::chunk::ChunkId, prelude::LevelChunk};
 
-pub fn get_tile_index(chunk: ChunkId, chunk_size: u32, tile_local: UVec2) -> UVec2 {
-  let generator = Source::simplex(42) // start with simplex noise
-    .fbm(5, 0.013, 2.0, 0.5) // apply fractal brownian motion
-    .blend(
-      // apply blending...
-      Source::worley(43).scale([0.05, 0.05]), // ...with scaled worley noise
-      Source::worley(44).scale([0.02, 0.02]),
-    );
-  let coords = chunk
-    .get_absolute_tile_coords(chunk_size, tile_local)
-    .as_vec2();
-  let multipler = 0.412401;
-  let value = generator.sample([coords.x as f64 * multipler, coords.y as f64 * multipler]);
-  let value2 = generator.sample([coords.x as f64 * 10., coords.y as f64 * 10.]);
-
-  UVec2::new(
-    sample(value2, &[(0, 0.5), (1, 0.1), (2, 0.1), (3, 0.1), (4, 0.1)]),
-    sample(value, &[(10, 0.5), (0, 0.1), (1, 0.1), (2, 0.1), (3, 0.1)]),
-  )
+#[derive(Component, Debug)]
+pub struct ProceduralLevel {
+  pub level_id: u32,
+  pub seed: u64,
+  pub tiles_per_chunk: u32,
+  pub moisture_scale: f32,
+  pub biopresence_scale: f32,
 }
 
-pub fn sample(value: f64, probabilities: &[(usize, f64)]) -> u32 {
-  let mut threshold = -1.;
-  for (idx, x) in probabilities.iter() {
-    threshold += x * 2.;
-    if value <= threshold {
-      return *idx as u32;
+impl ProceduralLevel {
+  pub fn get_moisture(&self, tile_coords: IVec2) -> f32 {
+    let generator = Source::simplex(self.seed).fbm(5, 0.013, 2.0, 0.5).blend(
+      Source::worley(self.seed - 1).scale([0.05, 0.05]), // ...with scaled worley noise
+      Source::worley(self.seed - 2).scale([0.02, 0.02]),
+    );
+
+    let coords = tile_coords.as_vec2() * self.moisture_scale;
+    generator.sample([coords.x as f64, coords.y as f64]) as f32
+  }
+  pub fn get_biopresence(&self, tile_coords: IVec2) -> f32 {
+    let generator = Source::simplex(self.seed).fbm(7, 0.023, 2.0, 0.5).blend(
+      Source::worley(self.seed + 1).scale([0.05, 0.05]), // ...with scaled worley noise
+      Source::worley(self.seed + 2).scale([0.02, 0.02]),
+    );
+
+    let coords = tile_coords.as_vec2() * self.biopresence_scale;
+    generator.sample([coords.x as f64, coords.y as f64]) as f32
+  }
+
+  pub fn generate_chunk_tile_data(&self, chunk: ChunkId) -> Vec<TileData> {
+    let range = 0..self.tiles_per_chunk;
+    range
+      .clone()
+      .flat_map(|x| range.clone().map(move |y| (x, y)))
+      .map(|(x, y)| {
+        let coords =
+          chunk.as_ivec2() * self.tiles_per_chunk as i32 + IVec2::new(x as i32, y as i32);
+        TileData {
+          coords,
+          moisture: self.get_moisture(coords),
+          biopresence: self.get_biopresence(coords),
+        }
+      })
+      .collect()
+  }
+}
+
+#[derive(Component, Debug)]
+pub struct ChunkTileData {
+  pub data: Vec<TileData>,
+  pub loaded: bool,
+}
+
+#[derive(Component, Debug)]
+pub struct TileData {
+  pub coords: IVec2,
+  pub moisture: f32,
+  pub biopresence: f32,
+}
+
+pub fn generate_tile_data(
+  mut cmd: Commands,
+  qry_level: Query<(Entity, &ProceduralLevel)>,
+  qry_chunk: Query<&LevelChunk, Without<ChunkTileData>>,
+  qry_children: Query<&Children>,
+) {
+  for (level_entity, level) in qry_level {
+    let Some(children) = qry_children.get(level_entity).ok() else {
+      continue;
+    };
+
+    let chunks: Vec<_> = children
+      .into_iter()
+      .filter_map(|child| qry_chunk.get(*child).ok().map(|c| (child, c)))
+      .collect();
+
+    for (entity, chunk) in chunks {
+      cmd.entity(*entity).insert(ChunkTileData {
+        data: level.generate_chunk_tile_data(chunk.id),
+        loaded: false,
+      });
     }
   }
-  probabilities.last().unwrap().0 as u32
 }
