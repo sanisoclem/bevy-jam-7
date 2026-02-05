@@ -43,80 +43,88 @@ pub enum LevelCommand {
 pub struct Level {
   id: u32,
   descriptor: Handle<LevelAsset>,
-  is_loaded: bool,
 }
 
 pub fn load_level(
   mut cmd: Commands,
+  mut ev_asset: MessageReader<AssetEvent<LevelAsset>>,
   asset_server: Res<AssetServer>,
   mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
   levels: Res<Assets<LevelAsset>>,
-  mut qry: Query<(Entity, &mut Level)>,
+  qry: Query<(Entity, &Level)>,
 ) {
-  for (entity, mut level) in qry.iter_mut() {
-    if level.is_loaded {
-      continue;
-    }
-    let Some(level_descriptor) = levels.get(&level.descriptor) else {
+  for ev in ev_asset.read() {
+    let AssetEvent::LoadedWithDependencies { id } = ev else {
       continue;
     };
+    for (entity, level) in qry.iter() {
+      if &level.descriptor.id() != id {
+        continue;
+      }
+      let Some(level_descriptor) = levels.get(&level.descriptor) else {
+        warn!("Unable to load level asset {:?}", id);
+        continue;
+      };
 
-    let tile_size_sprite = UVec2::new(
-      level_descriptor.tileset.tile_width_sprite,
-      level_descriptor.tileset.tile_height_sprite,
-    );
-    let tile_size_screen = UVec2::new(
-      level_descriptor.tileset.tile_width_screen,
-      level_descriptor.tileset.tile_height_screen,
-    );
-    let tile_size_world = UVec2::new(
-      level_descriptor.tileset.tile_width_world,
-      level_descriptor.tileset.tile_height_world,
-    );
-    let chunk_size_world = (level_descriptor.tiles_per_chunk * tile_size_world).as_vec2();
-    let chunk_size_screen = (level_descriptor.tiles_per_chunk * tile_size_screen).as_vec2();
+      info!("Loading level {:?}", level.id);
 
-    let tileset = asset_server.load(format!(
-      "tilesets/{}.png",
-      level_descriptor.tileset.spritesheet
-    ));
-    let layout = TextureAtlasLayout::from_grid(
-      tile_size_sprite,
-      level_descriptor.tileset.layout_x,
-      level_descriptor.tileset.layout_y,
-      None,
-      None,
-    );
-    let texture_atlas_layout = texture_atlas_layouts.add(layout);
-    let spawned_level = cmd
-      .spawn((
-        ProceduralLevel {
-          level_id: level.id,
-          seed: level_descriptor.seed,
-          tiles_per_chunk: level_descriptor.tiles_per_chunk,
-          moisture_scale: level_descriptor.moisture_scale,
-          biopresence_scale: level_descriptor.biopresence_scale,
-        },
-        TileSpriteLevel {
-          tile_size_screen: tile_size_screen.as_vec2(),
-          tileset,
-          tile_size_world: tile_size_world.as_vec2(),
-          tiles: level_descriptor.tileset.tiles.clone(),
-          layout: texture_atlas_layout.clone(),
-        },
-        Transform::default(),
-        Visibility::default(),
-        ChunkGenerator {
-          level_id: level.id,
-          chunk_size_world,
-          chunk_size_screen,
-        },
-      ))
-      .id();
+      let tile_size_sprite = UVec2::new(
+        level_descriptor.tileset.tile_width_sprite,
+        level_descriptor.tileset.tile_height_sprite,
+      );
+      let tile_size_screen = UVec2::new(
+        level_descriptor.tileset.tile_width_screen,
+        level_descriptor.tileset.tile_height_screen,
+      );
+      let tile_size_world = UVec2::new(
+        level_descriptor.tileset.tile_width_world,
+        level_descriptor.tileset.tile_height_world,
+      );
+      let chunk_size_world = (level_descriptor.tiles_per_chunk * tile_size_world).as_vec2();
+      let chunk_size_screen = (level_descriptor.tiles_per_chunk * tile_size_screen).as_vec2();
 
-    cmd.entity(entity).replace_children(&[spawned_level]);
-
-    level.is_loaded = true;
+      let tileset = asset_server.load(format!(
+        "tilesets/{}.png",
+        level_descriptor.tileset.spritesheet
+      ));
+      let layout = TextureAtlasLayout::from_grid(
+        tile_size_sprite,
+        level_descriptor.tileset.layout_x,
+        level_descriptor.tileset.layout_y,
+        None,
+        None,
+      );
+      let texture_atlas_layout = texture_atlas_layouts.add(layout);
+      let spawned_level = cmd
+        .spawn((
+          ProceduralLevel {
+            level_id: level.id,
+            seed: level_descriptor.seed,
+            tiles_per_chunk: level_descriptor.tiles_per_chunk,
+            moisture_scale: level_descriptor.moisture_scale,
+            biopresence_scale: level_descriptor.biopresence_scale,
+          },
+          TileSpriteLevel {
+            tile_size_screen: tile_size_screen.as_vec2(),
+            tileset,
+            tile_size_world: tile_size_world.as_vec2(),
+            tiles: level_descriptor.tileset.tiles.clone(),
+            layout: texture_atlas_layout.clone(),
+          },
+          Transform::default(),
+          Visibility::default(),
+          ChunkGenerator {
+            level_id: level.id,
+            chunk_size_world,
+            chunk_size_screen,
+          },
+        ))
+        .id();
+      cmd
+        .entity(entity)
+        .despawn_children()
+        .replace_children(&[spawned_level]);
+    }
   }
 }
 
@@ -135,7 +143,6 @@ pub fn process_level_commands(
           Level {
             id: *level_id,
             descriptor: handle,
-            is_loaded: false,
           },
           Transform::default(),
           Visibility::default(),
