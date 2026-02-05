@@ -1,26 +1,28 @@
 pub(crate) mod chunk;
 pub(crate) mod procgen;
 pub(crate) mod tile;
+pub(crate) mod tileset;
 
-use bevy::{
-  image::{ImageArrayLayout, ImageLoaderSettings},
-  prelude::*,
-};
+use bevy::{self, prelude::*};
 use chunk::{ChunkGenerator, despawn_chunks, spawn_chunks, update_chunk_spawner_pos};
 
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
   fn build(&self, app: &mut App) {
-    app.add_message::<LevelCommand>().add_systems(
-      Update,
-      (
-        spawn_chunks,
-        despawn_chunks,
-        process_level_commands,
-        update_chunk_spawner_pos,
-      ),
-    );
+    app
+      .add_message::<LevelCommand>()
+      .init_asset::<tileset::TilesetDefinition>()
+      .init_asset_loader::<tileset::TilesetDefinitionLoader>()
+      .add_systems(
+        Update,
+        (
+          spawn_chunks,
+          despawn_chunks,
+          process_level_commands,
+          update_chunk_spawner_pos,
+        ),
+      );
   }
 }
 

@@ -3268,6 +3268,9 @@ dependencies = [
  "bevy_enhanced_input",
  "bytemuck",
  "libnoise",
+ "ron",
+ "serde",
+ "thiserror 2.0.18",
  "utils",
 ]
 

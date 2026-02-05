@@ -25,8 +25,8 @@ impl ChunkId {
   pub fn y(&self) -> i32 {
     self.1
   }
-  pub fn get_absolute_tile_coords(&self, tile_local: UVec2) -> IVec2 {
-    self.as_ivec2() + tile_local.as_ivec2()
+  pub fn get_absolute_tile_coords(&self, chunk_size: u32, tile_local: UVec2) -> IVec2 {
+    chunk_size as i32 * self.as_ivec2() + tile_local.as_ivec2()
   }
   pub fn as_vec2(&self) -> Vec2 {
     Vec2::new(self.0 as f32, self.1 as f32)
@@ -131,13 +131,6 @@ pub fn spawn_chunks(
 
     let layout = TextureAtlasLayout::from_grid(UVec2::splat(32), 11, 11, None, None);
     let texture_atlas_layout = texture_atlas_layouts.add(layout);
-    let mut sprite = Sprite::from_atlas_image(
-      generator.tileset.clone(),
-      TextureAtlas {
-        layout: texture_atlas_layout.clone(),
-        index: 0,
-      },
-    );
 
     let mut children = Vec::new();
     // TODO: can we use spawn_batch() to spawn children???
@@ -160,7 +153,11 @@ pub fn spawn_chunks(
           for x in 0..generator.chunk_size as i32 {
             for y in 0..generator.chunk_size as i32 {
               let world_coords = Vec2::new(x as f32, y as f32) * generator.tile_size.as_vec2();
-              let index = procgen::get_tile_index(chunk, UVec2::new(x as u32, y as u32));
+              let index = procgen::get_tile_index(
+                chunk,
+                generator.chunk_size,
+                UVec2::new(x as u32, y as u32),
+              );
               c.spawn((
                 Transform::default().with_translation(
                   (utils::iso::world_to_screen(world_coords, generator.tile_size.as_vec2())
