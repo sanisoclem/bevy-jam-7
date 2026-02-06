@@ -103,6 +103,7 @@ pub fn load_level(
             tiles_per_chunk: level_descriptor.tiles_per_chunk,
             moisture_scale: level_descriptor.moisture_scale,
             biopresence_scale: level_descriptor.biopresence_scale,
+            moisture_noise_settings: level_descriptor.moisture_noise_settings.clone(),
           },
           TileSpriteLevel {
             tile_size_screen: tile_size_screen.as_vec2(),

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use libnoise::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{level::chunk::ChunkId, prelude::LevelChunk};
 
@@ -10,14 +11,35 @@ pub struct ProceduralLevel {
   pub tiles_per_chunk: u32,
   pub moisture_scale: f32,
   pub biopresence_scale: f32,
+  pub moisture_noise_settings: NoiseSettings,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NoiseSettings {
+  pub worley_seed_offset1: u64,
+  pub worley_seed_offset2: u64,
+  pub worley_scale1: [f64; 2],
+  pub worley_scale2: [f64; 2],
+  pub fbm_octaves: u32,
+  pub fbm_freq: f64,
+  pub fbm_lacunarity: f64,
+  pub fbm_persistence: f64,
 }
 
 impl ProceduralLevel {
   pub fn get_moisture(&self, tile_coords: IVec2) -> f32 {
-    let generator = Source::simplex(self.seed).fbm(5, 0.013, 2.0, 0.5).blend(
-      Source::worley(self.seed - 1).scale([0.05, 0.05]), // ...with scaled worley noise
-      Source::worley(self.seed - 2).scale([0.02, 0.02]),
-    );
+    let s = &self.moisture_noise_settings;
+    let generator = Source::simplex(self.seed)
+      .fbm(
+        s.fbm_octaves,
+        s.fbm_freq,
+        s.fbm_lacunarity,
+        s.fbm_persistence,
+      )
+      .blend(
+        Source::worley(self.seed + s.worley_seed_offset1).scale(s.worley_scale1),
+        Source::worley(self.seed + s.worley_seed_offset2).scale(s.worley_scale2),
+      );
 
     let coords = tile_coords.as_vec2() * self.moisture_scale;
     generator.sample([coords.x as f64, coords.y as f64]) as f32

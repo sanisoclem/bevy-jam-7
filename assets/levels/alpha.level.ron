@@ -2,8 +2,18 @@
 LevelAsset(
   seed: 123123,
   tiles_per_chunk: 33,
-  moisture_scale: 1.0,
+  moisture_scale: 0.8,
   biopresence_scale: 1.0,
+  moisture_noise_settings: (
+    worley_seed_offset1: 4,
+    worley_seed_offset2: 32,
+    worley_scale1: (0.05, 0.05),
+    worley_scale2: (0.02, 0.02),
+    fbm_octaves: 9,
+    fbm_freq: 0.012,
+    fbm_lacunarity: 1.4,
+    fbm_persistence: 0.01,
+  ),
   tileset: (
     spritesheet: "beta",
     layout_x: 6,
@@ -20,8 +30,8 @@ LevelAsset(
         surface_height: 0,
       ),
       (
-        index: 42,
-        surface_height: 0,
+        index: 12,
+        surface_height: -4,
       ),
     ]
   )

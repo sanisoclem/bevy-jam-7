@@ -5,12 +5,15 @@ use bevy::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::level::procgen::NoiseSettings;
+
 #[derive(Asset, TypePath, Debug, Deserialize, Serialize)]
 pub struct LevelAsset {
   pub seed: u64,
   pub tiles_per_chunk: u32,
   pub moisture_scale: f32,
   pub biopresence_scale: f32,
+  pub moisture_noise_settings: NoiseSettings,
   pub tileset: TilesetDefinition,
 }
 
@@ -31,7 +34,7 @@ pub struct TilesetDefinition {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct TileDefinition {
   pub index: usize,
-  pub surface_height: u32,
+  pub surface_height: i32,
 }
 
 #[derive(Default, TypePath)]
