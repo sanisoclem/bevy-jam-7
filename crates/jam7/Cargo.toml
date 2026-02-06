@@ -6,6 +6,12 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true, features = ["2d", "ui"] }
 bevy_enhanced_input.workspace = true
+bytemuck.workspace = true
+utils = { path = "../utils", version = "0.1.0" }
+libnoise = "1.2"
+serde.workspace = true 
+ron.workspace = true
+thiserror.workspace = true
 
 [features]
 default = []

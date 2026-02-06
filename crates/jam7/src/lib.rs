@@ -3,5 +3,8 @@ pub mod player;
 pub mod plugin;
 pub mod ui;
 pub mod prelude {
-  pub use crate::plugin::Jam7Plugin;
+  pub use crate::{
+    level::chunk::{ChunkSpawner, LevelChunk},
+    plugin::Jam7Plugin,
+  };
 }
