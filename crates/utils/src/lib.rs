@@ -18,10 +18,23 @@ pub mod iso {
       IsoWorldCoords(value)
     }
   }
+  impl std::ops::Add for IsoWorldCoords {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+      Self(rhs.0 + self.0)
+    }
+  }
 
   impl IsoWorldCoords {
     pub fn distance_squared(&self, other: IsoWorldCoords) -> f32 {
       self.0.distance_squared(other.0)
+    }
+    pub fn with_x(&self, x: f32) -> Self {
+      Self(self.0.with_x(x))
+    }
+    pub fn with_y(&self, y: f32) -> Self {
+      Self(self.0.with_y(y))
     }
     pub fn to_screen(&self, aspect_ratio: f32) -> Vec2 {
       world_to_screen(*self, aspect_ratio)

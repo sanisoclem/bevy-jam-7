@@ -137,7 +137,8 @@ pub fn spawn_chunks(
     let children: Vec<_> = to_spawn
       .into_iter()
       .map(|chunk| {
-        let coords = Vec3::new(0., 0., -(chunk.0 as f32 + chunk.1 as f32) / 10000.);
+        let origin = chunk.origin_screen(generator.chunk_size_world, generator.chunk_size_screen);
+        let coords = origin.extend(-(chunk.0 as f32 + chunk.1 as f32) / 10000.);
         cmd
           .spawn((
             LevelChunk { id: chunk },
