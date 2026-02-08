@@ -2,23 +2,23 @@
 source: crates/macros/src/audio_library.rs
 expression: formatted
 ---
-impl crate::audio_engine::AudioLibrary for GameMusic {
+impl sys_audio::AudioLibrary for GameMusic {
     fn load_all(
         asset_server: &bevy::asset::AssetServer,
         guard: utils::assets::AssetBarrierGuard,
-    ) -> bevy::platform::collections::HashMap<Self, crate::audio_engine::AudioDef> {
+    ) -> bevy::platform::collections::HashMap<Self, sys_audio::AudioDef> {
         let mut retval = bevy::platform::collections::HashMap::new();
         retval
             .insert(
                 GameMusic::Menu,
-                crate::audio_engine::AudioDef::Looped(
+                sys_audio::AudioDef::Looped(
                     asset_server.load_acquire("menu.ogg", guard.clone()),
                 ),
             );
         retval
             .insert(
                 GameMusic::Battle,
-                crate::audio_engine::AudioDef::IntroLooped {
+                sys_audio::AudioDef::IntroLooped {
                     intro: asset_server.load_acquire("battle_intro.ogg", guard.clone()),
                     main: asset_server.load_acquire("battle.ogg", guard.clone()),
                 },

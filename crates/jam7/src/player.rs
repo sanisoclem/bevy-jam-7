@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{platform::collections::HashMap, prelude::*, sprite::Anchor};
 use bevy_enhanced_input::prelude::*;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
+use sys_combat::{Combatant, HitTestableShape};
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 
 pub struct PlayerPlugin;
@@ -100,6 +101,15 @@ pub fn create_player(
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
+    Combatant {
+      max_hp: 100,
+      hitbox: HitTestableShape::Circle { radius: 7.0 },
+      despawn_delay_seconds: 5,
+      team: 0,
+      regen: 0,
+      regen_delay: 0,
+    },
+    Anchor(Vec2::new(0., -0.3)),
     AtlasAnimation {
       animations,
       default_animation,
@@ -111,7 +121,7 @@ pub fn create_player(
       net_forces: Vec2::default(),
     },
     Placeable {
-      layer: 7,
+      layer: 5,
       location: IsoWorldCoords::default(),
     },
     actions!(

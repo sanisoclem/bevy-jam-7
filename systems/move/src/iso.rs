@@ -22,8 +22,21 @@ impl std::ops::Add for IsoWorldCoords {
     Self(rhs.0 + self.0)
   }
 }
+impl std::ops::Sub for IsoWorldCoords {
+  type Output = Self;
+
+  fn sub(self, rhs: Self) -> Self::Output {
+    Self(self.0.sub(rhs.0))
+  }
+}
 
 impl IsoWorldCoords {
+  pub fn new(x: f32, y: f32) -> Self {
+    Self(Vec2::new(x, y))
+  }
+  pub fn distance(&self, other: IsoWorldCoords) -> f32 {
+    self.0.distance(other.0)
+  }
   pub fn distance_squared(&self, other: IsoWorldCoords) -> f32 {
     self.0.distance_squared(other.0)
   }
