@@ -1,15 +1,13 @@
-use crate::audio_engine::{
-  AudioChannelLayout, AudioChannelSettings, AudioCommand, AudioExtensions,
-};
 use bevy::{platform::collections::HashMap, prelude::*};
 use macros::AudioLibrary;
+use sys_audio::{AudioChannelLayout, AudioChannelSettings, AudioCommand, SysAudioPlugin};
 
 pub struct AudioPlugin;
 
 impl Plugin for AudioPlugin {
   fn build(&self, app: &mut App) {
     app
-      .configure_audio::<GameAudioLibrary, GameAudioChannels>()
+      .add_plugins(SysAudioPlugin::<GameAudioLibrary, GameAudioChannels>::default())
       .add_systems(Update, toggle_music);
   }
 }

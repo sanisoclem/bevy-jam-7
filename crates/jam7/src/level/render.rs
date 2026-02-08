@@ -1,12 +1,12 @@
-use crate::{level::procgen::ChunkTileData, prelude::LevelChunk};
+use crate::level::procgen::ChunkTileData;
 use bevy::{camera::visibility::NoFrustumCulling, prelude::*};
-
-mod material;
-mod mesh;
+use sys_chonker::LevelChunk;
 
 pub use material::ChunkMaterial;
 pub use mesh::IsoTilemapChunkMeshCache;
 
+mod material;
+mod mesh;
 #[derive(Debug, Component)]
 pub struct TileShaderLevel {
   pub tiles_per_chunk: u32,

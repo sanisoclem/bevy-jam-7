@@ -1,12 +1,10 @@
 use bevy::prelude::*;
 use libnoise::prelude::*;
 use serde::{Deserialize, Serialize};
-
-use crate::{level::chunk::ChunkId, prelude::LevelChunk};
+use sys_chonker::{ChunkId, LevelChunk};
 
 #[derive(Component, Debug)]
 pub struct ProceduralLevel {
-  pub level_id: u32,
   pub seed: u64,
   pub tiles_per_chunk: u32,
   pub moisture_scale: f32,
@@ -72,7 +70,7 @@ impl ProceduralLevel {
         let coords =
           chunk.as_ivec2() * self.tiles_per_chunk as i32 + IVec2::new(x as i32, y as i32);
         TileData {
-          coords,
+          // coords,
           moisture: self.get_moisture(coords),
           biopresence: self.get_biopresence(coords),
         }
@@ -90,7 +88,7 @@ pub struct ChunkTileData {
 
 #[derive(Component, Debug, Clone)]
 pub struct TileData {
-  pub coords: IVec2,
+  // pub coords: IVec2,
   pub moisture: f32,
   pub biopresence: f32,
 }
@@ -112,6 +110,7 @@ pub fn generate_tile_data(
       .collect();
 
     for (entity, chunk) in chunks {
+      info!("generated tile data for {:?}", chunk.id);
       cmd.entity(*entity).insert(ChunkTileData {
         data: level.generate_chunk_tile_data(chunk.id),
         source: chunk.id,

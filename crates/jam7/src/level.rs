@@ -1,20 +1,24 @@
 pub(crate) mod asset;
-pub(crate) mod chunk;
 pub(crate) mod procgen;
 pub(crate) mod render;
 
+use crate::player::create_player;
 use asset::LevelAsset;
 use bevy::{prelude::*, sprite_render::Material2dPlugin};
-use chunk::{ChunkGenerator, despawn_chunks, spawn_chunks};
 use procgen::{ProceduralLevel, generate_tile_data};
 use render::{ChunkMaterial, IsoTilemapChunkMeshCache, TileShaderLevel, render_tile_data};
+use sys_chonker::{ChunkGenerator, SysChonkerPlugin};
 use sys_move::IsoMovementStage;
+
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_plugins(Material2dPlugin::<ChunkMaterial>::default())
+      .add_plugins((
+        Material2dPlugin::<ChunkMaterial>::default(),
+        SysChonkerPlugin,
+      ))
       .add_message::<LevelCommand>()
       .init_asset::<asset::LevelAsset>()
       .init_resource::<IsoTilemapChunkMeshCache>()
@@ -23,8 +27,6 @@ impl Plugin for LevelPlugin {
         Update,
         (
           load_level,
-          spawn_chunks,
-          despawn_chunks,
           process_level_commands,
           generate_tile_data,
           render_tile_data,
@@ -35,19 +37,21 @@ impl Plugin for LevelPlugin {
 
 #[derive(Debug, Message)]
 pub enum LevelCommand {
-  StartLevel(u32, String),
-  UnloadLevel(u32),
+  StartLevel(String),
+  UnloadLevel(String),
 }
 
 #[derive(Component, Debug)]
 pub struct Level {
-  id: u32,
+  name: String,
   descriptor: Handle<LevelAsset>,
 }
 
 pub fn load_level(
   mut cmd: Commands,
   mut ev_asset: MessageReader<AssetEvent<LevelAsset>>,
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut materials: ResMut<Assets<ColorMaterial>>,
   levels: Res<Assets<LevelAsset>>,
   qry: Query<(Entity, &Level)>,
 ) {
@@ -59,12 +63,9 @@ pub fn load_level(
       if &level.descriptor.id() != id {
         continue;
       }
-      let Some(level_descriptor) = levels.get(&level.descriptor) else {
-        warn!("Unable to load level asset {:?}", id);
-        continue;
-      };
-
-      info!("Loading level {:?}", level.id);
+      let level_descriptor = levels
+        .get(&level.descriptor)
+        .expect("level asset should be loaded");
 
       let tile_size_screen = UVec2::new(
         level_descriptor.tileset.tile_width_screen,
@@ -78,30 +79,38 @@ pub fn load_level(
 
       let spawned_level = cmd
         .spawn((
-          ProceduralLevel {
-            level_id: level.id,
-            seed: level_descriptor.seed,
-            bio_noise_settings: level_descriptor.bio_noise_settings.clone(),
-            tiles_per_chunk: level_descriptor.tiles_per_chunk,
-            moisture_scale: level_descriptor.moisture_scale,
-            biopresence_scale: level_descriptor.biopresence_scale,
-            moisture_noise_settings: level_descriptor.moisture_noise_settings.clone(),
-          },
           IsoMovementStage {
             aspect_ratio: tile_size_screen.y as f32 / tile_size_screen.x as f32,
           },
-          TileShaderLevel {
-            tile_size_screen: tile_size_screen.as_vec2(),
-            tile_size_world: tile_size_world.as_vec2(),
-            tiles_per_chunk: level_descriptor.tiles_per_chunk,
-          },
           Transform::default(),
           Visibility::default(),
-          ChunkGenerator {
-            level_id: level.id,
-            chunk_size_world,
-          },
         ))
+        .with_children(|c| {
+          let player = c.spawn(create_player(&mut meshes, &mut materials)).id();
+          c.spawn((
+            ChunkGenerator {
+              chunk_size_world,
+              load_around: player,
+              load_radius: 3,
+              unload_radius: 7,
+            },
+            ProceduralLevel {
+              seed: level_descriptor.seed,
+              bio_noise_settings: level_descriptor.bio_noise_settings.clone(),
+              tiles_per_chunk: level_descriptor.tiles_per_chunk,
+              moisture_scale: level_descriptor.moisture_scale,
+              biopresence_scale: level_descriptor.biopresence_scale,
+              moisture_noise_settings: level_descriptor.moisture_noise_settings.clone(),
+            },
+            TileShaderLevel {
+              tile_size_screen: tile_size_screen.as_vec2(),
+              tile_size_world: tile_size_world.as_vec2(),
+              tiles_per_chunk: level_descriptor.tiles_per_chunk,
+            },
+            Transform::default(),
+            Visibility::default(),
+          ));
+        })
         .id();
       cmd
         .entity(entity)
@@ -115,25 +124,25 @@ pub fn process_level_commands(
   mut cmd: Commands,
   asset_server: Res<AssetServer>,
   mut reader: MessageReader<LevelCommand>,
-  qry_levels: Query<(Entity, &ProceduralLevel)>,
+  qry_levels: Query<(Entity, &Level)>,
 ) {
   for command in reader.read() {
     match command {
-      LevelCommand::StartLevel(level_id, level_name) => {
+      LevelCommand::StartLevel(level_name) => {
         let handle: Handle<LevelAsset> =
           asset_server.load(format!("levels/{}.level.ron", level_name));
         cmd.spawn((
           Level {
-            id: *level_id,
             descriptor: handle,
+            name: level_name.clone(),
           },
           Transform::default(),
           Visibility::default(),
         ));
       }
-      LevelCommand::UnloadLevel(level_id) => {
+      LevelCommand::UnloadLevel(name) => {
         for (entity, level) in qry_levels.iter() {
-          if level.level_id != *level_id {
+          if &level.name != name {
             continue;
           }
 

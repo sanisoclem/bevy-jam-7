@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{color::palettes::css::GREEN, prelude::*};
 
 mod iso;
 
@@ -9,7 +9,13 @@ pub struct SysMovePlugin;
 
 impl Plugin for SysMovePlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(Update, (update_moveable_state, update_transform));
+    app.add_systems(
+      Update,
+      (add_moveable_state, update_moveable_state, update_transform),
+    );
+
+    #[cfg(feature = "dev")]
+    app.add_systems(Update, draw_gizmos);
   }
 }
 
@@ -26,7 +32,7 @@ pub struct Placeable {
 #[derive(Component, Debug, Clone)]
 pub struct Moveable {
   pub damping: f32,
-  pub mass: f32,
+  // pub mass: f32,
   pub net_forces: Vec2,
 }
 
@@ -79,15 +85,26 @@ impl Direction {
   }
 }
 
+pub fn add_moveable_state(
+  mut cmd: Commands,
+  qry: Query<Entity, (With<Moveable>, Without<MoveableState>)>,
+) {
+  for entity in qry {
+    let mut ecmd = cmd.get_entity(entity).expect("entity should exist");
+    ecmd.insert(MoveableState {
+      velocity: Vec2::splat(0.),
+      direction: Direction::North,
+    });
+  }
+}
 pub fn update_moveable_state(
   mut qry: Query<(&mut Placeable, &mut MoveableState, &Moveable)>,
   time: Res<Time>,
 ) {
   for (mut p, mut s, m) in qry.iter_mut() {
     let t = time.delta_secs();
-    let decayed_velocity = s.velocity - (s.velocity * m.damping * t);
-    let acc = m.net_forces / m.mass;
-    let new_velocity = decayed_velocity + acc * t;
+    let decayed_velocity = s.velocity - (s.velocity * m.damping * t * 8.);
+    let new_velocity = decayed_velocity + m.net_forces;
     let move_offset = new_velocity * t;
 
     s.velocity = new_velocity;
@@ -97,8 +114,10 @@ pub fn update_moveable_state(
     }
   }
 }
-pub fn update_transform(
-  mut qry: Query<(&Placeable, &mut Transform)>,
+
+pub fn draw_gizmos(
+  mut giz: Gizmos,
+  mut qry: Query<(&Placeable, &MoveableState, &Moveable)>,
   qry_stage: Query<(Entity, &IsoMovementStage)>,
   qry_children: Query<&Children>,
 ) {
@@ -107,11 +126,30 @@ pub fn update_transform(
       continue;
     };
     for child in children {
-      let Some((p, mut t)) = qry.get_mut(*child).ok() else {
+      let Some((p, s, _m)) = qry.get_mut(*child).ok() else {
+        continue;
+      };
+
+      let origin = p.location.to_screen(stage.aspect_ratio);
+      let future_pos = IsoWorldCoords::from(s.velocity).to_screen(stage.aspect_ratio);
+      giz.ray_2d(origin, future_pos, Color::from(GREEN));
+    }
+  }
+}
+
+pub fn update_transform(
+  mut qry: Query<(&Placeable, &mut Transform)>,
+  qry_stage: Query<(Entity, &IsoMovementStage)>,
+  qry_children: Query<&Children>,
+) {
+  for (stage_entity, stage) in qry_stage {
+    for child in qry_children.iter_descendants(stage_entity) {
+      let Some((p, mut t)) = qry.get_mut(child).ok() else {
         continue;
       };
 
       let screen_coords = p.location.to_screen(stage.aspect_ratio);
+      // info!("updated coords {:?}", screen_coords);
       t.translation =
         screen_coords.extend(p.layer as f32 + (-(p.location.x + p.location.y) / 10000.));
     }

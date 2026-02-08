@@ -1,6 +1,7 @@
-use bevy::prelude::*;
+use bevy::{color::palettes::css::GREEN, prelude::*};
 use bevy_enhanced_input::prelude::*;
-use sys_move::{IsoWorldCoords, Moveable, Placeable};
+use sys_cam::CameraTarget;
+use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 
 pub struct PlayerPlugin;
 
@@ -8,71 +9,82 @@ impl Plugin for PlayerPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_input_context::<Player>()
-      .add_message::<PlayerCommand>()
       .add_observer(apply_movement)
-      .add_systems(Update, process_player_commands);
+      .add_observer(stop_movement);
   }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct PlayerId(pub i32);
-
 #[derive(Component, Debug)]
-pub struct Player {
-  pub id: PlayerId,
+pub struct Player;
+
+pub fn create_player(
+  meshes: &mut Assets<Mesh>,
+  materials: &mut Assets<ColorMaterial>,
+) -> impl Bundle {
+  let mesh = Rectangle::from_size(Vec2::splat(32.0)).mesh().build();
+  (
+    Player,
+    CameraTarget,
+    Transform::default(),
+    Visibility::default(),
+    Mesh2d(meshes.add(mesh)),
+    MeshMaterial2d(materials.add(Color::from(GREEN))),
+    Moveable {
+      damping: 1.0,
+      // mass: 0.01,
+      net_forces: Vec2::default(),
+    },
+    Placeable {
+      layer: 7,
+      location: IsoWorldCoords::default(),
+    },
+    actions!(
+      Player[(
+        Action::<ActionMovePlayer>::new(),
+        DeadZone::default(), // Applies non-uniform normalization.
+        bindings![
+          // Keyboard keys captured as `bool`, but the output of `Movement` is defined as `Vec2`,
+          // so you need to assign keys to axes using swizzle to reorder them and negation.
+          (KeyCode::KeyW, SwizzleAxis::YXZ),
+          (KeyCode::KeyA, Negate::all()),
+          (KeyCode::KeyS, Negate::all(), SwizzleAxis::YXZ),
+          KeyCode::KeyD,
+          // In Bevy sticks split by axes and captured as 1-dimensional inputs,
+          // so Y stick needs to be sweezled into Y axis.
+          GamepadAxis::LeftStickX,
+          (GamepadAxis::LeftStickY, SwizzleAxis::YXZ),
+        ]
+      )]
+    ),
+  )
 }
 
 #[derive(InputAction)]
 #[action_output(Vec2)]
 pub struct ActionMovePlayer;
 
-#[derive(Message, Debug)]
-pub enum PlayerCommand {
-  SpawnPlayer(PlayerId, Vec2),
-  DespawnPlayer(PlayerId),
-}
-
 fn apply_movement(
   movement: On<Fire<ActionMovePlayer>>,
-  mut players: Query<&mut Moveable, With<Player>>,
+  mut players: Query<(&mut Moveable, &ChildOf), With<Player>>,
+  qry_stage: Query<&IsoMovementStage>,
 ) {
-  let mut mv = players.get_mut(movement.context).unwrap();
-  mv.net_forces = movement.value.normalize() * 10.;
+  let Ok((mut mv, co)) = players.get_mut(movement.context) else {
+    return;
+  };
+  let Ok(stage) = qry_stage.get(co.parent()) else {
+    return;
+  };
+
+  let world_direction: Vec2 = *IsoWorldCoords::from_screen(movement.value, stage.aspect_ratio);
+  mv.net_forces = world_direction * 10.;
 }
 
-fn process_player_commands(
-  mut cmd: Commands,
-  mut reader: MessageReader<PlayerCommand>,
-  qry_player: Query<(Entity, &Player)>,
+fn stop_movement(
+  movement: On<Complete<ActionMovePlayer>>,
+  mut players: Query<&mut Moveable, With<Player>>,
 ) {
-  for command in reader.read() {
-    match command {
-      PlayerCommand::SpawnPlayer(player_id, location) => {
-        if let Some(_existing) = qry_player.iter().find(|(_, p)| &p.id == player_id) {
-          continue;
-        };
-        cmd.spawn((
-          Player { id: *player_id },
-          Transform::default(),
-          Visibility::default(),
-          Moveable {
-            damping: 1.0,
-            mass: 0.001,
-            net_forces: Vec2::default(),
-          },
-          Placeable {
-            layer: 7,
-            location: IsoWorldCoords::default(),
-          },
-        ));
-      }
-      PlayerCommand::DespawnPlayer(player_id) => {
-        let Some((existing, _)) = qry_player.iter().find(|(_, p)| &p.id == player_id) else {
-          continue;
-        };
-
-        cmd.entity(existing).despawn();
-      }
-    };
-  }
+  let Ok(mut mv) = players.get_mut(movement.context) else {
+    return;
+  };
+  mv.net_forces = Vec2::splat(0.);
 }

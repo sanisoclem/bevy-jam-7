@@ -1,6 +1,7 @@
 use crate::{level::LevelPlugin, player::PlayerPlugin};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use sys_cam::SysCamPlugin;
 use sys_move::SysMovePlugin;
 
 pub struct Jam7Plugin;
@@ -12,6 +13,7 @@ impl Plugin for Jam7Plugin {
       LevelPlugin,
       PlayerPlugin,
       SysMovePlugin,
+      SysCamPlugin,
     ));
   }
 }

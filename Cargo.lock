@@ -2782,8 +2782,6 @@ dependencies = [
  "bevy",
  "bevy_enhanced_input",
  "jam7",
- "macros",
- "rodio",
  "utils",
 ]
 
@@ -3268,9 +3266,13 @@ dependencies = [
  "bevy_enhanced_input",
  "bytemuck",
  "libnoise",
+ "macros",
  "ron",
  "serde",
  "sys_animation",
+ "sys_audio",
+ "sys_cam",
+ "sys_chonker",
  "sys_move",
  "thiserror 2.0.18",
  "utils",
@@ -5063,6 +5065,31 @@ name = "sys_animation"
 version = "0.1.0"
 dependencies = [
  "bevy",
+]
+
+[[package]]
+name = "sys_audio"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "rodio",
+ "utils",
+]
+
+[[package]]
+name = "sys_cam"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_enhanced_input",
+]
+
+[[package]]
+name = "sys_chonker"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "sys_move",
 ]
 
 [[package]]
