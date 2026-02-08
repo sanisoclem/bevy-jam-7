@@ -19,42 +19,62 @@ impl Plugin for SysMovePlugin {
   }
 }
 
-#[derive(Debug, Component)]
+#[derive(Debug, Component, Reflect)]
 pub struct IsoMovementStage {
   pub aspect_ratio: f32,
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
 pub struct Placeable {
   pub location: IsoWorldCoords,
   pub layer: u8,
 }
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
 pub struct Moveable {
   pub damping: f32,
   // pub mass: f32,
   pub net_forces: Vec2,
 }
 
-#[derive(Component, Debug, Clone)]
-pub struct MoveableState {
-  velocity: Vec2,
-  direction: Direction,
+#[derive(Component, Debug, Clone, Reflect)]
+pub struct MoveableVelocity {
+  world_velocity: Vec2,
+  screen_velocity: Vec2,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub enum Direction {
+#[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Default, Reflect)]
+pub struct MoveState {
+  pub is_moving: bool,
+  pub direction: MoveDirection,
+}
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]
+pub enum MoveDirection {
   North,
   Northeast,
   East,
   Southeast,
+  #[default]
   South,
   Southwest,
   West,
   Northwest,
 }
 
-impl Direction {
+impl MoveDirection {
+  pub fn all() -> impl Iterator<Item = Self> {
+    // todo: convert to static arc slice
+    [
+      MoveDirection::North,
+      MoveDirection::Northeast,
+      MoveDirection::East,
+      MoveDirection::Southeast,
+      MoveDirection::South,
+      MoveDirection::Southwest,
+      MoveDirection::West,
+      MoveDirection::Northwest,
+    ]
+    .into_iter()
+  }
   pub fn from_velocity(velocity: Vec2) -> Self {
     // get angle (rad)
     let angle = velocity.y.atan2(velocity.x);
@@ -72,14 +92,14 @@ impl Direction {
       ((normalized + std::f32::consts::FRAC_PI_8) / std::f32::consts::FRAC_PI_4) as usize % 8;
 
     match segment {
-      0 => Direction::East,
-      1 => Direction::Northeast,
-      2 => Direction::North,
-      3 => Direction::Northwest,
-      4 => Direction::West,
-      5 => Direction::Southwest,
-      6 => Direction::South,
-      7 => Direction::Southeast,
+      0 => MoveDirection::East,
+      1 => MoveDirection::Northeast,
+      2 => MoveDirection::North,
+      3 => MoveDirection::Northwest,
+      4 => MoveDirection::West,
+      5 => MoveDirection::Southwest,
+      6 => MoveDirection::South,
+      7 => MoveDirection::Southeast,
       _ => unreachable!(),
     }
   }
@@ -87,37 +107,58 @@ impl Direction {
 
 pub fn add_moveable_state(
   mut cmd: Commands,
-  qry: Query<Entity, (With<Moveable>, Without<MoveableState>)>,
+  qry: Query<Entity, (With<Moveable>, Without<MoveableVelocity>)>,
 ) {
   for entity in qry {
     let mut ecmd = cmd.get_entity(entity).expect("entity should exist");
-    ecmd.insert(MoveableState {
-      velocity: Vec2::splat(0.),
-      direction: Direction::North,
-    });
+    ecmd.insert((
+      MoveableVelocity {
+        world_velocity: Vec2::splat(0.),
+        screen_velocity: Vec2::splat(0.),
+      },
+      MoveState {
+        is_moving: false,
+        direction: MoveDirection::North,
+      },
+    ));
   }
 }
 pub fn update_moveable_state(
-  mut qry: Query<(&mut Placeable, &mut MoveableState, &Moveable)>,
+  mut qry: Query<(
+    &mut Placeable,
+    &mut MoveableVelocity,
+    &mut MoveState,
+    &ChildOf,
+    &Moveable,
+  )>,
+  qry_stage: Query<&IsoMovementStage>,
   time: Res<Time>,
 ) {
-  for (mut p, mut s, m) in qry.iter_mut() {
+  for (mut p, mut v, mut state, co, m) in qry.iter_mut() {
+    let Ok(stage) = qry_stage.get(co.parent()) else {
+      continue;
+    };
     let t = time.delta_secs();
-    let decayed_velocity = s.velocity - (s.velocity * m.damping * t * 8.);
+    let decayed_velocity = v.world_velocity - (v.world_velocity * m.damping * t * 8.);
     let new_velocity = decayed_velocity + m.net_forces;
+    let screenspace_velocity = IsoWorldCoords::from(new_velocity).to_screen(stage.aspect_ratio);
     let move_offset = new_velocity * t;
 
-    s.velocity = new_velocity;
+    v.world_velocity = new_velocity;
+    v.screen_velocity = screenspace_velocity;
     p.location = p.location + move_offset.into();
     if new_velocity.length_squared() > 0.0001 {
-      s.direction = Direction::from_velocity(new_velocity);
+      state.direction = MoveDirection::from_velocity(screenspace_velocity);
+      state.is_moving = true;
+    } else {
+      state.is_moving = false;
     }
   }
 }
 
 pub fn draw_gizmos(
   mut giz: Gizmos,
-  mut qry: Query<(&Placeable, &MoveableState, &Moveable)>,
+  mut qry: Query<(&Placeable, &MoveableVelocity, &Moveable)>,
   qry_stage: Query<(Entity, &IsoMovementStage)>,
   qry_children: Query<&Children>,
 ) {
@@ -131,7 +172,7 @@ pub fn draw_gizmos(
       };
 
       let origin = p.location.to_screen(stage.aspect_ratio);
-      let future_pos = IsoWorldCoords::from(s.velocity).to_screen(stage.aspect_ratio);
+      let future_pos = IsoWorldCoords::from(s.world_velocity).to_screen(stage.aspect_ratio);
       giz.ray_2d(origin, future_pos, Color::from(GREEN));
     }
   }

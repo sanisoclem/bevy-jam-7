@@ -22,8 +22,6 @@ impl<T: Component + Hash + Eq> Plugin for SysAnimationPlugin<T> {
 #[derive(Component, Debug, Clone)]
 pub struct AtlasAnimation<T: Component> {
   pub phantom: PhantomData<T>,
-  pub spritesheet: Handle<Image>,
-  pub layout: Handle<TextureAtlasLayout>,
   pub animations: HashMap<T, AnimationDefinition>,
   pub default_animation: AnimationDefinition,
 }
@@ -37,9 +35,12 @@ pub struct AnimationState {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AnimationDefinition {
+  pub spritesheet: Handle<Image>,
+  pub layout: Handle<TextureAtlasLayout>,
   pub frames: Vec<usize>,
   pub playback_speed: AnimationPlaybackSpeed,
   pub playback_loop: bool,
+  pub flip_vertical: bool,
 }
 impl AnimationDefinition {
   pub fn create_timer(&self) -> Timer {
@@ -80,9 +81,9 @@ pub fn create_animation_state<T: Component + Hash + Eq>(
         done: false,
       },
       Sprite {
-        image: anim.spritesheet.clone(),
+        image: to_play.spritesheet.clone(),
         texture_atlas: Some(TextureAtlas {
-          layout: anim.layout.clone(),
+          layout: to_play.layout.clone(),
           index: *to_play
             .frames
             .first()
@@ -128,6 +129,20 @@ pub fn update_sprite(mut qry: Query<(&AnimationState, &mut Sprite), Changed<Anim
     if anim.done {
       continue;
     }
+
+    sprite.flip_x = anim.current_animation.flip_vertical;
+    if sprite.image != anim.current_animation.spritesheet {
+      sprite.image = anim.current_animation.spritesheet.clone();
+      if let Some(atlas) = sprite.texture_atlas.as_mut() {
+        atlas.layout = anim.current_animation.layout.clone();
+      } else {
+        sprite.texture_atlas = Some(TextureAtlas {
+          layout: anim.current_animation.layout.clone(),
+          index: 0,
+        });
+      }
+    }
+
     let Some(atlas) = sprite.texture_atlas.as_mut() else {
       continue;
     };

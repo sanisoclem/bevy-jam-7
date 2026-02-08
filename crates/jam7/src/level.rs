@@ -50,8 +50,8 @@ pub struct Level {
 pub fn load_level(
   mut cmd: Commands,
   mut ev_asset: MessageReader<AssetEvent<LevelAsset>>,
-  mut meshes: ResMut<Assets<Mesh>>,
-  mut materials: ResMut<Assets<ColorMaterial>>,
+  mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+  asset_server: Res<AssetServer>,
   levels: Res<Assets<LevelAsset>>,
   qry: Query<(Entity, &Level)>,
 ) {
@@ -86,7 +86,7 @@ pub fn load_level(
           Visibility::default(),
         ))
         .with_children(|c| {
-          let player = c.spawn(create_player(&mut meshes, &mut materials)).id();
+          let player = c.spawn(create_player(&asset_server, &mut layouts)).id();
           c.spawn((
             ChunkGenerator {
               chunk_size_world,

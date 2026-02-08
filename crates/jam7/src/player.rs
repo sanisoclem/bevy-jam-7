@@ -1,13 +1,17 @@
-use bevy::{color::palettes::css::GREEN, prelude::*};
+use std::marker::PhantomData;
+
+use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_enhanced_input::prelude::*;
+use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
-use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
+use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
   fn build(&self, app: &mut App) {
     app
+      .add_plugins(SysAnimationPlugin::<MoveState>::default())
       .add_input_context::<Player>()
       .add_observer(apply_movement)
       .add_observer(stop_movement);
@@ -18,17 +22,89 @@ impl Plugin for PlayerPlugin {
 pub struct Player;
 
 pub fn create_player(
-  meshes: &mut Assets<Mesh>,
-  materials: &mut Assets<ColorMaterial>,
+  asset_server: &AssetServer,
+  layouts: &mut Assets<TextureAtlasLayout>,
 ) -> impl Bundle {
-  let mesh = Rectangle::from_size(Vec2::splat(32.0)).mesh().build();
+  let idle_image = asset_server.load("char/placeholder/idle.png");
+  let run_image = asset_server.load("char/placeholder/run.png");
+  let idle_layout = layouts.add(TextureAtlasLayout::from_grid(
+    UVec2::splat(460),
+    8,
+    5,
+    None,
+    None,
+  ));
+  let run_layout = layouts.add(TextureAtlasLayout::from_grid(
+    UVec2::splat(460),
+    4,
+    5,
+    None,
+    None,
+  ));
+
+  let dirs = [
+    (MoveDirection::South, 0, false),
+    (MoveDirection::Southwest, 1, false),
+    (MoveDirection::West, 2, false),
+    (MoveDirection::Northwest, 3, false),
+    (MoveDirection::North, 4, false),
+    (MoveDirection::Southeast, 1, true),
+    (MoveDirection::East, 2, true),
+    (MoveDirection::Northeast, 3, true),
+  ];
+
+  let idles = dirs.iter().map(|(d, row, flip)| {
+    (
+      MoveState {
+        is_moving: false,
+        direction: d.clone(),
+      },
+      AnimationDefinition {
+        layout: idle_layout.clone(),
+        spritesheet: idle_image.clone(),
+        frames: vec![0, 1, 2, 3, 4, 5, 6, 7]
+          .into_iter()
+          .map(|x| (row * 8) + x)
+          .collect(),
+        playback_speed: sys_animation::AnimationPlaybackSpeed::Fps(5),
+        playback_loop: true,
+        flip_vertical: *flip,
+      },
+    )
+  });
+
+  let runs = dirs.iter().map(|(d, row, flip)| {
+    (
+      MoveState {
+        is_moving: true,
+        direction: d.clone(),
+      },
+      AnimationDefinition {
+        layout: run_layout.clone(),
+        spritesheet: run_image.clone(),
+        frames: vec![0, 1, 2, 3]
+          .into_iter()
+          .map(|x| (row * 4) + x)
+          .collect(),
+        playback_speed: sys_animation::AnimationPlaybackSpeed::Fps(5),
+        playback_loop: true,
+        flip_vertical: *flip,
+      },
+    )
+  });
+
+  let animations: HashMap<MoveState, AnimationDefinition> = idles.chain(runs).collect();
+  let default_animation = animations.get(&MoveState::default()).unwrap().clone();
   (
     Player,
     CameraTarget,
     Transform::default(),
     Visibility::default(),
-    Mesh2d(meshes.add(mesh)),
-    MeshMaterial2d(materials.add(Color::from(GREEN))),
+    AtlasAnimation {
+      animations,
+      default_animation,
+      phantom: PhantomData,
+    },
     Moveable {
       damping: 1.0,
       // mass: 0.01,
