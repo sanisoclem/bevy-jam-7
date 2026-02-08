@@ -1,0 +1,11 @@
+[package]
+name = "sys_move"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true, features = ["2d", "ui"] }
+
+[features]
+default = []
+dev = ["bevy/dev"]

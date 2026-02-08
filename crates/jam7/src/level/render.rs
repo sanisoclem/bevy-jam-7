@@ -1,35 +1,27 @@
-use bevy::prelude::*;
-use utils::iso::IsoWorldCoords;
+use crate::level::procgen::ChunkTileData;
+use bevy::{camera::visibility::NoFrustumCulling, prelude::*};
+use sys_chonker::LevelChunk;
 
-use crate::{
-  level::{
-    asset::TileDefinition,
-    procgen::{ChunkTileData, TileData},
-  },
-  prelude::LevelChunk,
-};
+pub use material::ChunkMaterial;
+pub use mesh::IsoTilemapChunkMeshCache;
 
+mod material;
+mod mesh;
 #[derive(Debug, Component)]
-pub struct TileSpriteLevel {
-  pub tileset: Handle<Image>,
-  pub layout: Handle<TextureAtlasLayout>,
+pub struct TileShaderLevel {
+  pub tiles_per_chunk: u32,
   pub tile_size_screen: Vec2,
   pub tile_size_world: Vec2,
-  pub tiles: Vec<TileDefinition>,
-}
-impl TileSpriteLevel {
-  pub fn get_tile(&self, d: &TileData) -> TileDefinition {
-    if d.moisture < 0.5 {
-      self.tiles.first().unwrap().clone()
-    } else {
-      self.tiles.get(1).unwrap().clone()
-    }
-  }
 }
 
 pub fn render_tile_data(
   mut cmd: Commands,
-  qry_level: Query<(Entity, &TileSpriteLevel)>,
+  asset_server: Res<AssetServer>,
+  mut cache: ResMut<IsoTilemapChunkMeshCache>,
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut images: ResMut<Assets<Image>>,
+  mut materials: ResMut<Assets<material::ChunkMaterial>>,
+  qry_level: Query<(Entity, &TileShaderLevel)>,
   mut qry_chunk: Query<(Entity, &mut ChunkTileData), With<LevelChunk>>,
   qry_children: Query<&Children>,
 ) {
@@ -45,33 +37,47 @@ pub fn render_tile_data(
       if tile_data.loaded {
         continue;
       }
-      let tiles: Vec<_> = tile_data
-        .data
-        .iter()
-        .map(|td| {
-          let tile_coords: IsoWorldCoords = (td.coords.as_vec2() * level.tile_size_world).into();
-          let tile = level.get_tile(td);
-          let aspect_ratio = level.tile_size_screen.y / level.tile_size_screen.x;
-          cmd
-            .spawn((
-              Transform::default().with_translation(
-                (tile_coords.to_screen(aspect_ratio)
-                  + Vec2::new(0., -(tile.surface_height as f32)))
-                .extend((-((td.coords.x + td.coords.y) as f32)) / 10000.),
-              ),
-              Sprite::from_atlas_image(
-                level.tileset.clone(),
-                TextureAtlas {
-                  layout: level.layout.clone(),
-                  index: tile.index,
-                },
-              ),
-            ))
-            .id()
-        })
-        .collect();
+      let packed_tile_data: Vec<material::PackedTileData> =
+        tile_data.data.iter().cloned().map(Into::into).collect();
+      let tile_data_image = material::make_chunk_tile_data_image(
+        &UVec2::splat(level.tiles_per_chunk),
+        &packed_tile_data,
+      );
 
-      cmd.entity(chunk_entity).replace_children(tiles.as_slice());
+      let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+      let text_font = TextFont {
+        font: font.clone(),
+        font_size: 50.0,
+        ..default()
+      };
+      let text_justification = Justify::Center;
+
+      let tile_data_image_handle = images.add(tile_data_image);
+      let mesh = mesh::get_chunk_mesh(
+        level.tiles_per_chunk as f32 * level.tile_size_world,
+        level.tile_size_screen,
+        &mut cache,
+        &mut meshes,
+      );
+      cmd
+        .entity(chunk_entity)
+        .insert((
+          NoFrustumCulling,
+          Mesh2d(mesh),
+          MeshMaterial2d(materials.add(material::ChunkMaterial {
+            tile_data: tile_data_image_handle,
+            alpha_mode: bevy::sprite_render::AlphaMode2d::Blend,
+          })),
+        ))
+        .with_children(|x| {
+          x.spawn((
+            Text2d::new(format!("{:?}", tile_data.source)),
+            text_font.clone(),
+            TextLayout::new_with_justify(text_justification),
+            TextBackgroundColor(Color::BLACK.with_alpha(0.5)),
+            Transform::default().with_translation(Vec3::new(0., 100.0, 100.)),
+          ));
+        });
 
       tile_data.loaded = true;
     }

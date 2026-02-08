@@ -2782,8 +2782,6 @@ dependencies = [
  "bevy",
  "bevy_enhanced_input",
  "jam7",
- "macros",
- "rodio",
  "utils",
 ]
 
@@ -3268,8 +3266,14 @@ dependencies = [
  "bevy_enhanced_input",
  "bytemuck",
  "libnoise",
+ "macros",
  "ron",
  "serde",
+ "sys_animation",
+ "sys_audio",
+ "sys_cam",
+ "sys_chonker",
+ "sys_move",
  "thiserror 2.0.18",
  "utils",
 ]
@@ -5054,6 +5058,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8eab9a99a024a169fe8a903cf9d4a3b3601109bcc13bd9e3c6fff259138626c4"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "sys_animation"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "sys_audio"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "rodio",
+ "utils",
+]
+
+[[package]]
+name = "sys_cam"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_enhanced_input",
+]
+
+[[package]]
+name = "sys_chonker"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "sys_move",
+]
+
+[[package]]
+name = "sys_move"
+version = "0.1.0"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]

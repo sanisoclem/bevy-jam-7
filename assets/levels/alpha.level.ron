@@ -1,38 +1,35 @@
 
 LevelAsset(
-  seed: 123123,
+  seed: 7448,
   tiles_per_chunk: 33,
-  moisture_scale: 0.8,
-  biopresence_scale: 1.0,
+  moisture_scale: 0.4,
+  biopresence_scale: 0.15,
+  bio_noise_settings: (
+    worley_seed_offset1: 4,
+    worley_seed_offset2: 32,
+    worley_scale1: (0.05, 0.05),
+    worley_scale2: (0.02, 0.02),
+    fbm_octaves: 7,
+    fbm_freq: 0.13,
+    fbm_lacunarity: 20.4,
+    fbm_persistence: 0.3,
+  ),
   moisture_noise_settings: (
     worley_seed_offset1: 4,
     worley_seed_offset2: 32,
     worley_scale1: (0.05, 0.05),
     worley_scale2: (0.02, 0.02),
     fbm_octaves: 9,
-    fbm_freq: 0.012,
+    fbm_freq: 0.027,
     fbm_lacunarity: 1.4,
     fbm_persistence: 0.01,
   ),
   tileset: (
-    spritesheet: "beta",
-    layout_x: 6,
-    layout_y: 9,
     tile_height_screen: 16,
     tile_width_screen: 32,
     tile_height_world: 32,
     tile_width_world: 32,
     tile_height_sprite: 32,
     tile_width_sprite: 32,
-    tiles: [
-      (
-        index: 0,
-        surface_height: 0,
-      ),
-      (
-        index: 12,
-        surface_height: -4,
-      ),
-    ]
   )
 )

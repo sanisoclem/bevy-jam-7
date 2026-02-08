@@ -7,12 +7,20 @@ edition = "2024"
 bevy = { workspace = true, features = ["2d", "ui"] }
 bevy_enhanced_input.workspace = true
 bytemuck.workspace = true
-utils = { path = "../utils", version = "0.1.0" }
 libnoise = "1.2"
 serde.workspace = true 
 ron.workspace = true
 thiserror.workspace = true
 
+utils = { path = "../utils", version = "0.1.0" }
+macros = { path = "../macros", version = "0.1.0" }
+
+sys_animation = { path = "../../systems/animation", version = "0.1.0" }
+sys_move = { path = "../../systems/move", version = "0.1.0" }
+sys_audio = { path = "../../systems/audio", version = "0.1.0" }
+sys_chonker = { path = "../../systems/chonker", version = "0.1.0" }
+sys_cam = { path = "../../systems/cam", version = "0.1.0" }
+
 [features]
 default = []
-dev = ["bevy/dev"]
+dev = ["bevy/dev", "sys_move/dev"]

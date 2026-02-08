@@ -13,28 +13,19 @@ pub struct LevelAsset {
   pub tiles_per_chunk: u32,
   pub moisture_scale: f32,
   pub biopresence_scale: f32,
+  pub bio_noise_settings: NoiseSettings,
   pub moisture_noise_settings: NoiseSettings,
   pub tileset: TilesetDefinition,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TilesetDefinition {
-  pub spritesheet: String,
-  pub layout_x: u32,
-  pub layout_y: u32,
   pub tile_height_screen: u32,
   pub tile_width_screen: u32,
   pub tile_height_world: u32,
   pub tile_width_world: u32,
   pub tile_height_sprite: u32,
   pub tile_width_sprite: u32,
-  pub tiles: Vec<TileDefinition>,
-}
-
-#[derive(Debug, Deserialize, Clone, Serialize)]
-pub struct TileDefinition {
-  pub index: usize,
-  pub surface_height: i32,
 }
 
 #[derive(Default, TypePath)]

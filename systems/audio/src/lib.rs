@@ -4,19 +4,26 @@ use bevy::{
   prelude::*,
 };
 use rodio::source::from_iter;
-use std::hash::Hash;
+use std::{hash::Hash, marker::PhantomData};
 use utils::assets::{AssetBarrier, AssetBarrierGuard};
 
-pub trait AudioExtensions {
-  fn configure_audio<L: AudioLibrary, C: AudioChannelLayout>(&mut self) -> &mut Self;
+pub struct SysAudioPlugin<L: AudioLibrary, C: AudioChannelLayout> {
+  phantom: PhantomData<fn() -> (L, C)>,
+}
+impl<L: AudioLibrary, C: AudioChannelLayout> Default for SysAudioPlugin<L, C> {
+  fn default() -> Self {
+    Self {
+      phantom: Default::default(),
+    }
+  }
 }
 
-impl AudioExtensions for App {
-  fn configure_audio<L: AudioLibrary, C: AudioChannelLayout>(&mut self) -> &mut Self {
+impl<L: AudioLibrary, C: AudioChannelLayout> Plugin for SysAudioPlugin<L, C> {
+  fn build(&self, app: &mut App) {
     // TODO: use a oneshot system to start asset loading instead of loading when resource is
     // initialized
     // TODO: (optimization) process_assets should be a one shot system
-    self
+    app
       .add_audio_source::<ProcessedAudio>()
       .init_resource::<AudioLibraryResource<L, C>>()
       .add_message::<AudioCommand<L, C>>()
@@ -36,7 +43,7 @@ impl AudioExtensions for App {
           update_sink_volumes::<L, C>,
         )
           .chain(),
-      )
+      );
     // .add_systems(Update, fade)
   }
 }

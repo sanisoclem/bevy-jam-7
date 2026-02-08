@@ -1,4 +1,4 @@
-use crate::{audio::AudioPlugin, gyms::AlphaGymPlugin};
+use crate::gyms::AlphaGymPlugin;
 use bevy::prelude::*;
 use jam7::prelude::*;
 
@@ -15,8 +15,6 @@ impl Plugin for GamePlugin {
         ..default()
       }))
       .add_plugins(Jam7Plugin)
-      .add_plugins(cam::CameraPlugin)
-      .add_plugins(AudioPlugin)
       .add_plugins(AlphaGymPlugin);
 
     #[cfg(feature = "dev")]
@@ -24,9 +22,6 @@ impl Plugin for GamePlugin {
   }
 }
 
-pub mod audio;
-pub mod audio_engine;
-pub mod cam;
 #[cfg(feature = "dev")]
 pub mod dev;
 pub mod gyms;

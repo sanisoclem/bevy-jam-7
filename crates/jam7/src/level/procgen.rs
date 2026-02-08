@@ -1,17 +1,16 @@
 use bevy::prelude::*;
 use libnoise::prelude::*;
 use serde::{Deserialize, Serialize};
-
-use crate::{level::chunk::ChunkId, prelude::LevelChunk};
+use sys_chonker::{ChunkId, LevelChunk};
 
 #[derive(Component, Debug)]
 pub struct ProceduralLevel {
-  pub level_id: u32,
   pub seed: u64,
   pub tiles_per_chunk: u32,
   pub moisture_scale: f32,
   pub biopresence_scale: f32,
   pub moisture_noise_settings: NoiseSettings,
+  pub bio_noise_settings: NoiseSettings,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -42,16 +41,24 @@ impl ProceduralLevel {
       );
 
     let coords = tile_coords.as_vec2() * self.moisture_scale;
-    generator.sample([coords.x as f64, coords.y as f64]) as f32
+    (generator.sample([coords.x as f64, coords.y as f64]) as f32) * 0.5 + 0.5
   }
   pub fn get_biopresence(&self, tile_coords: IVec2) -> f32 {
-    let generator = Source::simplex(self.seed).fbm(7, 0.023, 2.0, 0.5).blend(
-      Source::worley(self.seed + 1).scale([0.05, 0.05]), // ...with scaled worley noise
-      Source::worley(self.seed + 2).scale([0.02, 0.02]),
-    );
+    let s = &self.bio_noise_settings;
+    let generator = Source::simplex(self.seed + 7448)
+      .fbm(
+        s.fbm_octaves,
+        s.fbm_freq,
+        s.fbm_lacunarity,
+        s.fbm_persistence,
+      )
+      .blend(
+        Source::worley(self.seed + s.worley_seed_offset1).scale(s.worley_scale1),
+        Source::worley(self.seed + s.worley_seed_offset2).scale(s.worley_scale2),
+      );
 
     let coords = tile_coords.as_vec2() * self.biopresence_scale;
-    generator.sample([coords.x as f64, coords.y as f64]) as f32
+    (generator.sample([coords.x as f64, coords.y as f64]) as f32) * 0.5 + 0.5
   }
 
   pub fn generate_chunk_tile_data(&self, chunk: ChunkId) -> Vec<TileData> {
@@ -63,7 +70,7 @@ impl ProceduralLevel {
         let coords =
           chunk.as_ivec2() * self.tiles_per_chunk as i32 + IVec2::new(x as i32, y as i32);
         TileData {
-          coords,
+          // coords,
           moisture: self.get_moisture(coords),
           biopresence: self.get_biopresence(coords),
         }
@@ -72,15 +79,16 @@ impl ProceduralLevel {
   }
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct ChunkTileData {
   pub data: Vec<TileData>,
+  pub source: ChunkId,
   pub loaded: bool,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct TileData {
-  pub coords: IVec2,
+  // pub coords: IVec2,
   pub moisture: f32,
   pub biopresence: f32,
 }
@@ -102,8 +110,10 @@ pub fn generate_tile_data(
       .collect();
 
     for (entity, chunk) in chunks {
+      info!("generated tile data for {:?}", chunk.id);
       cmd.entity(*entity).insert(ChunkTileData {
         data: level.generate_chunk_tile_data(chunk.id),
+        source: chunk.id,
         loaded: false,
       });
     }

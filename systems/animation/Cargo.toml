@@ -1,0 +1,8 @@
+[package]
+name = "sys_animation"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true, features = ["2d", "ui"] }
+
