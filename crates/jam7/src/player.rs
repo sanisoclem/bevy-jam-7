@@ -86,7 +86,7 @@ pub fn create_player(
           .into_iter()
           .map(|x| (row * 4) + x)
           .collect(),
-        playback_speed: sys_animation::AnimationPlaybackSpeed::Fps(5),
+        playback_speed: sys_animation::AnimationPlaybackSpeed::Fps(15),
         playback_loop: true,
         flip_vertical: *flip,
       },
@@ -98,7 +98,7 @@ pub fn create_player(
   (
     Player,
     CameraTarget,
-    Transform::default(),
+    Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
     AtlasAnimation {
       animations,

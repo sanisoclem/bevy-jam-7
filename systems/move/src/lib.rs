@@ -147,7 +147,7 @@ pub fn update_moveable_state(
     v.world_velocity = new_velocity;
     v.screen_velocity = screenspace_velocity;
     p.location = p.location + move_offset.into();
-    if new_velocity.length_squared() > 0.0001 {
+    if new_velocity.length_squared() > 50.0 {
       state.direction = MoveDirection::from_velocity(screenspace_velocity);
       state.is_moving = true;
     } else {

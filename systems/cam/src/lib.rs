@@ -34,7 +34,7 @@ fn setup_camera(mut cmd: Commands) {
       clear_color: ClearColorConfig::Custom(Color::BLACK),
       ..default()
     },
-    Transform::default(),
+    Transform::default().with_scale(Vec3::splat(0.25)),
     Tonemapping::TonyMcMapface,
     Bloom::default(),
     DebandDither::Enabled,
@@ -59,7 +59,7 @@ fn apply_game_camera_zoom(
   let mut transform = cameras.get_mut(movement.context).unwrap();
   transform.scale *= 1. + movement.value * 0.1;
   if transform.scale.x <= 0.0 {
-    transform.scale = Vec3::splat(1.0);
+    transform.scale = Vec3::splat(0.5);
   }
 }
 
