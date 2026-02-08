@@ -76,12 +76,14 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let tile_uv = in.uv * vec2<f32>(chunk_size);
     var tile_coord = clamp(vec2<u32>(floor(tile_uv)), vec2<u32>(0), chunk_size - 1);
     let tile = get_tile_data(tile_coord);
-    let g = (grid(tile_uv, 0.01, 10.1) * 20.);
+    let g = (grid(tile_uv, 0.01, 10.1) * 1.);
 
     let t_1 = 1+.2 * sin(globals.time * 3.);
-    let t_2 = fract(sin( (globals.time * 1.1) + (tile.data.x + tile.data.y) / 2.0  ));
+    let t_2 = 0.5 + sin( (globals.time * 1.1) + (tile.data.y + tile.data.x) ) * 0.5;
+    let t_3 = 0.5 + cos( (globals.time * 5.1) + f32(tile_coord.x) ) * 0.1;
+    let t_4 = 0.5 + sin( (globals.time * 5.1) + f32(tile_coord.y) ) * 0.1;
 
-    var color = vec4<f32>(tile.data.y - 0.1 + g * t_2, tile.data.x - 0.1 + g * t_2, 0.0, 1.0);
+    var color = vec4<f32>(tile.data.y * t_3, tile.data.y * t_2,tile.data.y * t_4, 1.0) * (1. - g);
 
     if (color.a < 0.001) {
         discard;

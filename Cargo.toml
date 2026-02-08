@@ -19,7 +19,7 @@ dev = [
 ]
 
 [workspace]
-members = ["crates/*"]
+members = ["crates/*", "systems/*"]
 
 [workspace.dependencies]
 bevy = { version = "0.18", default-features = false }
