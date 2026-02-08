@@ -8,7 +8,7 @@ use bevy::{prelude::*, sprite_render::Material2dPlugin};
 use chunk::{ChunkGenerator, despawn_chunks, spawn_chunks};
 use procgen::{ProceduralLevel, generate_tile_data};
 use render::{ChunkMaterial, IsoTilemapChunkMeshCache, TileShaderLevel, render_tile_data};
-
+use sys_move::IsoMovementStage;
 pub struct LevelPlugin;
 
 impl Plugin for LevelPlugin {
@@ -75,7 +75,6 @@ pub fn load_level(
         level_descriptor.tileset.tile_height_world,
       );
       let chunk_size_world = (level_descriptor.tiles_per_chunk * tile_size_world).as_vec2();
-      let chunk_size_screen = (level_descriptor.tiles_per_chunk * tile_size_screen).as_vec2();
 
       let spawned_level = cmd
         .spawn((
@@ -88,6 +87,9 @@ pub fn load_level(
             biopresence_scale: level_descriptor.biopresence_scale,
             moisture_noise_settings: level_descriptor.moisture_noise_settings.clone(),
           },
+          IsoMovementStage {
+            aspect_ratio: tile_size_screen.y as f32 / tile_size_screen.x as f32,
+          },
           TileShaderLevel {
             tile_size_screen: tile_size_screen.as_vec2(),
             tile_size_world: tile_size_world.as_vec2(),
@@ -98,7 +100,6 @@ pub fn load_level(
           ChunkGenerator {
             level_id: level.id,
             chunk_size_world,
-            chunk_size_screen,
           },
         ))
         .id();

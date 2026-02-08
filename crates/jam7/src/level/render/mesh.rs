@@ -4,7 +4,7 @@ use bevy::{
   platform::collections::HashMap,
   prelude::*,
 };
-use utils::iso::IsoWorldCoords;
+use sys_move::IsoWorldCoords;
 
 #[derive(Resource, Default, Deref, DerefMut, Reflect)]
 #[reflect(Resource, Default)]

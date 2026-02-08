@@ -2,13 +2,12 @@ use bevy::{
   platform::collections::{HashMap, HashSet},
   prelude::*,
 };
-use utils::iso::IsoWorldCoords;
+use sys_move::{IsoWorldCoords, Placeable};
 
 #[derive(Debug, Clone, Component)]
 pub struct ChunkGenerator {
   pub level_id: u32,
   pub chunk_size_world: Vec2,
-  pub chunk_size_screen: Vec2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
@@ -100,9 +99,9 @@ pub fn spawn_chunks(
   qry_generator: Query<(Entity, &ChunkGenerator)>,
   qry_chunk: Query<&LevelChunk>,
   qry_chunk_children: Query<&Children>,
-  qry_spawner: Query<(&ChunkSpawner, &Transform)>,
+  qry_spawner: Query<(&ChunkSpawner, &Placeable)>,
 ) {
-  for (spawner, spawner_transform) in qry_spawner {
+  for (spawner, spawner_placeable) in qry_spawner {
     let Some((generator_entity, generator)) = qry_generator
       .iter()
       .find(|(_, x)| x.level_id == spawner.owner_id)
@@ -119,10 +118,7 @@ pub fn spawn_chunks(
 
     // TODO: get world coords from spawner instead of screen coords
     // after this has ben done, chunk module doesn't need to know screen sizes anymore
-    let origin = IsoWorldCoords::from_screen(
-      spawner_transform.translation.xy(),
-      generator.chunk_size_screen.y / generator.chunk_size_screen.x,
-    );
+    let origin = spawner_placeable.location;
 
     let to_spawn: Vec<_> =
       ChunkId::get_chunks_to_be_loaded(origin, generator.chunk_size_world, spawner.load_radius)
@@ -137,17 +133,21 @@ pub fn spawn_chunks(
     let children: Vec<_> = to_spawn
       .into_iter()
       .map(|chunk| {
-        let origin = chunk.origin_screen(generator.chunk_size_world, generator.chunk_size_screen);
-        let coords = origin.extend(-(chunk.0 as f32 + chunk.1 as f32) / 10000.);
         cmd
           .spawn((
             LevelChunk { id: chunk },
-            Transform::default().with_translation(coords),
+            Placeable {
+              location: chunk.origin_world(generator.chunk_size_world),
+              layer: 0,
+            },
+            Transform::default(),
             Visibility::default(),
           ))
           .id()
       })
       .collect();
+
+    info!("spawning chunks {:?}", children);
 
     cmd.entity(generator_entity).add_children(&children);
   }
@@ -158,17 +158,11 @@ pub fn despawn_chunks(
   qry_generator: Query<(Entity, &ChunkGenerator)>,
   qry_chunk: Query<&LevelChunk>,
   qry_chunk_children: Query<&Children>,
-  qry_spawner: Query<(&ChunkSpawner, &Transform)>,
+  qry_spawner: Query<(&ChunkSpawner, &Placeable)>,
 ) {
   let spawner_coords: Vec<_> = qry_spawner
     .iter()
-    .map(|(spawner, spawner_transform)| {
-      (
-        spawner.owner_id,
-        spawner.unload_radius,
-        spawner_transform.translation.xy(),
-      )
-    })
+    .map(|(spawner, location)| (spawner.owner_id, spawner.unload_radius, location.location))
     .collect();
 
   for (entity_root, generator) in qry_generator.iter() {
@@ -176,15 +170,7 @@ pub fn despawn_chunks(
       .iter()
       .cloned()
       .filter(|(id, _, _)| *id == generator.level_id)
-      .map(|(_, radius, xy)| {
-        (
-          IsoWorldCoords::from_screen(
-            xy,
-            generator.chunk_size_screen.y / generator.chunk_size_screen.x,
-          ),
-          radius,
-        )
-      })
+      .map(|(_, radius, xy)| (xy, radius))
       .collect();
 
     let loaded_chunks: HashMap<_, _> = qry_chunk_children

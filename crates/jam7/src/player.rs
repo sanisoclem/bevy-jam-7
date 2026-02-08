@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use sys_move::{IsoWorldCoords, Moveable, Placeable};
 
 pub struct PlayerPlugin;
 
@@ -33,10 +34,10 @@ pub enum PlayerCommand {
 
 fn apply_movement(
   movement: On<Fire<ActionMovePlayer>>,
-  mut players: Query<&mut Transform, With<Player>>,
+  mut players: Query<&mut Moveable, With<Player>>,
 ) {
-  let mut transform = players.get_mut(movement.context).unwrap();
-  transform.translation += (movement.value.normalize() * 10.).extend(0.0);
+  let mut mv = players.get_mut(movement.context).unwrap();
+  mv.net_forces = movement.value.normalize() * 10.;
 }
 
 fn process_player_commands(
@@ -52,7 +53,17 @@ fn process_player_commands(
         };
         cmd.spawn((
           Player { id: *player_id },
-          Transform::default().with_translation(location.extend(1.)),
+          Transform::default(),
+          Visibility::default(),
+          Moveable {
+            damping: 1.0,
+            mass: 0.001,
+            net_forces: Vec2::default(),
+          },
+          Placeable {
+            layer: 7,
+            location: IsoWorldCoords::default(),
+          },
         ));
       }
       PlayerCommand::DespawnPlayer(player_id) => {

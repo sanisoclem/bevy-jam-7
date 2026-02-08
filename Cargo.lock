@@ -3271,6 +3271,7 @@ dependencies = [
  "ron",
  "serde",
  "sys_animation",
+ "sys_move",
  "thiserror 2.0.18",
  "utils",
 ]
@@ -5059,6 +5060,13 @@ dependencies = [
 
 [[package]]
 name = "sys_animation"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
+name = "sys_move"
 version = "0.1.0"
 dependencies = [
  "bevy",
