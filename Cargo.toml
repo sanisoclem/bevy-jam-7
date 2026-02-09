@@ -34,10 +34,8 @@ ron =  "0.12.0"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
-# has modifications to make the SDF trait compatible with trait objects
-sdfu = { git = "https://github.com/sanisoclem/sdfu.git", branch = "master", version = "0.3.1-alpha.1", features = [
-  "glam",
-] }
+[workspace.lints.clippy]
+type_complexity = "allow"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }

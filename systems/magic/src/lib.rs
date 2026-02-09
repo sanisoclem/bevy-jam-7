@@ -50,6 +50,9 @@ pub enum SpellGenerator {
     base_damage: u32,
     lifetime: f32,
     speed: f32,
+    explosion_radius: f32,
+    explosion_lifetime: f32,
+    explosion_damage_multiplier: f32,
     // growth_factor: f32,
     // snipe_damage: f32,
   },
@@ -79,6 +82,9 @@ pub enum SpellInstance {
     base_damage: u32,
     speed: f32,
     lifetime: Timer,
+    explosion_shape: HitTestableShape,
+    explosion_damage_multiplier: f32,
+    explosion_lifetime: Timer,
   },
 }
 
@@ -124,6 +130,9 @@ fn cast_auto_spells(
             base_damage,
             lifetime,
             speed,
+            explosion_radius,
+            explosion_lifetime,
+            explosion_damage_multiplier,
           },
           CombatantRadar {
             nearest: Some((nearest_entity, nearest_coords)),
@@ -137,6 +146,11 @@ fn cast_auto_spells(
           lifetime: Timer::from_seconds(*lifetime, TimerMode::Once),
           speed: *speed,
           target: *nearest_entity,
+          explosion_shape: HitTestableShape::Circle {
+            radius: *explosion_radius,
+          },
+          explosion_lifetime: Timer::from_seconds(*explosion_lifetime, TimerMode::Once),
+          explosion_damage_multiplier: *explosion_damage_multiplier,
         }),
         _ => None,
       };

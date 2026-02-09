@@ -4,7 +4,7 @@ use sys_combat::{Combatant, CombatantGuages, DamageTaken, DeathBehavior, HitTest
 use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
 };
-use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
+use sys_move::{IsoMovementStage, IsoWorldCoords, Placeable};
 
 pub struct AlphaGymPlugin;
 
@@ -50,7 +50,7 @@ pub fn spawn_enemy(
 
   let location = IsoWorldCoords::new(100., 100.);
 
-  if let Some(e) = *spawned {
+  if let Some(_e) = *spawned {
     return;
   }
 
@@ -75,10 +75,13 @@ pub fn spawn_enemy(
           generator: SpellGenerator::Fireball {
             radius: 3.,
             base_damage: 3,
-            lifetime: 12.0,
-            speed: 20.,
+            lifetime: 4.0,
+            speed: 10.,
+            explosion_lifetime: 1.,
+            explosion_damage_multiplier: 2.5,
+            explosion_radius: 30.,
           },
-          cooldown: Timer::from_seconds(0.3, TimerMode::Repeating),
+          cooldown: Timer::from_seconds(1.3, TimerMode::Repeating),
           trigger: SpellTrigger::Auto,
         }],
       },
@@ -102,12 +105,11 @@ fn spawn_death_text(
   stage: Query<&IsoMovementStage>,
   mut qry: Query<(&Placeable, &Combatant, &CombatantGuages), With<Player>>,
   mut qry_text: Query<&mut Text2d>,
-  time: Res<Time>,
 ) {
   let Some(stage) = stage.iter().next() else {
     return;
   };
-  let Some((p, cd, mut g)) = qry.iter_mut().next() else {
+  let Some((p, _cd, g)) = qry.iter_mut().next() else {
     return;
   };
 

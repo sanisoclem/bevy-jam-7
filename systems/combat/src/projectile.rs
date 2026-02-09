@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
-use sys_move::{Moveable, Placeable};
+use sys_move::{IsoWorldCoords, Moveable, Placeable};
 
 use crate::CombatAreaEffect;
 
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Clone)]
 pub struct Projectile {
   pub lifetime: Timer,
   pub detonate_trigger: DetonationTrigger,
@@ -32,25 +34,40 @@ pub enum DetonationTrigger {
   Expiry,
 }
 
-pub type PayloadFn = fn(&mut Commands);
+pub type PayloadFn =
+  Arc<dyn Fn(&mut Commands, &IsoWorldCoords) -> Vec<Entity> + Send + Sync + 'static>;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum ProjectilePayload {
-  SpawnEntities(PayloadFn),
+  SpawnEntities(Entity, PayloadFn),
 }
 
-#[derive(Message, Clone, Debug)]
+#[derive(Message, Clone)]
 pub struct DetonatePayload {
   pub payload: ProjectilePayload,
+  pub location: IsoWorldCoords,
 }
 
+pub fn process_detonations(mut cmd: Commands, mut msg_reader: MessageReader<DetonatePayload>) {
+  for msg in msg_reader.read() {
+    let ProjectilePayload::SpawnEntities(parent, spawn_fn) = &msg.payload;
+    let spawned = spawn_fn(&mut cmd, &msg.location);
+
+    if let Ok(mut pcmd) = cmd.get_entity(*parent) {
+      pcmd.add_children(&spawned);
+    } else {
+      warn!("orphaned projectile payloads created");
+      continue;
+    };
+  }
+}
 pub fn despawn_expired_projectiles(
   mut cmd: Commands,
-  qry: Query<(Entity, &mut Projectile)>,
+  qry: Query<(Entity, &mut Projectile, &Placeable)>,
   mut msg_writer: MessageWriter<DetonatePayload>,
   time: Res<Time>,
 ) {
-  for (e, mut p) in qry {
+  for (e, mut p, loc) in qry {
     p.lifetime.tick(time.delta());
 
     if p.lifetime.just_finished() {
@@ -59,6 +76,7 @@ pub fn despawn_expired_projectiles(
       if let (DetonationTrigger::Expiry, Some(payload)) = (&p.detonate_trigger, &p.payload) {
         msg_writer.write(DetonatePayload {
           payload: payload.clone(),
+          location: loc.location,
         });
       };
     }
@@ -67,19 +85,21 @@ pub fn despawn_expired_projectiles(
 
 pub fn detonate_hit_projectiles(
   mut cmd: Commands,
-  qry: Query<(Entity, &Projectile, &CombatAreaEffect)>,
+  qry: Query<(Entity, &Projectile, &CombatAreaEffect, &Placeable)>,
   mut msg_writer: MessageWriter<DetonatePayload>,
 ) {
-  for (e, p, cae) in qry {
-    if cae.hit {
-      cmd.entity(e).despawn();
-
-      if let (DetonationTrigger::Contact, Some(payload)) = (&p.detonate_trigger, &p.payload) {
-        msg_writer.write(DetonatePayload {
-          payload: payload.clone(),
-        });
-      };
+  for (e, p, cae, loc) in qry {
+    if !cae.hit {
+      continue;
     }
+
+    if let (DetonationTrigger::Contact, Some(payload)) = (&p.detonate_trigger, &p.payload) {
+      cmd.entity(e).despawn();
+      msg_writer.write(DetonatePayload {
+        payload: payload.clone(),
+        location: loc.location,
+      });
+    };
   }
 }
 
