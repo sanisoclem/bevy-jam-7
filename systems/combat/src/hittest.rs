@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::RED, prelude::*};
+use bevy::prelude::*;
 use sys_move::IsoWorldCoords;
 
 #[derive(Debug, Clone, Component, Reflect)]

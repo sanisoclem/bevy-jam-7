@@ -17,6 +17,7 @@ sys_audio = { path = "../../systems/audio", version = "0.1.0" }
 sys_chonker = { path = "../../systems/chonker", version = "0.1.0" }
 sys_cam = { path = "../../systems/cam", version = "0.1.0" }
 sys_combat = { path = "../../systems/combat", version = "0.1.0" }
+sys_magic = { path = "../../systems/magic", version = "0.1.0" }
 
 [features]
 default = []

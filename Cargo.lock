@@ -2814,6 +2814,7 @@ dependencies = [
  "sys_cam",
  "sys_chonker",
  "sys_combat",
+ "sys_magic",
  "sys_move",
  "utils",
 ]
@@ -3339,6 +3340,7 @@ dependencies = [
  "sys_cam",
  "sys_chonker",
  "sys_combat",
+ "sys_magic",
  "sys_move",
  "thiserror 2.0.18",
  "utils",
@@ -5199,6 +5201,15 @@ name = "sys_combat"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "sys_move",
+]
+
+[[package]]
+name = "sys_magic"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "sys_combat",
  "sys_move",
 ]
 
