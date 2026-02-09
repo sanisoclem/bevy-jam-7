@@ -195,7 +195,6 @@ fn test_hitboxes(
     if let Some(effect_timer) = eb.effect_tick.as_mut() {
       effect_timer.tick(time.delta());
       if !effect_timer.just_finished() {
-        info!("skipping damage tick");
         continue;
       }
     }

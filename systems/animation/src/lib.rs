@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{color::palettes::tailwind::PURPLE_500, platform::collections::HashMap, prelude::*};
 use std::{hash::Hash, marker::PhantomData};
 
 #[derive(Default)]
@@ -131,6 +131,7 @@ pub fn update_sprite(mut qry: Query<(&AnimationState, &mut Sprite), Changed<Anim
     }
 
     sprite.flip_x = anim.current_animation.flip_vertical;
+    sprite.color = Color::from(PURPLE_500);
     if sprite.image != anim.current_animation.spritesheet {
       sprite.image = anim.current_animation.spritesheet.clone();
       if let Some(atlas) = sprite.texture_atlas.as_mut() {

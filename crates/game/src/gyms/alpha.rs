@@ -76,7 +76,7 @@ pub fn spawn_enemy(
             radius: 3.,
             base_damage: 3,
             lifetime: 4.0,
-            speed: 10.,
+            speed: 20.,
             explosion_lifetime: 1.,
             explosion_damage_multiplier: 2.5,
             explosion_radius: 30.,

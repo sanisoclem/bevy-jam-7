@@ -106,6 +106,7 @@ pub fn detonate_hit_projectiles(
 pub fn update_movement_forces(
   qry_pos: Query<&Placeable>,
   qry: Query<(&Placeable, &mut Moveable, &Projectile)>,
+  time: Res<Time>,
 ) {
   for (p, mut mov, proj) in qry {
     mov.net_forces = match proj.movement {
@@ -120,16 +121,15 @@ pub fn update_movement_forces(
           let dist = p.location.distance(target_pos.location);
 
           if dist > 0.01 {
-            let desired_velocity = (target_pos.location - p.location).normalize() * speed;
-            let current_velocity = mov.net_forces;
-            let mut steering = desired_velocity - current_velocity;
-
-            let max_turn = max_angular_velocity * dist.min(1.0);
-            if steering.length() > max_turn {
-              steering = steering.normalize() * max_turn;
+            let desired_dir = (target_pos.location - p.location).normalize();
+            let current_dir = mov.net_forces.normalize_or_zero();
+            if current_dir.length_squared() > 0.01 {
+              let max_turn = max_angular_velocity * time.delta_secs();
+              let angle = current_dir.angle_to(desired_dir).clamp(-max_turn, max_turn);
+              current_dir.rotate(Vec2::from_angle(angle)) * speed
+            } else {
+              desired_dir * speed
             }
-
-            current_velocity + steering
           } else {
             Vec2::ZERO
           }

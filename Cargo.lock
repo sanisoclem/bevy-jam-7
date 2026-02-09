@@ -5205,6 +5205,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sys_enemy"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "sys_combat",
+ "sys_magic",
+ "sys_move",
+]
+
+[[package]]
 name = "sys_magic"
 version = "0.1.0"
 dependencies = [
