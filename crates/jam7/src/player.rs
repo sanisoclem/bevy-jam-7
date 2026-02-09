@@ -1,9 +1,13 @@
 use std::marker::PhantomData;
 
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{platform::collections::HashMap, prelude::*, sprite::Anchor};
 use bevy_enhanced_input::prelude::*;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
+use sys_combat::{Combatant, CombatantState, DeathBehavior, HitTestableShape};
+use sys_magic::{
+  EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
+};
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 
 pub struct PlayerPlugin;
@@ -100,6 +104,36 @@ pub fn create_player(
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
+    SpellBook {
+      spells: vec![EquippedSpell {
+        generator: SpellGenerator::Fireball {
+          radius: 3.,
+          base_damage: 3,
+          lifetime: 2.0,
+          speed: 50.,
+          explosion_lifetime: 1.,
+          explosion_damage_multiplier: 2.5,
+          explosion_radius: 30.,
+        },
+        cooldown: Timer::from_seconds(30.3, TimerMode::Repeating),
+        trigger: SpellTrigger::Auto,
+      }],
+    },
+    SpellBookState {
+      spells_states: vec![EquippedSpellState::default()],
+    },
+    Combatant {
+      max_hp: 100,
+      hitbox: HitTestableShape::Circle { radius: 7.0 },
+      team: 0,
+      regen: 0,
+      regen_delay: 0,
+      death_behavior: DeathBehavior::Respawn(
+        Timer::from_seconds(5.0, TimerMode::Once),
+        Timer::from_seconds(2.0, TimerMode::Once),
+      ),
+    },
+    Anchor(Vec2::new(0., -0.3)),
     AtlasAnimation {
       animations,
       default_animation,
@@ -111,7 +145,7 @@ pub fn create_player(
       net_forces: Vec2::default(),
     },
     Placeable {
-      layer: 7,
+      layer: 5,
       location: IsoWorldCoords::default(),
     },
     actions!(
@@ -141,18 +175,22 @@ pub struct ActionMovePlayer;
 
 fn apply_movement(
   movement: On<Fire<ActionMovePlayer>>,
-  mut players: Query<(&mut Moveable, &ChildOf), With<Player>>,
+  mut players: Query<(&mut Moveable, &ChildOf, &CombatantState), With<Player>>,
   qry_stage: Query<&IsoMovementStage>,
 ) {
-  let Ok((mut mv, co)) = players.get_mut(movement.context) else {
+  let Ok((mut mv, co, cs)) = players.get_mut(movement.context) else {
     return;
   };
   let Ok(stage) = qry_stage.get(co.parent()) else {
     return;
   };
 
-  let world_direction: Vec2 = *IsoWorldCoords::from_screen(movement.value, stage.aspect_ratio);
-  mv.net_forces = world_direction * 10.;
+  if cs.dead || cs.stunned {
+    mv.net_forces = Vec2::splat(0.);
+  } else {
+    let world_direction: Vec2 = *IsoWorldCoords::from_screen(movement.value, stage.aspect_ratio);
+    mv.net_forces = world_direction.normalize() * 22.;
+  }
 }
 
 fn stop_movement(

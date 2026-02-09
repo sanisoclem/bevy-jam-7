@@ -34,6 +34,9 @@ ron =  "0.12.0"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 
+[workspace.lints.clippy]
+type_complexity = "allow"
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
 
