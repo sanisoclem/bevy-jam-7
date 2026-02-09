@@ -5209,9 +5209,12 @@ name = "sys_enemy"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "fastrand",
+ "sys_animation",
  "sys_combat",
  "sys_magic",
  "sys_move",
+ "utils",
 ]
 
 [[package]]

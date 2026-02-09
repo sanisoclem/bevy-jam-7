@@ -15,6 +15,20 @@ impl Plugin for SysMagicPlugin {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct SpellBookGenerator;
+
+impl SpellBookGenerator {
+  pub fn create_spellbook(
+    &self,
+    num_spells: u32,
+    effective_range: f32,
+    effective_dps: f32,
+  ) -> SpellBook {
+    todo!()
+  }
+}
+
 #[derive(Component, Debug, Reflect, Clone)]
 pub struct SpellBook {
   pub spells: Vec<EquippedSpell>,

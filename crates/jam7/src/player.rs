@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use bevy::{platform::collections::HashMap, prelude::*, sprite::Anchor};
+use bevy::{
+  color::palettes::tailwind::PURPLE_500, platform::collections::HashMap, prelude::*, sprite::Anchor,
+};
 use bevy_enhanced_input::prelude::*;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
@@ -9,6 +11,7 @@ use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
 };
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
+use utils::dps::TEAM_PLAYER;
 
 pub struct PlayerPlugin;
 
@@ -125,7 +128,7 @@ pub fn create_player(
     Combatant {
       max_hp: 100,
       hitbox: HitTestableShape::Circle { radius: 7.0 },
-      team: 0,
+      team: TEAM_PLAYER,
       regen: 0,
       regen_delay: 0,
       death_behavior: DeathBehavior::Respawn(
@@ -138,6 +141,7 @@ pub fn create_player(
       animations,
       default_animation,
       phantom: PhantomData,
+      tint: Some(Color::from(PURPLE_500)),
     },
     Moveable {
       damping: 1.0,

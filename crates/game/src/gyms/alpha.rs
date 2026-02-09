@@ -5,6 +5,7 @@ use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
 };
 use sys_move::{IsoMovementStage, IsoWorldCoords, Placeable};
+use utils::dps::TEAM_ENEMY;
 
 pub struct AlphaGymPlugin;
 
@@ -61,7 +62,7 @@ pub fn spawn_enemy(
       Combatant {
         max_hp: 100,
         hitbox: HitTestableShape::Circle { radius: 7.0 },
-        team: 1,
+        team: TEAM_ENEMY,
         regen: 0,
         regen_delay: 0,
         death_behavior: DeathBehavior::Respawn(

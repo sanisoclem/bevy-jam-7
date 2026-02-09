@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::GREEN, prelude::*};
+use bevy::{color::palettes::css::GREEN, prelude::*, time::Stopwatch};
 
 mod iso;
 
@@ -22,6 +22,7 @@ impl Plugin for SysMovePlugin {
 #[derive(Debug, Component, Reflect)]
 pub struct IsoMovementStage {
   pub aspect_ratio: f32,
+  pub stopwatch: Stopwatch, // how long the level has been loaded
 }
 
 #[derive(Component, Debug, Clone, Reflect)]
@@ -102,6 +103,12 @@ impl MoveDirection {
       7 => MoveDirection::Southeast,
       _ => unreachable!(),
     }
+  }
+}
+
+pub fn advance_stage_time(qry: Query<&mut IsoMovementStage>, time: Res<Time>) {
+  for mut stage in qry {
+    stage.stopwatch.tick(time.delta());
   }
 }
 

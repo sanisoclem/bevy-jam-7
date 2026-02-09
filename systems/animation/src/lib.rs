@@ -1,4 +1,4 @@
-use bevy::{color::palettes::tailwind::PURPLE_500, platform::collections::HashMap, prelude::*};
+use bevy::{platform::collections::HashMap, prelude::*};
 use std::{hash::Hash, marker::PhantomData};
 
 #[derive(Default)]
@@ -24,6 +24,7 @@ pub struct AtlasAnimation<T: Component> {
   pub phantom: PhantomData<T>,
   pub animations: HashMap<T, AnimationDefinition>,
   pub default_animation: AnimationDefinition,
+  pub tint: Option<Color>,
 }
 #[derive(Component, Debug, Clone)]
 pub struct AnimationState {
@@ -89,6 +90,7 @@ pub fn create_animation_state<T: Component + Hash + Eq>(
             .first()
             .expect("Animations must have at least one frame"),
         }),
+        color: anim.tint.unwrap_or_default(),
         ..default()
       },
     ));
@@ -131,7 +133,6 @@ pub fn update_sprite(mut qry: Query<(&AnimationState, &mut Sprite), Changed<Anim
     }
 
     sprite.flip_x = anim.current_animation.flip_vertical;
-    sprite.color = Color::from(PURPLE_500);
     if sprite.image != anim.current_animation.spritesheet {
       sprite.image = anim.current_animation.spritesheet.clone();
       if let Some(atlas) = sprite.texture_atlas.as_mut() {

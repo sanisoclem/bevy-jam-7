@@ -4,7 +4,7 @@ pub(crate) mod render;
 
 use crate::player::create_player;
 use asset::LevelAsset;
-use bevy::{prelude::*, sprite_render::Material2dPlugin};
+use bevy::{prelude::*, sprite_render::Material2dPlugin, time::Stopwatch};
 use procgen::{ProceduralLevel, generate_tile_data};
 use render::{ChunkMaterial, IsoTilemapChunkMeshCache, TileShaderLevel, render_tile_data};
 use sys_chonker::{ChunkGenerator, SysChonkerPlugin};
@@ -81,6 +81,7 @@ pub fn load_level(
         .spawn((
           IsoMovementStage {
             aspect_ratio: tile_size_screen.y as f32 / tile_size_screen.x as f32,
+            stopwatch: Stopwatch::new(),
           },
           Transform::default(),
           Visibility::default(),
