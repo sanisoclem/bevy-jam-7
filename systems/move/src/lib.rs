@@ -10,10 +10,9 @@ pub struct SysMovePlugin;
 
 impl Plugin for SysMovePlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(
-      Update,
-      (add_moveable_state, update_moveable_state, update_transform),
-    );
+    app
+      .add_systems(FixedUpdate, update_moveable_state)
+      .add_systems(Update, (add_moveable_state, update_transform));
 
     #[cfg(feature = "dev")]
     app.add_systems(Update, draw_gizmos);
@@ -147,8 +146,8 @@ pub fn update_moveable_state(
       continue;
     };
     let t = time.delta_secs();
-    let decayed_velocity = v.world_velocity - (v.world_velocity * m.damping * t * 8.);
-    let new_velocity = decayed_velocity + m.net_forces;
+    // let decayed_velocity = v.world_velocity - (v.world_velocity * m.damping * t * 8.);
+    let new_velocity = m.net_forces; // decayed_velocity + m.net_forces;
     let screenspace_velocity = IsoWorldCoords::from(new_velocity).to_screen(stage.aspect_ratio);
     let move_offset = new_velocity * t;
 

@@ -173,7 +173,7 @@ fn cast_auto_spells(
           },
         ) => {
           let dist = *nearest_coords - p.location;
-          if dist.length() > lifetime * speed * 20. {
+          if dist.length() > lifetime * speed {
             None
           } else {
             Some(SpellInstance::Fireball {

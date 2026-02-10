@@ -8,14 +8,12 @@ pub struct SysAnimationPlugin<T: Component + Hash + Eq> {
 
 impl<T: Component + Hash + Eq> Plugin for SysAnimationPlugin<T> {
   fn build(&self, app: &mut App) {
-    app.add_systems(
-      Update,
-      (
-        create_animation_state::<T>,
-        update_animation_state::<T>,
-        update_sprite,
-      ),
-    );
+    app
+      .add_systems(
+        Update,
+        (create_animation_state::<T>, update_animation_state::<T>),
+      )
+      .add_systems(FixedUpdate, (update_sprite,));
   }
 }
 

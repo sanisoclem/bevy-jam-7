@@ -85,12 +85,12 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
-    return vec4<f32>(0., tile.data1.y * 0.1, 0. , 1.0);
-    return vec4<f32>( tile.data1.x, tile.data1.y, tile.data1.z, 1.0);
+ //   return vec4<f32>(0., tile.data1.y * 0.1, 0. , 1.0);
+ //   return vec4<f32>( tile.data1.x, tile.data1.y, tile.data1.z, 1.0);
 
 
     let pos = vec2<f32>(in.world_position.x + in.world_position.y / 0.5 , in.world_position.y / 0.5 - in.world_position.x);
-    if (distance(pos, vec2<f32>(0.0)) <= 50.) {
+    if (distance(pos, vec2<f32>(0.0)) <= 180.) {
 //        return vec4<f32>(1.0);
     } else {
  //       return vec4<f32>(0.0);

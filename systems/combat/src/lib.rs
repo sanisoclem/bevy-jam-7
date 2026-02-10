@@ -16,6 +16,7 @@ impl Plugin for SysCombatPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_message::<DamageTaken>()
+      .add_message::<CombatantKilled>()
       .add_systems(
         FixedUpdate,
         (
@@ -130,6 +131,12 @@ pub struct DamageTaken {
   pub source: Entity,
 }
 
+#[derive(Reflect, Debug, Clone, Message)]
+pub struct CombatantKilled {
+  pub killer: Entity,
+  pub victim: Entity,
+}
+
 fn create_combat_guages(
   mut cmd: Commands,
   qry: Query<(Entity, &Combatant), Without<CombatantGuages>>,
@@ -242,6 +249,7 @@ fn apply_combat_effects(
   msg: On<ApplyCombatEffect>,
   mut qry: Query<(&Combatant, &mut CombatantGuages, &CombatantState)>,
   mut msg_writer: MessageWriter<DamageTaken>,
+  mut kill_writer: MessageWriter<CombatantKilled>,
 ) {
   let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
     return;
@@ -277,6 +285,11 @@ fn apply_combat_effects(
             DeathBehavior::Despawn(t) => t.clone(),
           }
           .into();
+
+          kill_writer.write(CombatantKilled {
+            killer: msg.source,
+            victim: msg.target,
+          });
         }
       }
       CombatEffect::Reeling(duration) => {
