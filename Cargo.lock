@@ -3340,8 +3340,10 @@ dependencies = [
  "sys_cam",
  "sys_chonker",
  "sys_combat",
+ "sys_enemy",
  "sys_magic",
  "sys_move",
+ "sys_procgen",
  "thiserror 2.0.18",
  "utils",
 ]
@@ -5169,6 +5171,7 @@ name = "sys_animation"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "serde",
 ]
 
 [[package]]
@@ -5201,6 +5204,7 @@ name = "sys_combat"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "serde",
  "sys_move",
 ]
 
@@ -5210,10 +5214,14 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "fastrand",
+ "libnoise",
+ "ron",
+ "serde",
  "sys_animation",
  "sys_combat",
  "sys_magic",
  "sys_move",
+ "sys_procgen",
  "utils",
 ]
 
@@ -5231,6 +5239,17 @@ name = "sys_move"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "serde",
+]
+
+[[package]]
+name = "sys_procgen"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "libnoise",
+ "serde",
+ "sys_move",
 ]
 
 [[package]]
@@ -5600,6 +5619,8 @@ name = "utils"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "ron",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

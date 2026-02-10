@@ -1,17 +1,19 @@
 use std::marker::PhantomData;
 
 use bevy::{
-  color::palettes::tailwind::PURPLE_500, platform::collections::HashMap, prelude::*, sprite::Anchor,
+  color::palettes::tailwind::PURPLE_500, platform::collections::HashMap, prelude::*,
+  sprite::Anchor, time::Stopwatch,
 };
 use bevy_enhanced_input::prelude::*;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
 use sys_combat::{Combatant, CombatantState, DeathBehavior, HitTestableShape};
+use sys_enemy::{EnemySpawner, EnemySpawnerState};
 use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
 };
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
-use utils::dps::TEAM_PLAYER;
+use utils::diff::TEAM_PLAYER;
 
 pub struct PlayerPlugin;
 
@@ -31,6 +33,7 @@ pub struct Player;
 pub fn create_player(
   asset_server: &AssetServer,
   layouts: &mut Assets<TextureAtlasLayout>,
+  spawn_parent: Entity,
 ) -> impl Bundle {
   let idle_image = asset_server.load("char/placeholder/idle.png");
   let run_image = asset_server.load("char/placeholder/run.png");
@@ -116,14 +119,26 @@ pub fn create_player(
           speed: 50.,
           explosion_lifetime: 1.,
           explosion_damage_multiplier: 2.5,
-          explosion_radius: 30.,
+          explosion_radius: 200.,
         },
-        cooldown: Timer::from_seconds(30.3, TimerMode::Repeating),
+        cooldown: Timer::from_seconds(0.3, TimerMode::Repeating),
         trigger: SpellTrigger::Auto,
       }],
     },
     SpellBookState {
       spells_states: vec![EquippedSpellState::default()],
+    },
+    EnemySpawner {
+      spawn_parent,
+      despawn_radius: 1000,
+      no_spawn_radius: 400,
+      spawn_radius: 700,
+      initial_cooldown: 1.,
+      cooldown_decay_rate: 1.5,
+    },
+    EnemySpawnerState {
+      stopwatch: Stopwatch::new(),
+      cooldown: Timer::from_seconds(1.5, TimerMode::Once),
     },
     Combatant {
       max_hp: 100,

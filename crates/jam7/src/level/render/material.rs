@@ -11,8 +11,6 @@ use bevy::{
 };
 use bytemuck::{Pod, Zeroable};
 
-use crate::level::procgen::TileData;
-
 const SHADER_ASSET_PATH: &str = "shaders/chunk2.wgsl";
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
@@ -35,22 +33,7 @@ impl Material2d for ChunkMaterial {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct PackedTileData {
-  pub data: [u8; 2],  // red channel
-  pub color: [u8; 4], // green and blue channels
-  pub flags: u16,     // alpha channel
-}
-
-impl From<TileData> for PackedTileData {
-  fn from(data: TileData) -> Self {
-    Self {
-      data: [
-        (data.moisture * u8::MAX as f32) as u8,
-        (data.biopresence * u8::MAX as f32) as u8,
-      ],
-      color: [0, 0, 0, 0],
-      flags: 0,
-    }
-  }
+  pub data: [u8; 8],
 }
 
 pub fn make_chunk_tile_data_image(size: &UVec2, data: &[PackedTileData]) -> Image {

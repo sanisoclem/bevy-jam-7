@@ -144,7 +144,7 @@ pub fn spawn_chunks(
       })
       .collect();
 
-    info!("spawning chunks {:?}", children);
+    debug!("spawning chunks {:?}", children);
 
     cmd.entity(generator_entity).add_children(&children);
   }
@@ -184,7 +184,7 @@ pub fn despawn_chunks(
       .collect();
 
     for (x, e) in to_despawn {
-      info!("Despawning {:?}", x);
+      debug!("Despawning {:?}", x);
       cmd.entity(e).despawn();
     }
   }

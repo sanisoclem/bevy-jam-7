@@ -3,6 +3,7 @@ use bevy::{color::palettes::css::GREEN, prelude::*, time::Stopwatch};
 mod iso;
 
 pub use iso::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
 pub struct SysMovePlugin;
@@ -48,7 +49,7 @@ pub struct MoveState {
   pub is_moving: bool,
   pub direction: MoveDirection,
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Reflect, Deserialize, Serialize)]
 pub enum MoveDirection {
   North,
   Northeast,

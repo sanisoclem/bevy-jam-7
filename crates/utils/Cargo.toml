@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 bevy = { workspace = true }
+thiserror.workspace = true
+ron.workspace = true

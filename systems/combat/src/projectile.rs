@@ -42,29 +42,25 @@ pub enum ProjectilePayload {
   SpawnEntities(Entity, PayloadFn),
 }
 
-#[derive(Message, Clone)]
+#[derive(Event, Clone)]
 pub struct DetonatePayload {
   pub payload: ProjectilePayload,
   pub location: IsoWorldCoords,
 }
 
-pub fn process_detonations(mut cmd: Commands, mut msg_reader: MessageReader<DetonatePayload>) {
-  for msg in msg_reader.read() {
-    let ProjectilePayload::SpawnEntities(parent, spawn_fn) = &msg.payload;
-    let spawned = spawn_fn(&mut cmd, &msg.location);
+pub fn process_detonations(msg: On<DetonatePayload>, mut cmd: Commands) {
+  let ProjectilePayload::SpawnEntities(parent, spawn_fn) = &msg.payload;
+  let spawned = spawn_fn(&mut cmd, &msg.location);
 
-    if let Ok(mut pcmd) = cmd.get_entity(*parent) {
-      pcmd.add_children(&spawned);
-    } else {
-      warn!("orphaned projectile payloads created");
-      continue;
-    };
-  }
+  if let Ok(mut pcmd) = cmd.get_entity(*parent) {
+    pcmd.add_children(&spawned);
+  } else {
+    warn!("orphaned projectile payloads created");
+  };
 }
 pub fn despawn_expired_projectiles(
   mut cmd: Commands,
   qry: Query<(Entity, &mut Projectile, &Placeable)>,
-  mut msg_writer: MessageWriter<DetonatePayload>,
   time: Res<Time>,
 ) {
   for (e, mut p, loc) in qry {
@@ -74,7 +70,7 @@ pub fn despawn_expired_projectiles(
       cmd.entity(e).despawn();
 
       if let (DetonationTrigger::Expiry, Some(payload)) = (&p.detonate_trigger, &p.payload) {
-        msg_writer.write(DetonatePayload {
+        cmd.trigger(DetonatePayload {
           payload: payload.clone(),
           location: loc.location,
         });
@@ -86,7 +82,6 @@ pub fn despawn_expired_projectiles(
 pub fn detonate_hit_projectiles(
   mut cmd: Commands,
   qry: Query<(Entity, &Projectile, &CombatAreaEffect, &Placeable)>,
-  mut msg_writer: MessageWriter<DetonatePayload>,
 ) {
   for (e, p, cae, loc) in qry {
     if !cae.hit {
@@ -95,7 +90,7 @@ pub fn detonate_hit_projectiles(
 
     if let (DetonationTrigger::Contact, Some(payload)) = (&p.detonate_trigger, &p.payload) {
       cmd.entity(e).despawn();
-      msg_writer.write(DetonatePayload {
+      cmd.trigger(DetonatePayload {
         payload: payload.clone(),
         location: loc.location,
       });

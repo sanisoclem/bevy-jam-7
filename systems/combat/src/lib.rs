@@ -2,7 +2,6 @@ use bevy::{
   color::palettes::css::{GREEN, RED},
   prelude::*,
 };
-use projectile::DetonatePayload;
 use sys_move::{IsoMovementStage, IsoWorldCoords, Placeable};
 
 mod hittest;
@@ -16,16 +15,13 @@ pub struct SysCombatPlugin;
 impl Plugin for SysCombatPlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_message::<ApplyCombatEffect>()
       .add_message::<DamageTaken>()
-      .add_message::<DetonatePayload>()
       .add_systems(
         FixedUpdate,
         (
           create_combat_guages,
           test_hitboxes,
           tick_guages,
-          apply_combat_effects,
           despawn_respawn_dead,
           sync_combat_state,
           sync_combat_radar,
@@ -38,9 +34,10 @@ impl Plugin for SysCombatPlugin {
           projectile::update_movement_forces,
           projectile::despawn_expired_projectiles,
           projectile::detonate_hit_projectiles,
-          projectile::process_detonations,
         ),
-      );
+      )
+      .add_observer(apply_combat_effects)
+      .add_observer(projectile::process_detonations);
 
     #[cfg(feature = "dev")]
     app.add_systems(Update, draw_gizmos);
@@ -119,7 +116,7 @@ pub enum CombatEffect {
   Reeling(f32),
 }
 
-#[derive(Reflect, Debug, Clone, Message)]
+#[derive(Reflect, Debug, Clone, Event)]
 pub struct ApplyCombatEffect {
   pub effects: Vec<CombatEffect>,
   pub target: Entity,
@@ -186,9 +183,9 @@ fn tick_guages(qry: Query<&mut CombatantGuages>, time: Res<Time>) {
 }
 
 fn test_hitboxes(
+  mut cmd: Commands,
   qry_hitboxes: Query<(Entity, &Combatant, &CombatantGuages, &Placeable)>,
   qry_effects: Query<(&mut CombatAreaEffect, &Placeable)>,
-  mut msg_writer: MessageWriter<ApplyCombatEffect>,
   time: Res<Time>,
 ) {
   for (mut eb, eb_pos) in qry_effects {
@@ -229,7 +226,8 @@ fn test_hitboxes(
           CombatEffectBlueprint::Reeling(duration) => CombatEffect::Reeling(*duration),
         })
         .collect();
-      msg_writer.write(ApplyCombatEffect {
+
+      cmd.trigger(ApplyCombatEffect {
         effects,
         target: hb_entity,
         source: eb.owner,
@@ -241,67 +239,65 @@ fn test_hitboxes(
 }
 
 fn apply_combat_effects(
+  msg: On<ApplyCombatEffect>,
   mut qry: Query<(&Combatant, &mut CombatantGuages, &CombatantState)>,
-  mut msg_reader: MessageReader<ApplyCombatEffect>,
   mut msg_writer: MessageWriter<DamageTaken>,
 ) {
-  for msg in msg_reader.read() {
-    let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
-      continue;
-    };
-    if s.dead || s.invulnerable {
-      continue;
-    }
+  let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
+    return;
+  };
+  if s.dead || s.invulnerable {
+    return;
+  }
 
-    for eff in msg.effects.iter() {
-      match eff {
-        CombatEffect::Damage(amount) => {
-          if g.current_hp == 0 {
-            continue;
-          }
-
-          let dealt = if *amount > g.current_hp {
-            g.current_hp
-          } else {
-            *amount
-          };
-
-          g.current_hp -= dealt;
-
-          msg_writer.write(DamageTaken {
-            target: msg.target,
-            source: msg.source,
-            amount: dealt,
-          });
-
-          if g.current_hp == 0 {
-            g.death_timer = match &c.death_behavior {
-              DeathBehavior::Respawn(t, _) => t.clone(),
-              DeathBehavior::Despawn(t) => t.clone(),
-            }
-            .into();
-          }
+  for eff in msg.effects.iter() {
+    match eff {
+      CombatEffect::Damage(amount) => {
+        if g.current_hp == 0 {
+          continue;
         }
-        CombatEffect::Reeling(duration) => {
-          if g
-            .reeling_timer
-            .as_ref()
-            .is_some_and(|x| x.remaining_secs() > *duration)
-          {
-            return;
+
+        let dealt = if *amount > g.current_hp {
+          g.current_hp
+        } else {
+          *amount
+        };
+
+        g.current_hp -= dealt;
+
+        msg_writer.write(DamageTaken {
+          target: msg.target,
+          source: msg.source,
+          amount: dealt,
+        });
+
+        if g.current_hp == 0 {
+          g.death_timer = match &c.death_behavior {
+            DeathBehavior::Respawn(t, _) => t.clone(),
+            DeathBehavior::Despawn(t) => t.clone(),
           }
-          g.reeling_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
+          .into();
         }
-        CombatEffect::Stun(duration) => {
-          if g
-            .stun_timer
-            .as_ref()
-            .is_some_and(|x| x.remaining_secs() > *duration)
-          {
-            return;
-          }
-          g.stun_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
+      }
+      CombatEffect::Reeling(duration) => {
+        if g
+          .reeling_timer
+          .as_ref()
+          .is_some_and(|x| x.remaining_secs() > *duration)
+        {
+          return;
         }
+        g.reeling_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
+      }
+      CombatEffect::Stun(duration) => {
+        if g
+          .stun_timer
+          .as_ref()
+          .is_some_and(|x| x.remaining_secs() > *duration)
+        {
+          return;
+        }
+        g.stun_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
       }
     }
   }

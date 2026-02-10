@@ -1,7 +1,8 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 use sys_move::IsoWorldCoords;
 
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Component, Reflect, Serialize, Deserialize)]
 pub enum HitTestableShape {
   Circle { radius: f32 },
   Aabb { half_extents: Vec2 },

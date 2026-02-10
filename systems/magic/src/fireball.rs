@@ -30,7 +30,7 @@ pub fn cast_fireball(mut cmd: Commands, mut msg_reader: MessageReader<CastSpell>
       explosion_shape,
     } = &msg.spell;
 
-    info!("Casting fireball");
+    debug!("Casting fireball");
 
     let payload_lifetime = explosion_lifetime.clone();
     let payload_damage = (*base_damage as f32 * explosion_damage_multiplier).floor() as u32;

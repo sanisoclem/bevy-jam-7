@@ -15,17 +15,36 @@ impl Plugin for SysMagicPlugin {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SpellBookGenerator;
 
 impl SpellBookGenerator {
   pub fn create_spellbook(
     &self,
-    num_spells: u32,
-    effective_range: f32,
-    effective_dps: f32,
-  ) -> SpellBook {
-    todo!()
+    _num_spells: u32,
+    _effective_range: f32,
+    _effective_dps: f32,
+  ) -> (SpellBook, SpellBookState) {
+    (
+      SpellBook {
+        spells: vec![EquippedSpell {
+          generator: SpellGenerator::Fireball {
+            radius: 3.,
+            base_damage: 3,
+            lifetime: 2.0,
+            speed: 50.,
+            explosion_lifetime: 1.,
+            explosion_damage_multiplier: 2.5,
+            explosion_radius: 30.,
+          },
+          cooldown: Timer::from_seconds(3.0, TimerMode::Repeating),
+          trigger: SpellTrigger::Auto,
+        }],
+      },
+      SpellBookState {
+        spells_states: vec![EquippedSpellState::default()],
+      },
+    )
   }
 }
 

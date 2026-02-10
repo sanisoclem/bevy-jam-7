@@ -1,14 +1,13 @@
 pub(crate) mod asset;
-pub(crate) mod procgen;
 pub(crate) mod render;
 
 use crate::player::create_player;
 use asset::LevelAsset;
 use bevy::{prelude::*, sprite_render::Material2dPlugin, time::Stopwatch};
-use procgen::{ProceduralLevel, generate_tile_data};
-use render::{ChunkMaterial, IsoTilemapChunkMeshCache, TileShaderLevel, render_tile_data};
+use render::{ChunkMaterial, ChunkMeshGenerator, IsoTilemapChunkMeshCache, render_tile_data};
 use sys_chonker::{ChunkGenerator, SysChonkerPlugin};
 use sys_move::IsoMovementStage;
+use sys_procgen::ProceduralLevel;
 
 pub struct LevelPlugin;
 
@@ -25,12 +24,7 @@ impl Plugin for LevelPlugin {
       .init_asset_loader::<asset::LevelAssetLoader>()
       .add_systems(
         Update,
-        (
-          load_level,
-          process_level_commands,
-          generate_tile_data,
-          render_tile_data,
-        ),
+        (load_level, process_level_commands, render_tile_data),
       );
   }
 }
@@ -83,11 +77,25 @@ pub fn load_level(
             aspect_ratio: tile_size_screen.y as f32 / tile_size_screen.x as f32,
             stopwatch: Stopwatch::new(),
           },
+          ProceduralLevel {
+            seed: level_descriptor.seed,
+            tile_size: tile_size_world,
+            noisegen: level_descriptor
+              .noisegen_settings
+              .clone()
+              .map(|s| s.create_generator(level_descriptor.seed)),
+          },
           Transform::default(),
           Visibility::default(),
         ))
         .with_children(|c| {
-          let player = c.spawn(create_player(&asset_server, &mut layouts)).id();
+          let player = c
+            .spawn(create_player(
+              &asset_server,
+              &mut layouts,
+              c.target_entity(),
+            ))
+            .id();
           c.spawn((
             ChunkGenerator {
               chunk_size_world,
@@ -95,15 +103,7 @@ pub fn load_level(
               load_radius: 3,
               unload_radius: 7,
             },
-            ProceduralLevel {
-              seed: level_descriptor.seed,
-              bio_noise_settings: level_descriptor.bio_noise_settings.clone(),
-              tiles_per_chunk: level_descriptor.tiles_per_chunk,
-              moisture_scale: level_descriptor.moisture_scale,
-              biopresence_scale: level_descriptor.biopresence_scale,
-              moisture_noise_settings: level_descriptor.moisture_noise_settings.clone(),
-            },
-            TileShaderLevel {
+            ChunkMeshGenerator {
               tile_size_screen: tile_size_screen.as_vec2(),
               tile_size_world: tile_size_world.as_vec2(),
               tiles_per_chunk: level_descriptor.tiles_per_chunk,

@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 bevy = { workspace = true, features = ["2d", "ui"] }
+serde.workspace = true
 

@@ -6,6 +6,7 @@ use std::{
     atomic::{AtomicU32, Ordering},
   },
 };
+use thiserror::Error;
 
 #[derive(Debug, Resource, Deref)]
 pub struct AssetBarrier(Arc<AssetBarrierInner>);
@@ -40,4 +41,13 @@ impl Drop for AssetBarrierGuard {
   fn drop(&mut self) {
     self.count.fetch_sub(1, Ordering::AcqRel);
   }
+}
+
+#[non_exhaustive]
+#[derive(Debug, Error)]
+pub enum CustomRonAssetLoaderError {
+  #[error("Could not load asset: {0}")]
+  Io(#[from] std::io::Error),
+  #[error("Could not parse RON: {0}")]
+  RonSpannedError(#[from] ron::error::SpannedError),
 }
