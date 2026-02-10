@@ -181,7 +181,7 @@ pub fn draw_gizmos(
 
       let origin = p.location.to_screen(stage.aspect_ratio);
       let future_pos = IsoWorldCoords::from(s.world_velocity).to_screen(stage.aspect_ratio);
-      giz.ray_2d(origin, future_pos, Color::from(GREEN));
+      // giz.ray_2d(origin, future_pos, Color::from(GREEN));
     }
   }
 }

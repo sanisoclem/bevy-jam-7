@@ -83,7 +83,7 @@ pub fn load_level(
             noisegen: level_descriptor
               .noisegen_settings
               .clone()
-              .map(|s| s.create_generator(level_descriptor.seed)),
+              .map(|s| s.create_generator(level_descriptor.seed + s.seed_offset)),
           },
           Transform::default(),
           Visibility::default(),

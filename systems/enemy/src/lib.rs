@@ -128,10 +128,20 @@ impl EnemyRegistry {
       [0, 1, 2, 3].map(|layer| procgen.sample(location, layer)),
     );
 
+    info!(
+      "spawning, density: {}, range: {}, tough: {}, offense: {}",
+      density_score, rangeness_score, toughness_score, offense_score
+    );
+
     let max_density = diff::get_density_ceiling_from_score(density_score);
     if current_density > max_density {
       return None;
     }
+    debug!(
+      "current enemy density {} vs max {}",
+      current_density * 10000.,
+      max_density * 10000.
+    );
 
     let hp = get_max_hp_from_toughness_score(toughness_score);
     let effective_range = get_effective_range_from_rangeness_score(rangeness_score);

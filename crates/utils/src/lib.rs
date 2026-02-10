@@ -8,24 +8,23 @@ pub mod diff {
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
   pub fn get_power_budget_from_time(time: f32) -> f32 {
-    1.2f32.powf((time / 60.).floor()).clamp(0.1, 10.)
+    (1. + (time / 60.).floor()) * 4.0
   }
   pub fn get_max_hp_from_toughness_score(toughness_score: f32) -> u32 {
     // TODO: how does toughness relate to other scores
-    (toughness_score * 100.).floor() as u32
+    ((1. + toughness_score).powi(3) * 100.).floor() as u32
   }
   pub fn get_effective_range_from_rangeness_score(rangeness_score: f32) -> f32 {
     rangeness_score * 20.
   }
   pub fn get_effective_dps_from_offense_score(offense_score: f32) -> f32 {
-    offense_score * 10.
+    ((1. + offense_score).powi(3) * 1.).floor()
   }
   pub fn get_density_ceiling_from_score(density_score: f32) -> f32 {
-    density_score * 5.0
+    (density_score / 10000.).max(0.000001)
   }
   pub fn get_enemy_size_from_density(density_score: f32) -> f32 {
     let retval = 1. + ((0.1 / density_score).floor() * 0.5);
-    info!("getting size {:?} for density {:?}", retval, density_score);
     retval
   }
   pub fn get_enemy_tint(toughness_score: f32, rangeness_score: f32, offense_score: f32) -> Color {
@@ -40,15 +39,52 @@ pub mod diff {
     let blue = t;
 
     let channel_max = red.max(green).max(blue);
-    Color::srgba(
+    let retval = Color::srgba(
       red / channel_max,
       green / channel_max,
       blue / channel_max,
       1.0,
-    )
+    );
+    debug!(
+      "tinting {}, {}, {} = {:?}",
+      toughness_score, rangeness_score, offense_score, retval
+    );
+    retval
   }
+  // pub fn normalize_scores(power_budget: f32, scores: [f32; 4]) -> [f32; 4] {
+  //   let total: f32 = scores.iter().copied().sum();
+  //   scores.map(|x| x / total * power_budget)
+  // }
   pub fn normalize_scores(power_budget: f32, scores: [f32; 4]) -> [f32; 4] {
-    let total: f32 = scores.iter().copied().sum();
-    scores.map(|x| x.powi(2) / total * power_budget)
+    let mut result = scores;
+
+    let i1 = (0..4)
+      .max_by(|&a, &b| scores[a].partial_cmp(&scores[b]).unwrap())
+      .unwrap();
+    let i2 = (0..4)
+      .filter(|&i| i != i1)
+      .max_by(|&a, &b| scores[a].partial_cmp(&scores[b]).unwrap())
+      .unwrap();
+
+    result = std::array::from_fn(|i| {
+      if i == i1 {
+        result[i]
+      } else {
+        result[i].powi(2)
+      }
+    });
+    result = std::array::from_fn(|i| {
+      if i == i1 || i == i2 {
+        result[i]
+      } else {
+        result[i].powi(2)
+      }
+    });
+
+    let total: f32 = result.iter().copied().sum();
+    if total == 0.0 {
+      return scores.map(|_| power_budget / 4.0);
+    }
+    result.map(|x| x / total * power_budget)
   }
 }

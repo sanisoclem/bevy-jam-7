@@ -26,6 +26,7 @@ impl<const LAYERS: usize> ProceduralLevel<LAYERS> {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NoiseGenSettings {
+  pub seed_offset: u64,
   pub overall_scale: [f64; 2],
   pub simplex_scale: [f64; 2],
   pub worley_seed_offset1: u64,

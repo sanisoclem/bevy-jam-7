@@ -22,8 +22,8 @@ impl SpellBookGenerator {
   pub fn create_spellbook(
     &self,
     _num_spells: u32,
-    _effective_range: f32,
-    _effective_dps: f32,
+    effective_range: f32,
+    effective_dps: f32,
   ) -> (SpellBook, SpellBookState) {
     (
       SpellBook {
@@ -31,13 +31,13 @@ impl SpellBookGenerator {
           generator: SpellGenerator::Fireball {
             radius: 3.,
             base_damage: 3,
-            lifetime: 2.0,
-            speed: 50.,
+            lifetime: 2.,
+            speed: effective_range / 2.,
             explosion_lifetime: 1.,
             explosion_damage_multiplier: 2.5,
             explosion_radius: 30.,
           },
-          cooldown: Timer::from_seconds(3.0, TimerMode::Repeating),
+          cooldown: Timer::from_seconds(10. / effective_dps, TimerMode::Repeating),
           trigger: SpellTrigger::Auto,
         }],
       },
@@ -171,20 +171,28 @@ fn cast_auto_spells(
             nearest: Some((nearest_entity, nearest_coords)),
             ..
           },
-        ) => Some(SpellInstance::Fireball {
-          source: p.location,
-          direction: *(*nearest_coords - p.location),
-          shape: HitTestableShape::Circle { radius: *radius },
-          base_damage: *base_damage,
-          lifetime: Timer::from_seconds(*lifetime, TimerMode::Once),
-          speed: *speed,
-          target: *nearest_entity,
-          explosion_shape: HitTestableShape::Circle {
-            radius: *explosion_radius,
-          },
-          explosion_lifetime: Timer::from_seconds(*explosion_lifetime, TimerMode::Once),
-          explosion_damage_multiplier: *explosion_damage_multiplier,
-        }),
+        ) => {
+          let dist = *nearest_coords - p.location;
+          if dist.length() > lifetime * speed * 20. {
+            None
+          } else {
+            Some(SpellInstance::Fireball {
+              source: p.location,
+              direction: dist.normalize(),
+              shape: HitTestableShape::Circle { radius: *radius },
+              base_damage: *base_damage,
+              lifetime: Timer::from_seconds(*lifetime, TimerMode::Once),
+              speed: *speed,
+              target: *nearest_entity,
+              explosion_shape: HitTestableShape::Circle {
+                radius: *explosion_radius,
+              },
+              explosion_lifetime: Timer::from_seconds(*explosion_lifetime, TimerMode::Once),
+              explosion_damage_multiplier: *explosion_damage_multiplier,
+            })
+          }
+        }
+
         _ => None,
       };
 
