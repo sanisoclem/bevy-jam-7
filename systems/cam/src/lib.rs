@@ -12,7 +12,7 @@ impl Plugin for SysCamPlugin {
     app
       .add_input_context::<PlayerCamera>()
       .add_systems(Startup, setup_camera)
-      .add_systems(Update, update_camera)
+      .add_systems(FixedUpdate, update_camera)
       .add_observer(apply_game_camera_zoom);
   }
 }
@@ -34,7 +34,7 @@ fn setup_camera(mut cmd: Commands) {
       clear_color: ClearColorConfig::Custom(Color::BLACK),
       ..default()
     },
-    Transform::default().with_scale(Vec3::splat(0.25)),
+    Transform::default().with_scale(Vec3::splat(0.45)),
     Tonemapping::TonyMcMapface,
     Bloom::default(),
     DebandDither::Enabled,

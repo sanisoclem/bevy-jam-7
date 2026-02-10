@@ -1,21 +1,30 @@
 use bevy::{platform::collections::HashMap, prelude::*};
+use serde::{Deserialize, Serialize};
 use std::{hash::Hash, marker::PhantomData};
 
-#[derive(Default)]
 pub struct SysAnimationPlugin<T: Component + Hash + Eq> {
   phantom: PhantomData<T>,
 }
 
 impl<T: Component + Hash + Eq> Plugin for SysAnimationPlugin<T> {
   fn build(&self, app: &mut App) {
-    app.add_systems(
-      Update,
-      (
-        create_animation_state::<T>,
-        update_animation_state::<T>,
-        update_sprite,
-      ),
-    );
+    app
+      .add_systems(
+        Update,
+        (create_animation_state::<T>, update_animation_state::<T>),
+      )
+      .add_systems(FixedUpdate, (update_sprite,));
+  }
+}
+
+impl<T> Default for SysAnimationPlugin<T>
+where
+  T: Component + Hash + Eq,
+{
+  fn default() -> Self {
+    Self {
+      phantom: PhantomData,
+    }
   }
 }
 
@@ -24,6 +33,7 @@ pub struct AtlasAnimation<T: Component> {
   pub phantom: PhantomData<T>,
   pub animations: HashMap<T, AnimationDefinition>,
   pub default_animation: AnimationDefinition,
+  pub tint: Option<Color>,
 }
 #[derive(Component, Debug, Clone)]
 pub struct AnimationState {
@@ -48,7 +58,7 @@ impl AnimationDefinition {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AnimationPlaybackSpeed {
   Fps(u32),
   DurationMs(u32),
@@ -89,6 +99,7 @@ pub fn create_animation_state<T: Component + Hash + Eq>(
             .first()
             .expect("Animations must have at least one frame"),
         }),
+        color: anim.tint.unwrap_or_default(),
         ..default()
       },
     ));

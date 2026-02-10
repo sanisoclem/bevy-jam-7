@@ -1,18 +1,18 @@
-use bevy::{color::palettes::css::GREEN, prelude::*};
+use bevy::{color::palettes::css::GREEN, prelude::*, time::Stopwatch};
 
 mod iso;
 
 pub use iso::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
 pub struct SysMovePlugin;
 
 impl Plugin for SysMovePlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(
-      Update,
-      (add_moveable_state, update_moveable_state, update_transform),
-    );
+    app
+      .add_systems(FixedUpdate, update_moveable_state)
+      .add_systems(Update, (add_moveable_state, update_transform));
 
     #[cfg(feature = "dev")]
     app.add_systems(Update, draw_gizmos);
@@ -22,6 +22,7 @@ impl Plugin for SysMovePlugin {
 #[derive(Debug, Component, Reflect)]
 pub struct IsoMovementStage {
   pub aspect_ratio: f32,
+  pub stopwatch: Stopwatch, // how long the level has been loaded
 }
 
 #[derive(Component, Debug, Clone, Reflect)]
@@ -47,7 +48,7 @@ pub struct MoveState {
   pub is_moving: bool,
   pub direction: MoveDirection,
 }
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Reflect)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Reflect, Deserialize, Serialize)]
 pub enum MoveDirection {
   North,
   Northeast,
@@ -105,6 +106,12 @@ impl MoveDirection {
   }
 }
 
+pub fn advance_stage_time(qry: Query<&mut IsoMovementStage>, time: Res<Time>) {
+  for mut stage in qry {
+    stage.stopwatch.tick(time.delta());
+  }
+}
+
 pub fn add_moveable_state(
   mut cmd: Commands,
   qry: Query<Entity, (With<Moveable>, Without<MoveableVelocity>)>,
@@ -139,8 +146,8 @@ pub fn update_moveable_state(
       continue;
     };
     let t = time.delta_secs();
-    let decayed_velocity = v.world_velocity - (v.world_velocity * m.damping * t * 8.);
-    let new_velocity = decayed_velocity + m.net_forces;
+    // let decayed_velocity = v.world_velocity - (v.world_velocity * m.damping * t * 8.);
+    let new_velocity = m.net_forces; // decayed_velocity + m.net_forces;
     let screenspace_velocity = IsoWorldCoords::from(new_velocity).to_screen(stage.aspect_ratio);
     let move_offset = new_velocity * t;
 
@@ -173,7 +180,7 @@ pub fn draw_gizmos(
 
       let origin = p.location.to_screen(stage.aspect_ratio);
       let future_pos = IsoWorldCoords::from(s.world_velocity).to_screen(stage.aspect_ratio);
-      giz.ray_2d(origin, future_pos, Color::from(GREEN));
+      // giz.ray_2d(origin, future_pos, Color::from(GREEN));
     }
   }
 }

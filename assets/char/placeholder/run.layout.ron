@@ -1,0 +1,6 @@
+TextureAtlasLayoutGridRon (
+  cols: 4,
+  rows: 5,
+  tile_width: 460,
+  tile_height: 460,
+)

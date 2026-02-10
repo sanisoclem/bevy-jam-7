@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use sys_cam::SysCamPlugin;
 use sys_combat::SysCombatPlugin;
+use sys_enemy::SysEnemyPlugin;
 use sys_magic::SysMagicPlugin;
 use sys_move::SysMovePlugin;
 
@@ -18,6 +19,7 @@ impl Plugin for Jam7Plugin {
       SysCamPlugin,
       SysCombatPlugin,
       SysMagicPlugin,
+      SysEnemyPlugin,
     ));
   }
 }

@@ -1,7 +1,8 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 use sys_move::IsoWorldCoords;
 
-#[derive(Debug, Clone, Component, Reflect)]
+#[derive(Debug, Clone, Component, Reflect, Serialize, Deserialize)]
 pub enum HitTestableShape {
   Circle { radius: f32 },
   Aabb { half_extents: Vec2 },
@@ -21,11 +22,27 @@ impl HitTestableShape {
       HitTestableShape::Circle { radius } => {
         let origin = location.to_screen(aspect_ratio);
 
+        // TODO: 0.7 is a magic number, who knows why it works
         gizmos.ellipse_2d(
           Isometry2d::from_translation(origin),
-          Vec2::new(*radius, *radius * aspect_ratio),
+          Vec2::new(*radius * 0.7, *radius * aspect_ratio * 0.7),
           color,
         );
+        // let half_extents = Vec2::new(*radius, *radius);
+        // let top_right = location + IsoWorldCoords::new(half_extents.x, half_extents.y);
+        // let top_left = location + IsoWorldCoords::new(-half_extents.x, half_extents.y);
+        // let bot_left = location + IsoWorldCoords::new(-half_extents.x, -half_extents.y);
+        // let bot_right = location + IsoWorldCoords::new(half_extents.x, -half_extents.y);
+        //
+        // let tr = top_right.to_screen(aspect_ratio);
+        // let tl = top_left.to_screen(aspect_ratio);
+        // let bl = bot_left.to_screen(aspect_ratio);
+        // let br = bot_right.to_screen(aspect_ratio);
+        //
+        // gizmos.line_2d(tl, tr, color);
+        // gizmos.line_2d(tr, br, color);
+        // gizmos.line_2d(br, bl, color);
+        // gizmos.line_2d(bl, tl, color);
       }
       HitTestableShape::Aabb { half_extents } => {
         let top_right = location + IsoWorldCoords::new(half_extents.x, half_extents.y);

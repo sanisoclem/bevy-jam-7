@@ -1,14 +1,27 @@
 use std::marker::PhantomData;
 
-use bevy::{platform::collections::HashMap, prelude::*, sprite::Anchor};
+use bevy::{
+  color::palettes::{
+    css::PURPLE,
+    tailwind::{AMBER_500, ORANGE_400, PURPLE_500},
+  },
+  platform::collections::HashMap,
+  prelude::*,
+  sprite::Anchor,
+  time::Stopwatch,
+};
 use bevy_enhanced_input::prelude::*;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
-use sys_combat::{Combatant, CombatantState, DeathBehavior, HitTestableShape};
+use sys_combat::{
+  Combatant, CombatantKilled, CombatantState, DeathBehavior, HitTestableShape, KillCounter,
+};
+use sys_enemy::{Enemy, EnemySpawner, EnemySpawnerState};
 use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
 };
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
+use utils::diff::TEAM_PLAYER;
 
 pub struct PlayerPlugin;
 
@@ -19,6 +32,9 @@ impl Plugin for PlayerPlugin {
       .add_input_context::<Player>()
       .add_observer(apply_movement)
       .add_observer(stop_movement);
+
+    #[cfg(feature = "dev")]
+    app.add_systems(Update, draw_gizmos);
   }
 }
 
@@ -28,6 +44,7 @@ pub struct Player;
 pub fn create_player(
   asset_server: &AssetServer,
   layouts: &mut Assets<TextureAtlasLayout>,
+  spawn_parent: Entity,
 ) -> impl Bundle {
   let idle_image = asset_server.load("char/placeholder/idle.png");
   let run_image = asset_server.load("char/placeholder/run.png");
@@ -101,6 +118,7 @@ pub fn create_player(
   let default_animation = animations.get(&MoveState::default()).unwrap().clone();
   (
     Player,
+    KillCounter::default(),
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
@@ -108,24 +126,36 @@ pub fn create_player(
       spells: vec![EquippedSpell {
         generator: SpellGenerator::Fireball {
           radius: 3.,
-          base_damage: 3,
-          lifetime: 2.0,
-          speed: 50.,
-          explosion_lifetime: 1.,
+          base_damage: 100,
+          lifetime: 15.5,
+          speed: 800.,
+          explosion_lifetime: 7.,
           explosion_damage_multiplier: 2.5,
-          explosion_radius: 30.,
+          explosion_radius: 180.,
         },
-        cooldown: Timer::from_seconds(30.3, TimerMode::Repeating),
+        cooldown: Timer::from_seconds(1.0, TimerMode::Repeating),
         trigger: SpellTrigger::Auto,
       }],
     },
     SpellBookState {
       spells_states: vec![EquippedSpellState::default()],
     },
+    EnemySpawner {
+      spawn_parent,
+      despawn_radius: 1000,
+      no_spawn_radius: 400,
+      spawn_radius: 700,
+      initial_cooldown: 1.,
+      cooldown_decay_rate: 1.5,
+    },
+    EnemySpawnerState {
+      stopwatch: Stopwatch::new(),
+      cooldown: Timer::from_seconds(0.5, TimerMode::Once),
+    },
     Combatant {
-      max_hp: 100,
+      max_hp: 1000000,
       hitbox: HitTestableShape::Circle { radius: 7.0 },
-      team: 0,
+      team: TEAM_PLAYER,
       regen: 0,
       regen_delay: 0,
       death_behavior: DeathBehavior::Respawn(
@@ -138,6 +168,7 @@ pub fn create_player(
       animations,
       default_animation,
       phantom: PhantomData,
+      tint: Some(Color::from(PURPLE_500)),
     },
     Moveable {
       damping: 1.0,
@@ -189,7 +220,7 @@ fn apply_movement(
     mv.net_forces = Vec2::splat(0.);
   } else {
     let world_direction: Vec2 = *IsoWorldCoords::from_screen(movement.value, stage.aspect_ratio);
-    mv.net_forces = world_direction.normalize() * 22.;
+    mv.net_forces = world_direction.normalize() * 200.;
   }
 }
 
@@ -201,4 +232,58 @@ fn stop_movement(
     return;
   };
   mv.net_forces = Vec2::splat(0.);
+}
+fn draw_gizmos(
+  mut gizmo: Gizmos,
+  qry_player: Query<(&Placeable, &Transform), With<Player>>,
+  qry_enemy: Query<(&Placeable, &Transform, &SpellBook), With<Enemy>>,
+) {
+  for (player_pos, player_transform) in qry_player {
+    gizmo.ellipse_2d(
+      Isometry2d::from_translation(player_transform.translation.xy()),
+      Vec2::new(155. * 0.7, 155. * 0.35),
+      Color::from(PURPLE),
+    );
+    let aspect_ratio = 0.5;
+    let color = Color::from(PURPLE);
+    let location = player_pos.location;
+    let half_extents = Vec2::new(155., 155.);
+    let top_right = location + IsoWorldCoords::new(half_extents.x, half_extents.y);
+    let top_left = location + IsoWorldCoords::new(-half_extents.x, half_extents.y);
+    let bot_left = location + IsoWorldCoords::new(-half_extents.x, -half_extents.y);
+    let bot_right = location + IsoWorldCoords::new(half_extents.x, -half_extents.y);
+
+    let tr = top_right.to_screen(aspect_ratio);
+    let tl = top_left.to_screen(aspect_ratio);
+    let bl = bot_left.to_screen(aspect_ratio);
+    let br = bot_right.to_screen(aspect_ratio);
+
+    gizmo.line_2d(tl, tr, color);
+    gizmo.line_2d(tr, br, color);
+    gizmo.line_2d(br, bl, color);
+    gizmo.line_2d(bl, tl, color);
+    // for (enemy_pos, enemy_transform, sb) in qry_enemy {
+    //   if enemy_pos.location.distance(player_pos.location) <= 155. {
+    //     gizmo.line_2d(
+    //       player_transform.translation.xy(),
+    //       enemy_transform.translation.xy(),
+    //       Color::from(AMBER_500),
+    //     );
+    //   }
+    //
+    //   let Some(sp) = sb.spells.first() else {
+    //     continue;
+    //   };
+    //   let SpellGenerator::Fireball {
+    //     lifetime, speed, ..
+    //   } = sp.generator;
+    //
+    //   let rad = lifetime * speed;
+    //   gizmo.ellipse_2d(
+    //     Isometry2d::from_translation(enemy_transform.translation.xy()),
+    //     Vec2::new(rad * 0.7, rad * 0.35),
+    //     Color::from(ORANGE_400),
+    //   );
+    // }
+  }
 }

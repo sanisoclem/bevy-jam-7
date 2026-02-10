@@ -2,7 +2,6 @@ use bevy::{
   color::palettes::css::{GREEN, RED},
   prelude::*,
 };
-use projectile::DetonatePayload;
 use sys_move::{IsoMovementStage, IsoWorldCoords, Placeable};
 
 mod hittest;
@@ -16,16 +15,15 @@ pub struct SysCombatPlugin;
 impl Plugin for SysCombatPlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_message::<ApplyCombatEffect>()
       .add_message::<DamageTaken>()
-      .add_message::<DetonatePayload>()
+      .add_message::<CombatantKilled>()
+      .add_systems(Update, update_kill_counters)
       .add_systems(
         FixedUpdate,
         (
           create_combat_guages,
           test_hitboxes,
           tick_guages,
-          apply_combat_effects,
           despawn_respawn_dead,
           sync_combat_state,
           sync_combat_radar,
@@ -38,17 +36,15 @@ impl Plugin for SysCombatPlugin {
           projectile::update_movement_forces,
           projectile::despawn_expired_projectiles,
           projectile::detonate_hit_projectiles,
-          projectile::process_detonations,
         ),
-      );
+      )
+      .add_observer(apply_combat_effects)
+      .add_observer(projectile::process_detonations);
 
     #[cfg(feature = "dev")]
     app.add_systems(Update, draw_gizmos);
   }
 }
-
-#[derive(Reflect, Debug, Clone)]
-pub struct CombatantId(u32);
 
 #[derive(Component, Reflect, Debug, Clone)]
 pub struct Combatant {
@@ -58,6 +54,11 @@ pub struct Combatant {
   pub regen_delay: u32,
   pub hitbox: HitTestableShape,
   pub death_behavior: DeathBehavior,
+}
+
+#[derive(Component, Debug, Clone, Default)]
+pub struct KillCounter {
+  pub kills: u32,
 }
 
 #[derive(Reflect, Debug, Clone)]
@@ -119,7 +120,7 @@ pub enum CombatEffect {
   Reeling(f32),
 }
 
-#[derive(Reflect, Debug, Clone, Message)]
+#[derive(Reflect, Debug, Clone, Event)]
 pub struct ApplyCombatEffect {
   pub effects: Vec<CombatEffect>,
   pub target: Entity,
@@ -131,6 +132,12 @@ pub struct DamageTaken {
   pub amount: u32,
   pub target: Entity,
   pub source: Entity,
+}
+
+#[derive(Reflect, Debug, Clone, Message)]
+pub struct CombatantKilled {
+  pub killer: Entity,
+  pub victim: Entity,
 }
 
 fn create_combat_guages(
@@ -186,16 +193,15 @@ fn tick_guages(qry: Query<&mut CombatantGuages>, time: Res<Time>) {
 }
 
 fn test_hitboxes(
+  mut cmd: Commands,
   qry_hitboxes: Query<(Entity, &Combatant, &CombatantGuages, &Placeable)>,
   qry_effects: Query<(&mut CombatAreaEffect, &Placeable)>,
-  mut msg_writer: MessageWriter<ApplyCombatEffect>,
   time: Res<Time>,
 ) {
   for (mut eb, eb_pos) in qry_effects {
     if let Some(effect_timer) = eb.effect_tick.as_mut() {
       effect_timer.tick(time.delta());
       if !effect_timer.just_finished() {
-        info!("skipping damage tick");
         continue;
       }
     }
@@ -230,7 +236,8 @@ fn test_hitboxes(
           CombatEffectBlueprint::Reeling(duration) => CombatEffect::Reeling(*duration),
         })
         .collect();
-      msg_writer.write(ApplyCombatEffect {
+
+      cmd.trigger(ApplyCombatEffect {
         effects,
         target: hb_entity,
         source: eb.owner,
@@ -242,67 +249,71 @@ fn test_hitboxes(
 }
 
 fn apply_combat_effects(
+  msg: On<ApplyCombatEffect>,
   mut qry: Query<(&Combatant, &mut CombatantGuages, &CombatantState)>,
-  mut msg_reader: MessageReader<ApplyCombatEffect>,
   mut msg_writer: MessageWriter<DamageTaken>,
+  mut kill_writer: MessageWriter<CombatantKilled>,
 ) {
-  for msg in msg_reader.read() {
-    let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
-      continue;
-    };
-    if s.dead || s.invulnerable {
-      continue;
-    }
+  let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
+    return;
+  };
+  if s.dead || s.invulnerable {
+    return;
+  }
 
-    for eff in msg.effects.iter() {
-      match eff {
-        CombatEffect::Damage(amount) => {
-          if g.current_hp == 0 {
-            continue;
+  for eff in msg.effects.iter() {
+    match eff {
+      CombatEffect::Damage(amount) => {
+        if g.current_hp == 0 {
+          continue;
+        }
+
+        let dealt = if *amount > g.current_hp {
+          g.current_hp
+        } else {
+          *amount
+        };
+
+        g.current_hp -= dealt;
+
+        msg_writer.write(DamageTaken {
+          target: msg.target,
+          source: msg.source,
+          amount: dealt,
+        });
+
+        if g.current_hp == 0 {
+          g.death_timer = match &c.death_behavior {
+            DeathBehavior::Respawn(t, _) => t.clone(),
+            DeathBehavior::Despawn(t) => t.clone(),
           }
+          .into();
 
-          let dealt = if *amount > g.current_hp {
-            g.current_hp
-          } else {
-            *amount
-          };
-
-          g.current_hp -= dealt;
-
-          msg_writer.write(DamageTaken {
-            target: msg.target,
-            source: msg.source,
-            amount: dealt,
+          kill_writer.write(CombatantKilled {
+            killer: msg.source,
+            victim: msg.target,
           });
-
-          if g.current_hp == 0 {
-            g.death_timer = match &c.death_behavior {
-              DeathBehavior::Respawn(t, _) => t.clone(),
-              DeathBehavior::Despawn(t) => t.clone(),
-            }
-            .into();
-          }
         }
-        CombatEffect::Reeling(duration) => {
-          if g
-            .reeling_timer
-            .as_ref()
-            .is_some_and(|x| x.remaining_secs() > *duration)
-          {
-            return;
-          }
-          g.reeling_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
+      }
+      CombatEffect::Reeling(duration) => {
+        if g
+          .reeling_timer
+          .as_ref()
+          .is_some_and(|x| x.remaining_secs() > *duration)
+        {
+          return;
         }
-        CombatEffect::Stun(duration) => {
-          if g
-            .stun_timer
-            .as_ref()
-            .is_some_and(|x| x.remaining_secs() > *duration)
-          {
-            return;
-          }
-          g.stun_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
+        g.reeling_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
+      }
+      CombatEffect::Stun(duration) => {
+        if g
+          .stun_timer
+          .as_ref()
+          .is_some_and(|x| x.remaining_secs() > *duration)
+        {
+          return;
         }
+        g.stun_timer = Some(Timer::from_seconds(*duration, TimerMode::Once))
       }
     }
   }
@@ -424,5 +435,18 @@ fn draw_gizmos(
       stage.aspect_ratio,
       Color::from(RED),
     );
+  }
+}
+
+fn update_kill_counters(
+  mut kill_reader: MessageReader<CombatantKilled>,
+  mut qry_player: Query<&mut KillCounter>,
+) {
+  for msg in kill_reader.read() {
+    let Some(mut killer) = qry_player.get_mut(msg.killer).ok() else {
+      continue;
+    };
+
+    killer.kills += 1;
   }
 }
