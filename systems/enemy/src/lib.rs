@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use bevy::{asset::LoadedFolder, prelude::*, sprite::Anchor, time::Stopwatch};
 use sys_animation::{AtlasAnimation, SysAnimationPlugin};
-use sys_combat::Combatant;
+use sys_combat::{Combatant, KillCounter};
 use sys_magic::{SpellBook, SpellBookGenerator, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveDirection, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
@@ -10,8 +10,8 @@ use utils::{
   self,
   diff::{
     self, TEAM_ENEMY, get_effective_dps_from_offense_score,
-    get_effective_range_from_rangeness_score, get_enemy_size_from_density, get_enemy_tint,
-    get_max_hp_from_toughness_score, get_power_budget_from_time,
+    get_effective_range_from_rangeness_score, get_enemy_size_from_toughness, get_enemy_tint,
+    get_max_hp_from_toughness_score, get_power_budget_from_kills,
   },
 };
 
@@ -111,12 +111,12 @@ impl EnemyRegistry {
   pub fn get_enemy(
     &self,
     current_density: f32,
-    time_seconds: f32,
+    total_kills: u32,
     location: &IsoWorldCoords,
     descriptors: &Assets<EnemyDescriptor>,
     procgen: &ProceduralLevel,
   ) -> Option<EnemyBlueprint> {
-    let power_budget = get_power_budget_from_time(time_seconds);
+    let power_budget = get_power_budget_from_kills(total_kills as f32 + 100000.);
 
     let [
       density_score,
@@ -154,8 +154,8 @@ impl EnemyRegistry {
 
     let descriptor = self.get_enemy_descriptor(descriptors, location)?;
 
-    let scale = descriptor.scale * get_enemy_size_from_density(density_score);
-    let tint = get_enemy_tint(toughness_score, rangeness_score, offense_score);
+    let scale = descriptor.scale * get_enemy_size_from_toughness(toughness_score);
+    let tint = get_enemy_tint(0., rangeness_score, offense_score);
     let animation = AtlasAnimation {
       tint: Some(tint),
       phantom: PhantomData,
@@ -242,13 +242,14 @@ fn spawn_enemies(
     &mut EnemySpawnerState,
     &Placeable,
     &ChildOf,
+    &KillCounter,
   )>,
   qry_enemies: Query<(&Placeable, &Enemy)>,
   qry_procgen: Query<(Entity, &ProceduralLevel)>,
   time: Res<Time>,
 ) {
   for (procgen_entity, procgen_level) in qry_procgen {
-    for (spawner_entity, spawner, mut spawner_state, spawner_pos, spawner_child_of) in
+    for (spawner_entity, spawner, mut spawner_state, spawner_pos, spawner_child_of, kills) in
       qry.iter_mut()
     {
       if spawner_child_of.0 != procgen_entity {
@@ -295,7 +296,7 @@ fn spawn_enemies(
 
       let Some(enemy) = registry.get_enemy(
         current_enemy_density,
-        spawner_state.stopwatch.elapsed().as_secs_f32(),
+        kills.kills,
         &location,
         &descriptors,
         procgen_level,

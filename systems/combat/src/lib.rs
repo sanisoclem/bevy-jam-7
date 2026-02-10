@@ -17,6 +17,7 @@ impl Plugin for SysCombatPlugin {
     app
       .add_message::<DamageTaken>()
       .add_message::<CombatantKilled>()
+      .add_systems(Update, update_kill_counters)
       .add_systems(
         FixedUpdate,
         (
@@ -45,9 +46,6 @@ impl Plugin for SysCombatPlugin {
   }
 }
 
-#[derive(Reflect, Debug, Clone)]
-pub struct CombatantId(u32);
-
 #[derive(Component, Reflect, Debug, Clone)]
 pub struct Combatant {
   pub team: u8,
@@ -56,6 +54,11 @@ pub struct Combatant {
   pub regen_delay: u32,
   pub hitbox: HitTestableShape,
   pub death_behavior: DeathBehavior,
+}
+
+#[derive(Component, Debug, Clone, Default)]
+pub struct KillCounter {
+  pub kills: u32,
 }
 
 #[derive(Reflect, Debug, Clone)]
@@ -432,5 +435,18 @@ fn draw_gizmos(
       stage.aspect_ratio,
       Color::from(RED),
     );
+  }
+}
+
+fn update_kill_counters(
+  mut kill_reader: MessageReader<CombatantKilled>,
+  mut qry_player: Query<&mut KillCounter>,
+) {
+  for msg in kill_reader.read() {
+    let Some(mut killer) = qry_player.get_mut(msg.killer).ok() else {
+      continue;
+    };
+
+    killer.kills += 1;
   }
 }

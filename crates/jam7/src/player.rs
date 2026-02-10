@@ -13,7 +13,9 @@ use bevy::{
 use bevy_enhanced_input::prelude::*;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
-use sys_combat::{Combatant, CombatantKilled, CombatantState, DeathBehavior, HitTestableShape};
+use sys_combat::{
+  Combatant, CombatantKilled, CombatantState, DeathBehavior, HitTestableShape, KillCounter,
+};
 use sys_enemy::{Enemy, EnemySpawner, EnemySpawnerState};
 use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator, SpellTrigger,
@@ -28,7 +30,6 @@ impl Plugin for PlayerPlugin {
     app
       .add_plugins(SysAnimationPlugin::<MoveState>::default())
       .add_input_context::<Player>()
-      .add_systems(Update, count_kills)
       .add_observer(apply_movement)
       .add_observer(stop_movement);
 
@@ -38,9 +39,7 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(Component, Debug)]
-pub struct Player {
-  kills: u32,
-}
+pub struct Player;
 
 pub fn create_player(
   asset_server: &AssetServer,
@@ -118,7 +117,8 @@ pub fn create_player(
   let animations: HashMap<MoveState, AnimationDefinition> = idles.chain(runs).collect();
   let default_animation = animations.get(&MoveState::default()).unwrap().clone();
   (
-    Player { kills: 0 },
+    Player,
+    KillCounter::default(),
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
@@ -128,12 +128,12 @@ pub fn create_player(
           radius: 3.,
           base_damage: 100,
           lifetime: 15.5,
-          speed: 100.,
+          speed: 800.,
           explosion_lifetime: 7.,
           explosion_damage_multiplier: 2.5,
           explosion_radius: 180.,
         },
-        cooldown: Timer::from_seconds(30.1, TimerMode::Repeating),
+        cooldown: Timer::from_seconds(1.0, TimerMode::Repeating),
         trigger: SpellTrigger::Auto,
       }],
     },
@@ -233,20 +233,6 @@ fn stop_movement(
   };
   mv.net_forces = Vec2::splat(0.);
 }
-
-fn count_kills(
-  mut kill_reader: MessageReader<CombatantKilled>,
-  mut qry_player: Query<&mut Player>,
-) {
-  for msg in kill_reader.read() {
-    let Some(mut killer) = qry_player.get_mut(msg.killer).ok() else {
-      continue;
-    };
-
-    killer.kills += 1;
-  }
-}
-
 fn draw_gizmos(
   mut gizmo: Gizmos,
   qry_player: Query<(&Placeable, &Transform), With<Player>>,
@@ -276,28 +262,28 @@ fn draw_gizmos(
     gizmo.line_2d(tr, br, color);
     gizmo.line_2d(br, bl, color);
     gizmo.line_2d(bl, tl, color);
-    for (enemy_pos, enemy_transform, sb) in qry_enemy {
-      if enemy_pos.location.distance(player_pos.location) <= 155. {
-        gizmo.line_2d(
-          player_transform.translation.xy(),
-          enemy_transform.translation.xy(),
-          Color::from(AMBER_500),
-        );
-      }
-
-      let Some(sp) = sb.spells.first() else {
-        continue;
-      };
-      let SpellGenerator::Fireball {
-        lifetime, speed, ..
-      } = sp.generator;
-
-      let rad = lifetime * speed;
-      gizmo.ellipse_2d(
-        Isometry2d::from_translation(enemy_transform.translation.xy()),
-        Vec2::new(rad * 0.7, rad * 0.35),
-        Color::from(ORANGE_400),
-      );
-    }
+    // for (enemy_pos, enemy_transform, sb) in qry_enemy {
+    //   if enemy_pos.location.distance(player_pos.location) <= 155. {
+    //     gizmo.line_2d(
+    //       player_transform.translation.xy(),
+    //       enemy_transform.translation.xy(),
+    //       Color::from(AMBER_500),
+    //     );
+    //   }
+    //
+    //   let Some(sp) = sb.spells.first() else {
+    //     continue;
+    //   };
+    //   let SpellGenerator::Fireball {
+    //     lifetime, speed, ..
+    //   } = sp.generator;
+    //
+    //   let rad = lifetime * speed;
+    //   gizmo.ellipse_2d(
+    //     Isometry2d::from_translation(enemy_transform.translation.xy()),
+    //     Vec2::new(rad * 0.7, rad * 0.35),
+    //     Color::from(ORANGE_400),
+    //   );
+    // }
   }
 }
