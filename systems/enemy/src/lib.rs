@@ -344,7 +344,7 @@ fn despawn_enemies(
       let dist_sqd = spawner_pos.location.distance_squared(enemy_pos.location);
 
       if dist_sqd >= despawn_dist_sqd {
-        // cmd.entity(enemy_entity).despawn();
+        cmd.entity(enemy_entity).despawn();
       }
     }
   }

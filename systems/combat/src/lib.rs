@@ -1,8 +1,5 @@
-use bevy::{
-  color::palettes::css::{GREEN, RED},
-  prelude::*,
-};
-use sys_move::{IsoMovementStage, IsoWorldCoords, Placeable};
+use bevy::prelude::*;
+use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;
 mod projectile;
@@ -40,9 +37,6 @@ impl Plugin for SysCombatPlugin {
       )
       .add_observer(apply_combat_effects)
       .add_observer(projectile::process_detonations);
-
-    #[cfg(feature = "dev")]
-    app.add_systems(Update, draw_gizmos);
   }
 }
 
@@ -400,41 +394,6 @@ fn despawn_respawn_dead(
         }
       }
     }
-  }
-}
-
-fn draw_gizmos(
-  mut gizmos: Gizmos,
-  qry: Query<(&Combatant, &CombatantGuages, &CombatantState, &Placeable)>,
-  qry_aoe: Query<(&CombatAreaEffect, &Placeable)>,
-  qry_stage: Query<&IsoMovementStage>,
-) {
-  let Some(stage) = qry_stage.iter().next() else {
-    return;
-  };
-
-  for (c, _cg, cs, p) in qry {
-    if cs.dead || cs.invulnerable {
-      continue;
-    }
-    c.hitbox.draw_gizmo(
-      &mut gizmos,
-      p.location,
-      stage.aspect_ratio,
-      Color::from(GREEN),
-    );
-  }
-
-  for (c, p) in qry_aoe {
-    let Some(stage) = qry_stage.iter().next() else {
-      continue;
-    };
-    c.shape.draw_gizmo(
-      &mut gizmos,
-      p.location,
-      stage.aspect_ratio,
-      Color::from(RED),
-    );
   }
 }
 

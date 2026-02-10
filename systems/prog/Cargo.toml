@@ -1,0 +1,16 @@
+[package]
+name = "sys_prog"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy.workspace = true
+serde.workspace = true
+ron.workspace = true
+fastrand = "2.3.0"
+libnoise = "1.2"
+
+sys_move = { path = "../move", version = "0.1.0" }
+sys_combat = { path = "../combat", version = "0.1.0" }
+sys_magic = { path = "../magic", version = "0.1.0" }
+utils = { path = "../../crates/utils", version = "0.1.0" }

@@ -1,3 +1,5 @@
+#[cfg(feature = "dev")]
+use crate::debug::DebugPlugin;
 use crate::{level::LevelPlugin, player::PlayerPlugin};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
@@ -21,5 +23,8 @@ impl Plugin for Jam7Plugin {
       SysMagicPlugin,
       SysEnemyPlugin,
     ));
+
+    #[cfg(feature = "dev")]
+    app.add_plugins(DebugPlugin);
   }
 }

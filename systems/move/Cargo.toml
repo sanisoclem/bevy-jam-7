@@ -7,6 +7,3 @@ edition = "2024"
 bevy = { workspace = true, features = ["2d", "ui"] }
 serde.workspace = true
 
-[features]
-default = []
-dev = ["bevy/dev"]

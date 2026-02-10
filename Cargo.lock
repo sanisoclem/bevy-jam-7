@@ -3329,6 +3329,7 @@ name = "jam7"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_egui",
  "bevy_enhanced_input",
  "bytemuck",
  "libnoise",
@@ -5250,6 +5251,21 @@ dependencies = [
  "libnoise",
  "serde",
  "sys_move",
+]
+
+[[package]]
+name = "sys_prog"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "fastrand",
+ "libnoise",
+ "ron",
+ "serde",
+ "sys_combat",
+ "sys_magic",
+ "sys_move",
+ "utils",
 ]
 
 [[package]]

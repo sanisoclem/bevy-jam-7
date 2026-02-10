@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::GREEN, prelude::*, time::Stopwatch};
+use bevy::{prelude::*, time::Stopwatch};
 
 mod iso;
 
@@ -13,9 +13,6 @@ impl Plugin for SysMovePlugin {
     app
       .add_systems(FixedUpdate, update_moveable_state)
       .add_systems(Update, (add_moveable_state, update_transform));
-
-    #[cfg(feature = "dev")]
-    app.add_systems(Update, draw_gizmos);
   }
 }
 
@@ -39,8 +36,8 @@ pub struct Moveable {
 
 #[derive(Component, Debug, Clone, Reflect)]
 pub struct MoveableVelocity {
-  world_velocity: Vec2,
-  screen_velocity: Vec2,
+  pub world_velocity: Vec2,
+  pub screen_velocity: Vec2,
 }
 
 #[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Default, Reflect)]
@@ -159,28 +156,6 @@ pub fn update_moveable_state(
       state.is_moving = true;
     } else {
       state.is_moving = false;
-    }
-  }
-}
-
-pub fn draw_gizmos(
-  mut giz: Gizmos,
-  mut qry: Query<(&Placeable, &MoveableVelocity, &Moveable)>,
-  qry_stage: Query<(Entity, &IsoMovementStage)>,
-  qry_children: Query<&Children>,
-) {
-  for (stage_entity, stage) in qry_stage {
-    let Some(children) = qry_children.get(stage_entity).ok() else {
-      continue;
-    };
-    for child in children {
-      let Some((p, s, _m)) = qry.get_mut(*child).ok() else {
-        continue;
-      };
-
-      let origin = p.location.to_screen(stage.aspect_ratio);
-      let future_pos = IsoWorldCoords::from(s.world_velocity).to_screen(stage.aspect_ratio);
-      // giz.ray_2d(origin, future_pos, Color::from(GREEN));
     }
   }
 }
