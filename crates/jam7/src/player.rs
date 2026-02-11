@@ -1,10 +1,9 @@
-use std::marker::PhantomData;
-
 use bevy::{
   color::palettes::tailwind::PURPLE_500, platform::collections::HashMap, prelude::*,
   sprite::Anchor, time::Stopwatch,
 };
 use bevy_enhanced_input::prelude::*;
+use std::marker::PhantomData;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
 use sys_combat::{Combatant, CombatantState, DeathBehavior, HitTestableShape, KillCounter};
@@ -13,9 +12,7 @@ use sys_magic::{
   EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellDownside, SpellGenerator,
   spells::fireball::FireballSpellGenerator,
 };
-use sys_move::{
-  IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, MoveableVelocity, Placeable,
-};
+use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 use utils::diff::TEAM_PLAYER;
 
 pub struct PlayerPlugin;

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
-  CombatantGuages, CombatantRadar, DetonationTrigger, HitTestableShape, Projectile,
-  ProjectileMovement, ProjectilePayload,
+  CombatantRadar, DetonationTrigger, HitTestableShape, Projectile, ProjectileMovement,
+  ProjectilePayload,
 };
 use sys_move::{ApplyImpulse, IsoWorldCoords, Moveable, Placeable};
 use utils::diff::TEAM_OTHER;
@@ -127,12 +127,11 @@ pub fn cast_fireball(
     &Combatant,
     &CombatantRadar,
     &Placeable,
-    &mut Moveable,
     &ChildOf,
     &mut SpellBookState,
   )>,
 ) {
-  let Some((c, radar, pos, mut mov, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
+  let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
   let Some((_, nearest)) = radar.nearest else {

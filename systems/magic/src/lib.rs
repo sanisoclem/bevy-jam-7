@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use sys_combat::CombatantState;
-use sys_move::Placeable;
 
 mod components;
 mod generator;
