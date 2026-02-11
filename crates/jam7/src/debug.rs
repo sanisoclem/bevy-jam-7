@@ -31,7 +31,7 @@ impl Plugin for DebugPlugin {
           draw_forces,
         ),
       )
-      .add_systems(EguiPrimaryContextPass, ui::boid_config_debug);
+      .add_systems(EguiPrimaryContextPass, ui::debug_ui);
   }
 }
 

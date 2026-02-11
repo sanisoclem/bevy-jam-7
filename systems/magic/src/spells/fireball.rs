@@ -41,7 +41,6 @@ impl FireballSpellGenerator {
     let team = if let Some(SpellDownside::FriendFire) = downside {
       TEAM_OTHER
     } else {
-      info!("friendly fire not {}", caster_team);
       caster_team
     };
     let payload_damage =

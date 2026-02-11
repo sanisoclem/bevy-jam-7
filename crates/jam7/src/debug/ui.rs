@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 use sys_combat::{Combatant, CombatantGuages, KillCounter};
 use sys_magic::SpellBook;
+use sys_prog::levelup::LevelUp;
 use utils::diff::{
   get_effective_dps_from_offense_score, get_effective_range_from_rangeness_score,
   get_max_hp_from_toughness_score, get_power_budget_from_kills, normalize_scores,
@@ -9,15 +10,21 @@ use utils::diff::{
 
 use crate::debug::DebugConfig;
 
-pub fn boid_config_debug(
+pub fn debug_ui(
+  mut cmd: Commands,
   mut config: ResMut<DebugConfig>,
   mut contexts: EguiContexts,
-  mut qry: Query<(&Combatant, &CombatantGuages, &KillCounter, &mut SpellBook)>,
+  mut qry: Query<(
+    Entity,
+    &Combatant,
+    &CombatantGuages,
+    &KillCounter,
+    &mut SpellBook,
+  )>,
 ) -> Result {
-  let Some((c, cg, kills, mut spellbook)) = qry.iter_mut().next() else {
+  let Some((entity, c, cg, kills, mut spellbook)) = qry.iter_mut().next() else {
     return Ok(());
   };
-
   egui::Window::new("Debug")
     .default_pos(egui::pos2(10., 130.0))
     .default_width(200.)
@@ -50,6 +57,9 @@ pub fn boid_config_debug(
             &mut spellbook.disabled,
             "Disable spellbook",
           ));
+          if ui.button("Level Up").clicked() {
+            cmd.trigger(LevelUp { target: entity });
+          }
         });
 
       egui::CollapsingHeader::new("Enemies")

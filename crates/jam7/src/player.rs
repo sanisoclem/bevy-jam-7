@@ -116,22 +116,7 @@ pub fn create_player(
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
     SpellBook {
-      spells: vec![EquippedSpell {
-        generator: SpellGenerator::Fireball(FireballSpellGenerator {
-          radius: 3.,
-          base_damage: 1000,
-          lifetime: 15.5,
-          speed: 80.,
-          explosion_lifetime: 7.,
-          explosion_damage_multiplier: 2.5,
-          explosion_radius: 180.,
-        }),
-        cooldown: Timer::from_seconds(0.2, TimerMode::Repeating),
-        downside: Some(SpellDownside::ForceMovement {
-          strength: 80.0,
-          duration: 0.1,
-        }),
-      }],
+      spells: vec![],
       disabled: false,
     },
     SpellBookState {

@@ -3345,6 +3345,7 @@ dependencies = [
  "sys_magic",
  "sys_move",
  "sys_procgen",
+ "sys_prog",
  "thiserror 2.0.18",
  "utils",
 ]

@@ -4,7 +4,6 @@ use sys_combat::CombatantState;
 mod components;
 mod generator;
 pub mod spells;
-mod upgrade;
 
 pub use components::*;
 pub use generator::*;

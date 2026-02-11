@@ -1,0 +1,14 @@
+SpellBuilderConfig(
+    fireball: (
+        rolls_per_upgrade: 2,
+        rolls: {
+            Speed: ( min_value: 100.0, max_value: 300.0, min_rolls: 1 ),
+            Lifetime: ( min_value: 1.0, max_value: 3.0, min_rolls: 1 ),
+            BaseDamage: ( min_value: 10.0, max_value: 50.0, min_rolls: 1 ),
+            Size: ( min_value: 5.0, max_value: 15.0, min_rolls: 1 ),
+            ExplosionRadius: ( min_value: 20.0, max_value: 60.0, min_rolls: 0 ),
+            ExplosionDamageMult: ( min_value: 1.0, max_value: 3.0, min_rolls: 1 ),
+            ExplosionDuration: ( min_value: 0.5, max_value: 2.0, min_rolls: 1 ),
+        }
+    ),
+)
