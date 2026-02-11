@@ -2,7 +2,7 @@ use bevy::{platform::collections::HashMap, prelude::*};
 use serde::Deserialize;
 use std::hash::Hash;
 use sys_magic::{
-  EquippedSpell, SpellGenerator,
+  EquippedSpell, SpellDownside, SpellGenerator,
   spells::{
     chainlightning::ChainlightningSpellGenerator, fireball::FireballSpellGenerator,
     frozenorb::FrozenorbSpellGenerator,
@@ -51,7 +51,11 @@ pub enum SpellUpgrade {
 }
 
 impl SpellBuilder {
-  pub fn create_upgrade(&self, current_spell: &EquippedSpell) -> SpellUpgradePerk {
+  pub fn create_upgrade(
+    &self,
+    spell_index: usize,
+    current_spell: &EquippedSpell,
+  ) -> SpellUpgradePerk {
     let mut upgrade_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
       .rolls
       .iter()
@@ -85,7 +89,10 @@ impl SpellBuilder {
       }
     }
 
-    SpellUpgradePerk { upgrades }
+    SpellUpgradePerk {
+      upgrades,
+      slot: spell_index,
+    }
   }
   pub fn create_fireball_spell(&self) -> Option<EquippedSpell> {
     let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
@@ -233,4 +240,107 @@ pub enum FrozenorbSpellRoll {
 
 pub trait SpellRollUpgrade: Sized + Clone + Eq + Hash {
   fn into_upgrade(self, value: f32) -> SpellUpgrade;
+}
+
+pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f32)>) {
+  for (key, value) in upgrades {
+    match (key, &mut spell.generator) {
+      (SpellUpgrade::CooldownReduction, _) => {
+        spell.cooldown = Timer::from_seconds(
+          spell.cooldown.duration().as_secs_f32() * value,
+          TimerMode::Repeating,
+        );
+      }
+      (SpellUpgrade::RemoveDownsides, _) => {
+        spell.downside.clear();
+      }
+      (SpellUpgrade::SpellDownsideUpgrade(downside), _) => {
+        spell.downside.push(match downside {
+          SpellDownsideUpgrade::DownsideAddFriendlyFire => SpellDownside::FriendFire,
+          SpellDownsideUpgrade::DownsideForceMovement => SpellDownside::ForceMovement {
+            strength: *value,
+            duration: 0.2,
+          },
+          SpellDownsideUpgrade::DownsideHpDrain => SpellDownside::HpDrain { strength: *value },
+        });
+      }
+
+      // fireball
+      (
+        SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::Speed),
+        SpellGenerator::Fireball(g),
+      ) => g.speed += value,
+      (
+        SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::BaseDamage),
+        SpellGenerator::Fireball(g),
+      ) => g.base_damage += *value as u32,
+      (
+        SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::Size),
+        SpellGenerator::Fireball(g),
+      ) => g.radius += value,
+      (
+        SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionRadius),
+        SpellGenerator::Fireball(g),
+      ) => g.explosion_radius += value,
+      (
+        SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionDamageMult),
+        SpellGenerator::Fireball(g),
+      ) => g.explosion_damage_multiplier += value,
+      (
+        SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionDuration),
+        SpellGenerator::Fireball(g),
+      ) => g.explosion_lifetime += value,
+
+      // chainlightning
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::Speed),
+        SpellGenerator::Chainlightning(g),
+      ) => g.speed += value,
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BaseDamage),
+        SpellGenerator::Chainlightning(g),
+      ) => g.base_damage += value,
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::NumChains),
+        SpellGenerator::Chainlightning(g),
+      ) => g.num_chains += value,
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceMult),
+        SpellGenerator::Chainlightning(g),
+      ) => g.bounce_mult += value,
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceRange),
+        SpellGenerator::Chainlightning(g),
+      ) => g.bounce_range += value,
+
+      // frozenorb
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::Speed),
+        SpellGenerator::Frozenorb(g),
+      ) => g.speed += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::OrbSize),
+        SpellGenerator::Frozenorb(g),
+      ) => g.orb_size += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::BaseDamage),
+        SpellGenerator::Frozenorb(g),
+      ) => g.base_damage += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardCooldown),
+        SpellGenerator::Frozenorb(g),
+      ) => g.shard_cooldown += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardSize),
+        SpellGenerator::Frozenorb(g),
+      ) => g.shard_size += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardSpeed),
+        SpellGenerator::Frozenorb(g),
+      ) => g.shard_speed += value,
+      _ => {
+        warn!("Unprocessed upgrade, possible misconfiguration");
+      }
+    }
+  }
 }

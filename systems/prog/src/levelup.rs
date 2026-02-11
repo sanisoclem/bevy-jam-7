@@ -1,6 +1,6 @@
 use crate::{
   LongTermProgger,
-  spells::{SpellBuilder, SpellUpgrade},
+  spells::{SpellBuilder, SpellUpgrade, upgrade_spell},
 };
 use bevy::prelude::*;
 use sys_magic::{EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator};
@@ -14,6 +14,7 @@ pub enum LevelUpPerk {
 
 pub struct SpellUpgradePerk {
   pub upgrades: Vec<(SpellUpgrade, f32)>,
+  pub slot: usize,
 }
 
 #[derive(EntityEvent)]
@@ -100,7 +101,7 @@ fn generate_upgrade_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Leve
   let idx = fastrand::usize(0..sb.spells.len());
   let equipped = &sb.spells[idx];
   Some(LevelUpPerk::SpellUpgradePerk(
-    builder.create_upgrade(equipped),
+    builder.create_upgrade(idx, equipped),
   ))
 }
 
@@ -134,7 +135,11 @@ pub fn on_apply_levelup(
       ss.spells_states.push(EquippedSpellState::default());
     }
     LevelUpPerk::SpellUpgradePerk(u) => {
-      todo!()
+      let Some(existing) = sb.spells.get_mut(u.slot) else {
+        return;
+      };
+
+      upgrade_spell(existing, &u.upgrades);
     }
   }
 }
