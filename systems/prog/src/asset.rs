@@ -1,15 +1,14 @@
-use bevy::asset::{AssetLoader, LoadContext, io::Reader};
-use bevy::prelude::*;
+use bevy::{
+  asset::{AssetLoader, LoadContext, io::Reader},
+  prelude::*,
+};
 use serde::Deserialize;
 
-use crate::{FireballSpellRoll, SpellBuilder};
+use crate::SpellBuilder;
 
 #[derive(Asset, TypePath, Debug, Deserialize)]
 pub struct SpellBuilderConfig {
-  pub fireball: SpellBuilder<FireballSpellRoll>,
-  // pub chainlightning: SpellBuilder<ChainlightningSpellRoll>,
-  // pub sweep: SpellBuilder<SweepSpellRoll>,
-  // pub turret: SpellBuilder<TurretSpellRoll>,
+  pub spellbuilder: SpellBuilder,
 }
 
 #[derive(Default, TypePath)]

@@ -26,7 +26,7 @@ impl Plugin for DebugPlugin {
         Update,
         (
           draw_player_ruler,
-          draw_spell_ranges,
+          // draw_spell_ranges,
           draw_combat_effects,
           draw_forces,
         ),
@@ -61,31 +61,31 @@ fn draw_player_ruler(
     );
   }
 }
-fn draw_spell_ranges(
-  mut gizmo: Gizmos,
-  qry_enemy: Query<(&Transform, &SpellBook)>,
-  config: Res<DebugConfig>,
-) {
-  if !config.show_spell_ranges {
-    return;
-  }
-
-  for (enemy_transform, sb) in qry_enemy {
-    let Some(sp) = sb.spells.first() else {
-      continue;
-    };
-    let SpellGenerator::Fireball(FireballSpellGenerator {
-      lifetime, speed, ..
-    }) = sp.generator;
-
-    let rad = lifetime * speed;
-    gizmo.ellipse_2d(
-      Isometry2d::from_translation(enemy_transform.translation.xy()),
-      Vec2::new(rad * 0.7, rad * 0.35),
-      Color::from(ORANGE_400),
-    );
-  }
-}
+// fn draw_spell_ranges(
+//   mut gizmo: Gizmos,
+//   qry_enemy: Query<(&Transform, &SpellBook)>,
+//   config: Res<DebugConfig>,
+// ) {
+//   if !config.show_spell_ranges {
+//     return;
+//   }
+//
+//   for (enemy_transform, sb) in qry_enemy {
+//     let Some(sp) = sb.spells.first() else {
+//       continue;
+//     };
+//     let SpellGenerator::Fireball(FireballSpellGenerator {
+//       lifetime, speed, ..
+//     }) = sp.generator;
+//
+//     let rad = lifetime * speed;
+//     gizmo.ellipse_2d(
+//       Isometry2d::from_translation(enemy_transform.translation.xy()),
+//       Vec2::new(rad * 0.7, rad * 0.35),
+//       Color::from(ORANGE_400),
+//     );
+//   }
+// }
 
 pub fn draw_forces(
   mut giz: Gizmos,

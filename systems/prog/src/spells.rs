@@ -1,13 +1,25 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use serde::Deserialize;
 use std::hash::Hash;
-use sys_magic::spells::fireball::FireballSpellGenerator;
+use sys_magic::{
+  EquippedSpell, SpellGenerator,
+  spells::{
+    chainlightning::ChainlightningSpellGenerator, fireball::FireballSpellGenerator,
+    frozenorb::FrozenorbSpellGenerator,
+  },
+};
+
+use crate::levelup::SpellUpgradePerk;
+
+const DEFAULT_SPELL_LIFETIME: f32 = 2.0;
 
 #[derive(Default, Debug, Deserialize, Clone)]
-pub struct SpellBuilder<TSpellRoll: Eq + PartialEq + Hash + Clone> {
+pub struct SpellBuilder {
   // what makes a spell (each one will be rolled once)
-  pub rolls: HashMap<TSpellRoll, SpellRoll>,
+  pub rolls: HashMap<SpellUpgrade, SpellRoll>,
   pub rolls_per_upgrade: usize,
+  pub downside_chance: f32,
+  pub max_downside_rolls: usize,
 }
 
 #[derive(Default, Debug, Deserialize, Clone)]
@@ -15,6 +27,7 @@ pub struct SpellRoll {
   pub min_value: f32,
   pub max_value: f32,
   pub min_rolls: usize,
+  pub is_downside: bool,
 }
 impl SpellRoll {
   pub fn roll_once(&self) -> f32 {
@@ -27,48 +40,197 @@ impl SpellRoll {
   }
 }
 
-impl SpellBuilder<FireballSpellRoll> {
-  pub fn create_spell(&self) -> Option<FireballSpellGenerator> {
-    let get =
-      |key: &FireballSpellRoll| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash)]
+pub enum SpellUpgrade {
+  CooldownReduction,
+  RemoveDownsides,
+  SpellDownsideUpgrade(SpellDownsideUpgrade),
+  FireballSpellUpgrade(FireballSpellRoll),
+  ChainlightningSpellUpgrade(ChainlightningSpellRoll),
+  FrozenorbSpellUpgrade(FrozenorbSpellRoll),
+}
 
-    Some(FireballSpellGenerator {
-      speed: get(&FireballSpellRoll::Speed)?,
-      lifetime: get(&FireballSpellRoll::Lifetime)?,
-      base_damage: get(&FireballSpellRoll::BaseDamage)? as u32,
-      radius: get(&FireballSpellRoll::Size)?,
-      explosion_radius: get(&FireballSpellRoll::ExplosionRadius)?,
-      explosion_damage_multiplier: get(&FireballSpellRoll::ExplosionDamageMult)?,
-      explosion_lifetime: get(&FireballSpellRoll::ExplosionDuration)?,
+impl SpellBuilder {
+  pub fn create_upgrade(&self, current_spell: &EquippedSpell) -> SpellUpgradePerk {
+    let mut upgrade_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
+      .rolls
+      .iter()
+      .filter(|(upgrade, roll)| !roll.is_downside && is_applicable(upgrade, current_spell))
+      .collect();
+
+    fastrand::shuffle(&mut upgrade_pool);
+
+    let mut upgrades: Vec<(SpellUpgrade, f32)> = upgrade_pool
+      .into_iter()
+      .take(self.rolls_per_upgrade)
+      .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once()))
+      .collect();
+
+    // roll downsides
+    let downside_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
+      .rolls
+      .iter()
+      .filter(|(_, roll)| roll.is_downside)
+      .collect();
+
+    if !downside_pool.is_empty() {
+      let mut chance = self.downside_chance;
+      let mut count = 0;
+      while count < self.max_downside_rolls && fastrand::f32() < chance {
+        let idx = fastrand::usize(0..downside_pool.len());
+        let (upgrade, roll) = downside_pool[idx];
+        upgrades.push(((*upgrade).clone(), roll.roll_once()));
+        count += 1;
+        chance *= self.downside_chance;
+      }
+    }
+
+    SpellUpgradePerk { upgrades }
+  }
+  pub fn create_fireball_spell(&self) -> Option<EquippedSpell> {
+    let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
+
+    Some(EquippedSpell {
+      generator: SpellGenerator::Fireball(FireballSpellGenerator {
+        speed: get(&SpellUpgrade::FireballSpellUpgrade(
+          FireballSpellRoll::Speed,
+        ))?,
+        base_damage: get(&SpellUpgrade::FireballSpellUpgrade(
+          FireballSpellRoll::BaseDamage,
+        ))? as u32,
+        radius: get(&SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::Size))?,
+        explosion_radius: get(&SpellUpgrade::FireballSpellUpgrade(
+          FireballSpellRoll::ExplosionRadius,
+        ))?,
+        explosion_damage_multiplier: get(&SpellUpgrade::FireballSpellUpgrade(
+          FireballSpellRoll::ExplosionDamageMult,
+        ))?,
+        explosion_lifetime: get(&SpellUpgrade::FireballSpellUpgrade(
+          FireballSpellRoll::ExplosionDuration,
+        ))?,
+        lifetime: DEFAULT_SPELL_LIFETIME,
+      }),
+      cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+      downside: Vec::new(),
     })
   }
 
-  pub fn create_upgrade(&self) -> SpellUpgrade {
-    let mut keys: Vec<&FireballSpellRoll> = self.rolls.keys().collect();
-    fastrand::shuffle(&mut keys);
+  pub fn create_chainlightning_spell(&self) -> Option<EquippedSpell> {
+    let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
 
-    let upgrades = keys
-      .into_iter()
-      .take(self.rolls_per_upgrade)
-      .filter_map(|key| Some((key.clone(), self.rolls.get(key)?.roll_once())))
-      .collect();
+    Some(EquippedSpell {
+      generator: SpellGenerator::Chainlightning(ChainlightningSpellGenerator {
+        speed: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::Speed,
+        ))?,
+        base_damage: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::BaseDamage,
+        ))?,
+        num_chains: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::NumChains,
+        ))?,
+        bounce_mult: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::BounceMult,
+        ))?,
+        bounce_range: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::BounceRange,
+        ))?,
+      }),
+      cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+      downside: Vec::new(),
+    })
+  }
 
-    SpellUpgrade::FireballSpellUpgrade(upgrades)
+  pub fn create_frozenorb_spell(&self) -> Option<EquippedSpell> {
+    let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
+
+    Some(EquippedSpell {
+      generator: SpellGenerator::Frozenorb(FrozenorbSpellGenerator {
+        speed: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::Speed,
+        ))?,
+        orb_size: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::OrbSize,
+        ))?,
+        base_damage: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::BaseDamage,
+        ))?,
+        shard_cooldown: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardCooldown,
+        ))?,
+        shard_size: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardSize,
+        ))?,
+        shard_speed: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardSpeed,
+        ))?,
+      }),
+      cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+      downside: Vec::new(),
+    })
   }
 }
 
-pub enum SpellUpgrade {
-  FireballSpellUpgrade(HashMap<FireballSpellRoll, f32>),
+fn is_applicable(upgrade: &SpellUpgrade, spell: &EquippedSpell) -> bool {
+  matches!(
+    (upgrade, &spell.generator, spell.downside.is_empty()),
+    (
+      SpellUpgrade::FireballSpellUpgrade(_),
+      SpellGenerator::Fireball(_),
+      _
+    ) | (
+      SpellUpgrade::ChainlightningSpellUpgrade(_),
+      SpellGenerator::Chainlightning(_),
+      _
+    ) | (
+      SpellUpgrade::FrozenorbSpellUpgrade(_),
+      SpellGenerator::Frozenorb(_),
+      _
+    ) | (SpellUpgrade::CooldownReduction, _, _)
+      | (SpellUpgrade::RemoveDownsides, _, false)
+      | (SpellUpgrade::SpellDownsideUpgrade(_), _, _)
+  )
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash)]
+pub enum SpellDownsideUpgrade {
+  DownsideAddFriendlyFire,
+  DownsideForceMovement,
+  DownsideHpDrain,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Default, Deserialize)]
 pub enum FireballSpellRoll {
   #[default]
   Speed,
-  Lifetime,
   BaseDamage,
   Size,
   ExplosionRadius,
   ExplosionDamageMult,
   ExplosionDuration,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Default, Deserialize)]
+pub enum ChainlightningSpellRoll {
+  #[default]
+  Speed,
+  BaseDamage,
+  NumChains,
+  BounceMult,
+  BounceRange,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Default, Deserialize)]
+pub enum FrozenorbSpellRoll {
+  #[default]
+  Speed,
+  OrbSize,
+  BaseDamage,
+  ShardCooldown,
+  ShardSize,
+  ShardSpeed,
+}
+
+pub trait SpellRollUpgrade: Sized + Clone + Eq + Hash {
+  fn into_upgrade(self, value: f32) -> SpellUpgrade;
 }

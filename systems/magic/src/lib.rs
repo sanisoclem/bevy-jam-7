@@ -65,6 +65,7 @@ fn cast_auto_spells(
           spell_slot: idx,
           cooldown: spell.cooldown.clone(),
         }),
+        _ => todo!(),
       };
     }
   }

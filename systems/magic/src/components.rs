@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use std::fmt::Debug;
 
-use crate::spells::fireball::FireballSpellGenerator;
+use crate::spells::{
+  chainlightning::ChainlightningSpellGenerator, fireball::FireballSpellGenerator,
+  frozenorb::FrozenorbSpellGenerator,
+};
 
 #[derive(Component, Debug, Reflect, Clone)]
 pub struct SpellBook {
@@ -12,7 +15,7 @@ pub struct SpellBook {
 pub struct EquippedSpell {
   pub generator: SpellGenerator,
   pub cooldown: Timer,
-  pub downside: Option<SpellDownside>,
+  pub downside: Vec<SpellDownside>,
 }
 
 #[derive(Component, Debug, Reflect, Clone)]
@@ -34,6 +37,8 @@ pub enum SpellDownside {
 #[derive(Clone, Debug, Reflect)]
 pub enum SpellGenerator {
   Fireball(FireballSpellGenerator),
+  Chainlightning(ChainlightningSpellGenerator),
+  Frozenorb(FrozenorbSpellGenerator),
 }
 
 #[derive(EntityEvent, Clone, Debug, Reflect)]
@@ -41,7 +46,7 @@ pub struct SpellReady<T> {
   #[event_target]
   pub caster: Entity,
   pub generator: T,
-  pub downside: Option<SpellDownside>,
+  pub downside: Vec<SpellDownside>,
   pub spell_slot: usize,
   pub cooldown: Timer,
 }

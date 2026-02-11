@@ -8,10 +8,7 @@ use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_cam::CameraTarget;
 use sys_combat::{Combatant, CombatantState, DeathBehavior, HitTestableShape, KillCounter};
 use sys_enemy::{EnemySpawner, EnemySpawnerState};
-use sys_magic::{
-  EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellDownside, SpellGenerator,
-  spells::fireball::FireballSpellGenerator,
-};
+use sys_magic::{EquippedSpellState, SpellBook, SpellBookState};
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 use utils::diff::TEAM_PLAYER;
 

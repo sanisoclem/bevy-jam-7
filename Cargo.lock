@@ -5232,6 +5232,7 @@ name = "sys_magic"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "serde",
  "sys_combat",
  "sys_move",
  "utils",

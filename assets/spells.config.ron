@@ -1,14 +1,150 @@
 SpellBuilderConfig(
-    fireball: (
-        rolls_per_upgrade: 2,
+    spellbuilder: (
+        rolls_per_upgrade: 3,
+        downside_chance: 0.15,
+        max_downside_rolls: 2,
         rolls: {
-            Speed: ( min_value: 100.0, max_value: 300.0, min_rolls: 1 ),
-            Lifetime: ( min_value: 1.0, max_value: 3.0, min_rolls: 1 ),
-            BaseDamage: ( min_value: 10.0, max_value: 50.0, min_rolls: 1 ),
-            Size: ( min_value: 5.0, max_value: 15.0, min_rolls: 1 ),
-            ExplosionRadius: ( min_value: 20.0, max_value: 60.0, min_rolls: 0 ),
-            ExplosionDamageMult: ( min_value: 1.0, max_value: 3.0, min_rolls: 1 ),
-            ExplosionDuration: ( min_value: 0.5, max_value: 2.0, min_rolls: 1 ),
-        }
+            // --- Generic ---
+            CooldownReduction: (
+                min_value: 0.05,
+                max_value: 0.30,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            RemoveDownsides: (
+                min_value: 0.0,
+                max_value: 0.0,
+                min_rolls: 0,
+                is_downside: false,
+            ),
+
+            // --- Downsides ---
+            SpellDownsideUpgrade(DownsideAddFriendlyFire): (
+                min_value: 0.0,
+                max_value: 0.0,
+                min_rolls: 0,
+                is_downside: true,
+            ),
+            SpellDownsideUpgrade(DownsideForceMovement): (
+                min_value: 0.0,
+                max_value: 0.0,
+                min_rolls: 0,
+                is_downside: true,
+            ),
+            SpellDownsideUpgrade(DownsideHpDrain): (
+                min_value: 0.0,
+                max_value: 0.0,
+                min_rolls: 0,
+                is_downside: true,
+            ),
+
+            // --- Fireball ---
+            FireballSpellUpgrade(Speed): (
+                min_value: 100.0,
+                max_value: 400.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FireballSpellUpgrade(BaseDamage): (
+                min_value: 5.0,
+                max_value: 30.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FireballSpellUpgrade(Size): (
+                min_value: 5.0,
+                max_value: 20.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FireballSpellUpgrade(ExplosionRadius): (
+                min_value: 10.0,
+                max_value: 60.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FireballSpellUpgrade(ExplosionDamageMult): (
+                min_value: 1.0,
+                max_value: 3.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FireballSpellUpgrade(ExplosionDuration): (
+                min_value: 0.3,
+                max_value: 1.5,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+
+            // --- Chainlightning ---
+            ChainlightningSpellUpgrade(Speed): (
+                min_value: 150.0,
+                max_value: 500.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            ChainlightningSpellUpgrade(BaseDamage): (
+                min_value: 5.0,
+                max_value: 25.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            ChainlightningSpellUpgrade(NumChains): (
+                min_value: 1.0,
+                max_value: 5.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            ChainlightningSpellUpgrade(BounceMult): (
+                min_value: 0.5,
+                max_value: 2.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            ChainlightningSpellUpgrade(BounceRange): (
+                min_value: 50.0,
+                max_value: 200.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+
+            // --- Frozenorb ---
+            FrozenorbSpellUpgrade(Speed): (
+                min_value: 50.0,
+                max_value: 200.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FrozenorbSpellUpgrade(OrbSize): (
+                min_value: 10.0,
+                max_value: 40.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FrozenorbSpellUpgrade(BaseDamage): (
+                min_value: 3.0,
+                max_value: 20.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FrozenorbSpellUpgrade(ShardCooldown): (
+                min_value: 0.1,
+                max_value: 0.8,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FrozenorbSpellUpgrade(ShardSize): (
+                min_value: 3.0,
+                max_value: 15.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+            FrozenorbSpellUpgrade(ShardSpeed): (
+                min_value: 100.0,
+                max_value: 350.0,
+                min_rolls: 1,
+                is_downside: false,
+            ),
+        },
     ),
 )

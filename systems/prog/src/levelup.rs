@@ -1,20 +1,19 @@
-use crate::{LongTermProgger, spells::SpellUpgrade};
+use crate::{
+  LongTermProgger,
+  spells::{SpellBuilder, SpellUpgrade},
+};
 use bevy::prelude::*;
 use sys_magic::{EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator};
 
 pub mod ui;
 
 pub enum LevelUpPerk {
-  NewSpell(NewSpellPerk),
+  NewSpell(EquippedSpell),
   SpellUpgradePerk(SpellUpgradePerk),
 }
 
-pub struct NewSpellPerk {
-  pub generator: SpellGenerator,
-}
-
 pub struct SpellUpgradePerk {
-  pub upgrade: SpellUpgrade,
+  pub upgrades: Vec<(SpellUpgrade, f32)>,
 }
 
 #[derive(EntityEvent)]
@@ -41,13 +40,11 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
   let mut choices = Vec::new();
 
   for _ in 0..lprog.num_perk_choices {
-    let pick_new = max_new_spells > 0 && fastrand::f32() < 0.5;
+    let pick_new = sb.spells.is_empty() || (max_new_spells > 0 && fastrand::f32() < 0.5);
 
-    if pick_new {
-      if let Some(perk) = generate_new_spell_perk(sb, lprog) {
-        choices.push(perk);
-        continue;
-      }
+    if pick_new && let Some(perk) = generate_new_spell_perk(sb, lprog) {
+      choices.push(perk);
+      continue;
     }
 
     // fallback
@@ -60,53 +57,51 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
 }
 
 fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<LevelUpPerk> {
-  let existing: Vec<std::mem::Discriminant<SpellGenerator>> = sb
+  let builder = lprog.spell_builder.as_ref()?;
+
+  let has_fireball = sb
     .spells
     .iter()
-    .map(|s| std::mem::discriminant(&s.generator))
-    .collect();
+    .any(|s| matches!(s.generator, SpellGenerator::Fireball(_)));
+  let has_chainlightning = sb
+    .spells
+    .iter()
+    .any(|s| matches!(s.generator, SpellGenerator::Chainlightning(_)));
+  let has_frozenorb = sb
+    .spells
+    .iter()
+    .any(|s| matches!(s.generator, SpellGenerator::Frozenorb(_)));
 
-  let mut available: Vec<SpellGenerator> = vec![
-    lprog
-      .fireball_builder
-      .as_ref()
-      .and_then(|b| b.create_spell())
-      .map(SpellGenerator::Fireball),
-    // lprog
-    //   .chainlightning_builder
-    //   .as_ref()
-    //   .and_then(|b| b.create_spell())
-    //   .map(SpellGenerator::Chainlightning),
-  ]
-  .into_iter()
-  .flatten()
-  .filter(|g| !existing.contains(&std::mem::discriminant(g)))
-  .collect();
+  let mut available: Vec<fn(&SpellBuilder) -> Option<EquippedSpell>> = Vec::new();
+  if !has_fireball {
+    available.push(|b| b.create_fireball_spell());
+  }
+  if !has_chainlightning {
+    available.push(|b| b.create_chainlightning_spell());
+  }
+  if !has_frozenorb {
+    available.push(|b| b.create_frozenorb_spell());
+  }
 
   if available.is_empty() {
     return None;
   }
 
   let idx = fastrand::usize(0..available.len());
-  Some(LevelUpPerk::NewSpell(NewSpellPerk {
-    generator: available.remove(idx),
-  }))
+  available[idx](builder).map(LevelUpPerk::NewSpell)
 }
 
 fn generate_upgrade_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<LevelUpPerk> {
   if sb.spells.is_empty() {
     return None;
   }
+  let builder = lprog.spell_builder.as_ref()?;
 
   let idx = fastrand::usize(0..sb.spells.len());
   let equipped = &sb.spells[idx];
-
-  let upgrade = match &equipped.generator {
-    SpellGenerator::Fireball(_) => lprog.fireball_builder.as_ref()?.create_upgrade(),
-    // SpellGenerator::Chainlightning(_) => lprog.chainlightning_builder.as_ref()?.create_upgrade(),
-  };
-
-  Some(LevelUpPerk::SpellUpgradePerk(SpellUpgradePerk { upgrade }))
+  Some(LevelUpPerk::SpellUpgradePerk(
+    builder.create_upgrade(equipped),
+  ))
 }
 
 pub fn on_levelup(
@@ -135,11 +130,7 @@ pub fn on_apply_levelup(
 
   match &evt.perk {
     LevelUpPerk::NewSpell(s) => {
-      sb.spells.push(EquippedSpell {
-        generator: s.generator.clone(),
-        cooldown: Timer::from_seconds(0.1, TimerMode::Repeating),
-        downside: Some(sys_magic::SpellDownside::HpDrain { strength: 100. }),
-      });
+      sb.spells.push(s.clone());
       ss.spells_states.push(EquippedSpellState::default());
     }
     LevelUpPerk::SpellUpgradePerk(u) => {

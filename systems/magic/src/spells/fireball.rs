@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 use bevy::prelude::*;
+use std::sync::Arc;
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonationTrigger, HitTestableShape, Projectile, ProjectileMovement,
@@ -145,22 +144,23 @@ pub fn cast_fireball(
   ss.cooldown = Some(evt.cooldown.clone());
 
   let direction = (nearest - pos.location).normalize_or(Vec2::Y);
-
-  if let Some(SpellDownside::HpDrain { strength }) = &evt.downside {
-    cmd.trigger(ApplyCombatEffect {
-      target: evt.caster,
-      effects: vec![CombatEffect::Damage(
-        (evt.generator.base_damage as f32 * *strength) as u32,
-      )],
-      source: evt.caster,
-    });
-  }
-  if let Some(SpellDownside::ForceMovement { strength, duration }) = &evt.downside {
-    cmd.trigger(ApplyImpulse {
-      target: evt.caster,
-      force: -direction * strength,
-      timer: Timer::from_seconds(*duration, TimerMode::Once),
-    });
+  for downside in evt.downside.iter() {
+    if let SpellDownside::HpDrain { strength } = downside {
+      cmd.trigger(ApplyCombatEffect {
+        target: evt.caster,
+        effects: vec![CombatEffect::Damage(
+          (evt.generator.base_damage as f32 * *strength) as u32,
+        )],
+        source: evt.caster,
+      });
+    }
+    if let SpellDownside::ForceMovement { strength, duration } = downside {
+      cmd.trigger(ApplyImpulse {
+        target: evt.caster,
+        force: -direction * strength,
+        timer: Timer::from_seconds(*duration, TimerMode::Once),
+      });
+    }
   }
 
   evt.generator.cast(
@@ -168,7 +168,11 @@ pub fn cast_fireball(
     (evt.caster, pos),
     c.team,
     parent.0,
-    &evt.downside,
+    &evt
+      .downside
+      .iter()
+      .find(|f| matches!(f, SpellDownside::FriendFire))
+      .cloned(),
     direction,
   );
 }

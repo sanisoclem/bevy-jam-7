@@ -112,6 +112,14 @@ fn perk_display_text(perk: &LevelUpPerk) -> (&'static str, String) {
           g.base_damage, g.speed, g.radius, g.lifetime
         ),
       ),
+      SpellGenerator::Chainlightning(g) => (
+        "New Spell: Lightning",
+        format!("DMG {}  SPD {:.0}", g.base_damage, g.speed,),
+      ),
+      SpellGenerator::Frozenorb(g) => (
+        " New Spell: FrozenOrb",
+        format!("DMG {}  SPD {:.0} ", g.base_damage, g.speed,),
+      ),
     },
     LevelUpPerk::SpellUpgradePerk(_) => ("⬆ Spell Upgrade", "Enhance an equipped spell".into()),
   }

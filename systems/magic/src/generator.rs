@@ -24,7 +24,7 @@ impl SpellBookGenerator {
             explosion_radius: 30.,
           }),
           cooldown: Timer::from_seconds(10. / effective_dps, TimerMode::Repeating),
-          downside: None,
+          downside: Vec::new(),
         }],
         disabled: false,
       },

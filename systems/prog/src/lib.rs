@@ -6,7 +6,7 @@ use crate::{
     PendingLevelUp,
     ui::{despawn_levelup_ui, levelup_ui_interaction, spawn_levelup_ui},
   },
-  spells::{FireballSpellRoll, SpellBuilder},
+  spells::SpellBuilder,
 };
 
 mod asset;
@@ -53,10 +53,7 @@ pub struct LongTermProgger {
   pub runs: u32,
   pub trophies: Vec<ProggerTrophy>,
   pub spell_builder_config: Handle<SpellBuilderConfig>,
-  pub fireball_builder: Option<SpellBuilder<FireballSpellRoll>>,
-  // pub chainlightning_builder: Option<SpellBuilder<ChainlightningSpellRoll>>,
-  // pub sweep_builder: Option<SpellBuilder<SweepSpellRoll>>,
-  // pub turret_builder: Option<SpellBuilder<TurrentSpellRoll>>,
+  pub spell_builder: Option<SpellBuilder>,
 }
 impl FromWorld for LongTermProgger {
   fn from_world(world: &mut World) -> Self {
@@ -71,7 +68,7 @@ impl FromWorld for LongTermProgger {
       runs: 0,
       trophies: Vec::new(),
       spell_builder_config: builder_config,
-      fireball_builder: None,
+      spell_builder: None,
     }
   }
 }
@@ -89,7 +86,7 @@ fn sync_spell_builders(
       let Some(config) = assets.get(*id) else {
         continue;
       };
-      lprog.fireball_builder = Some(config.fireball.clone());
+      lprog.spell_builder = Some(config.spellbuilder.clone());
     }
   }
 }
