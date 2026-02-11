@@ -8,5 +8,5 @@ pub mod prelude {
   pub use crate::plugin::Jam7Plugin;
 }
 
-#[cfg(feature = "dev")]
+// #[cfg(feature = "dev")]
 mod debug;

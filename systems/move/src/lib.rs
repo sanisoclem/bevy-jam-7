@@ -11,8 +11,12 @@ pub struct SysMovePlugin;
 impl Plugin for SysMovePlugin {
   fn build(&self, app: &mut App) {
     app
+      .add_observer(apply_impulse)
       .add_systems(FixedUpdate, update_moveable_state)
-      .add_systems(Update, (add_moveable_state, update_transform));
+      .add_systems(
+        Update,
+        (tick_impulses, add_moveable_state, update_transform),
+      );
   }
 }
 
@@ -32,6 +36,7 @@ pub struct Moveable {
   pub damping: f32,
   // pub mass: f32,
   pub net_forces: Vec2,
+  pub impulses: Vec<(Vec2, Timer)>,
 }
 
 #[derive(Component, Debug, Clone, Reflect)]
@@ -40,9 +45,18 @@ pub struct MoveableVelocity {
   pub screen_velocity: Vec2,
 }
 
+#[derive(EntityEvent, Debug, Clone, Reflect)]
+pub struct ApplyImpulse {
+  #[event_target]
+  pub target: Entity,
+  pub force: Vec2,
+  pub timer: Timer,
+}
+
 #[derive(Component, Debug, Clone, PartialEq, Eq, Hash, Default, Reflect)]
 pub struct MoveState {
   pub is_moving: bool,
+  pub is_moving_voluntary: bool,
   pub direction: MoveDirection,
 }
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Default, Reflect, Deserialize, Serialize)]
@@ -103,6 +117,26 @@ impl MoveDirection {
   }
 }
 
+pub fn apply_impulse(evt: On<ApplyImpulse>, mut qry: Query<&mut Moveable>) {
+  let Some(mut m) = qry.get_mut(evt.target).ok() else {
+    return;
+  };
+
+  m.impulses.push((evt.force, evt.timer.clone()));
+}
+pub fn tick_impulses(qry: Query<&mut Moveable>, time: Res<Time>) {
+  for mut m in qry {
+    m.impulses = m
+      .impulses
+      .drain(..)
+      .filter_map(|mut x| {
+        x.1.tick(time.delta());
+        if x.1.is_finished() { None } else { Some(x) }
+      })
+      .collect();
+  }
+}
+
 pub fn advance_stage_time(qry: Query<&mut IsoMovementStage>, time: Res<Time>) {
   for mut stage in qry {
     stage.stopwatch.tick(time.delta());
@@ -122,6 +156,7 @@ pub fn add_moveable_state(
       },
       MoveState {
         is_moving: false,
+        is_moving_voluntary: false,
         direction: MoveDirection::North,
       },
     ));
@@ -142,20 +177,28 @@ pub fn update_moveable_state(
     let Ok(stage) = qry_stage.get(co.parent()) else {
       continue;
     };
+
+    let impulses: Vec2 = m.impulses.iter().map(|(x, _)| *x).sum();
     let t = time.delta_secs();
     // let decayed_velocity = v.world_velocity - (v.world_velocity * m.damping * t * 8.);
-    let new_velocity = m.net_forces; // decayed_velocity + m.net_forces;
+    let new_velocity_without_impulse = m.net_forces;
+    let new_velocity = new_velocity_without_impulse + impulses; // decayed_velocity + m.net_forces;
     let screenspace_velocity = IsoWorldCoords::from(new_velocity).to_screen(stage.aspect_ratio);
     let move_offset = new_velocity * t;
 
     v.world_velocity = new_velocity;
     v.screen_velocity = screenspace_velocity;
     p.location = p.location + move_offset.into();
-    if new_velocity.length_squared() > 50.0 {
-      state.direction = MoveDirection::from_velocity(screenspace_velocity);
-      state.is_moving = true;
+
+    state.is_moving = new_velocity.length_squared() > 50.0;
+
+    if new_velocity_without_impulse.length_squared() > 50. {
+      state.direction = MoveDirection::from_velocity(
+        IsoWorldCoords::from(new_velocity_without_impulse).to_screen(stage.aspect_ratio),
+      );
+      state.is_moving_voluntary = true;
     } else {
-      state.is_moving = false;
+      state.is_moving_voluntary = false;
     }
   }
 }

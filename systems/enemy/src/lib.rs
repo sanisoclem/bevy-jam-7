@@ -116,7 +116,7 @@ impl EnemyRegistry {
     descriptors: &Assets<EnemyDescriptor>,
     procgen: &ProceduralLevel,
   ) -> Option<EnemyBlueprint> {
-    let power_budget = get_power_budget_from_kills(total_kills as f32 + 100000.);
+    let power_budget = get_power_budget_from_kills(total_kills as f32);
 
     let [
       density_score,
@@ -155,7 +155,7 @@ impl EnemyRegistry {
     let descriptor = self.get_enemy_descriptor(descriptors, location)?;
 
     let scale = descriptor.scale * get_enemy_size_from_toughness(toughness_score);
-    let tint = get_enemy_tint(0., rangeness_score, offense_score);
+    let tint = get_enemy_tint(toughness_score, rangeness_score, offense_score);
     let animation = AtlasAnimation {
       tint: Some(tint),
       phantom: PhantomData,
@@ -316,6 +316,7 @@ fn spawn_enemies(
         Moveable {
           net_forces: Vec2::ZERO,
           damping: 1.0,
+          impulses: Vec::new(),
         },
         Enemy {
           spawned_by: spawner_entity,

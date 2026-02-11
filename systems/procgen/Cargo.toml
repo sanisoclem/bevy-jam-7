@@ -9,6 +9,7 @@ libnoise.workspace = true
 serde.workspace = true
 
 sys_move = { path = "../move", version = "0.1.0" }
+utils = { path = "../../crates/utils", version = "0.1.0" }
 
 [features]
 default = []

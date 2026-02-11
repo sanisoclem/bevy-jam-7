@@ -5233,6 +5233,7 @@ dependencies = [
  "bevy",
  "sys_combat",
  "sys_move",
+ "utils",
 ]
 
 [[package]]
@@ -5251,6 +5252,7 @@ dependencies = [
  "libnoise",
  "serde",
  "sys_move",
+ "utils",
 ]
 
 [[package]]

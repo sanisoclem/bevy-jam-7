@@ -7,6 +7,7 @@ pub mod diff {
 
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
+  pub const TEAM_OTHER: u8 = 7;
   pub fn get_power_budget_from_kills(kills: f32) -> f32 {
     ((kills.max(1.0).log10() - 1.0) * 4.0).max(1.0)
   }
@@ -18,7 +19,7 @@ pub mod diff {
     100. + rangeness_score * 200.
   }
   pub fn get_effective_dps_from_offense_score(offense_score: f32) -> f32 {
-    10. + offense_score * 5.
+    10. + offense_score * 50.
   }
   pub fn get_density_ceiling_from_score(density_score: f32) -> f32 {
     (density_score / 10000.).clamp(0.000001, 0.001)
@@ -29,21 +30,11 @@ pub mod diff {
   pub fn get_enemy_tint(toughness_score: f32, rangeness_score: f32, offense_score: f32) -> Color {
     let max = toughness_score.max(rangeness_score).max(offense_score);
 
-    let t = (toughness_score / max).powi(3);
-    let r = (rangeness_score / max).powi(3);
-    let o = (offense_score / max).powi(3);
+    let r = toughness_score / max;
+    let g = rangeness_score / max;
+    let b = offense_score / max;
 
-    let red = o;
-    let green = r;
-    let blue = t;
-
-    let channel_max = red.max(green).max(blue);
-    let retval = Color::srgba(
-      red / channel_max,
-      green / channel_max,
-      blue / channel_max,
-      1.0,
-    );
+    let retval = Color::srgba(b, g, r, 1.0);
     debug!(
       "tinting {}, {}, {} = {:?}",
       toughness_score, rangeness_score, offense_score, retval

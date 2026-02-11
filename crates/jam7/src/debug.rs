@@ -6,8 +6,7 @@ use bevy::{
 };
 use bevy_egui::EguiPrimaryContextPass;
 use sys_combat::*;
-use sys_enemy::*;
-use sys_magic::*;
+use sys_magic::{spells::fireball::FireballSpellGenerator, *};
 use sys_move::*;
 
 use crate::player::Player;
@@ -19,12 +18,15 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
   fn build(&self, app: &mut App) {
     app
-      .init_resource::<DebugConfig>()
+      .insert_resource(DebugConfig {
+        show_combat_effects: true,
+        ..Default::default()
+      })
       .add_systems(
         Update,
         (
           draw_player_ruler,
-          draw_enemy_spell_ranges,
+          draw_spell_ranges,
           draw_combat_effects,
           draw_forces,
         ),
@@ -59,9 +61,9 @@ fn draw_player_ruler(
     );
   }
 }
-fn draw_enemy_spell_ranges(
+fn draw_spell_ranges(
   mut gizmo: Gizmos,
-  qry_enemy: Query<(&Transform, &SpellBook), With<Enemy>>,
+  qry_enemy: Query<(&Transform, &SpellBook)>,
   config: Res<DebugConfig>,
 ) {
   if !config.show_spell_ranges {
@@ -72,9 +74,9 @@ fn draw_enemy_spell_ranges(
     let Some(sp) = sb.spells.first() else {
       continue;
     };
-    let SpellGenerator::Fireball {
+    let SpellGenerator::Fireball(FireballSpellGenerator {
       lifetime, speed, ..
-    } = sp.generator;
+    }) = sp.generator;
 
     let rad = lifetime * speed;
     gizmo.ellipse_2d(
