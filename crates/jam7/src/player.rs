@@ -109,7 +109,7 @@ pub fn create_player(
   (
     Player,
     ChildOf(spawn_parent),
-    KillCounter { kills: 1000 },
+    KillCounter { kills: 0 },
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),
@@ -133,7 +133,7 @@ pub fn create_player(
       cooldown: Timer::from_seconds(0.5, TimerMode::Once),
     },
     Combatant {
-      max_hp: 10,
+      max_hp: 1,
       hitbox: HitTestableShape::Circle { radius: 7.0 },
       team: TEAM_PLAYER,
       regen: 0,

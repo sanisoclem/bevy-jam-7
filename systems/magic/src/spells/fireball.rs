@@ -60,7 +60,7 @@ impl FireballSpellGenerator {
       },
       Placeable {
         layer: 5,
-        location: caster.1.location + (IsoWorldCoords::from(direction * self.radius * 1.1)),
+        location: caster.1.location + (IsoWorldCoords::from(direction * self.radius * 2.)),
       },
       Moveable {
         damping: 1.0,

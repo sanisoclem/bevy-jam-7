@@ -126,11 +126,15 @@ pub fn spawn_death_ui(
             .features
             .iter()
           {
+            let is_checked = lprog
+              .active_lprog_features
+              .iter()
+              .any(|x| discriminant(&x.feature) == discriminant(&feat.feature));
             mid
               .spawn((
                 LucidityCheckbox {
-                  is_checked: false,
                   feature: feat.clone(),
+                  is_checked,
                 },
                 Button,
                 Node {
@@ -154,7 +158,11 @@ pub fn spawn_death_ui(
                     border: UiRect::all(Val::Px(2.0)),
                     ..default()
                   },
-                  BackgroundColor(Color::srgb(0.05, 0.05, 0.08)),
+                  (if is_checked {
+                    BackgroundColor(Color::srgb(0.2, 0.7, 0.3))
+                  } else {
+                    BackgroundColor(Color::srgb(0.05, 0.05, 0.08))
+                  }),
                   BorderColor::all(Color::srgb(0.5, 0.5, 0.6)),
                 ));
                 checkbox_row.spawn((
@@ -202,8 +210,13 @@ pub fn death_ui_interaction(
       &mut LucidityCheckbox,
       &mut BackgroundColor,
       &mut BorderColor,
+      &Children,
     ),
     (Changed<Interaction>, With<LucidityCheckbox>),
+  >,
+  mut checkbox_indicator_query: Query<
+    &mut BackgroundColor,
+    (Without<LucidityCheckbox>, Without<Button>),
   >,
   mut button_query: Query<
     (&Interaction, &mut BackgroundColor, &mut BorderColor),
@@ -216,7 +229,7 @@ pub fn death_ui_interaction(
   ui_root: Query<Entity, With<DeathUI>>,
   mut lprog: ResMut<LongTermProgger>,
 ) {
-  for (interaction, mut checkbox, mut bg, mut border) in &mut checkbox_query {
+  for (interaction, mut checkbox, mut bg, mut border, children) in &mut checkbox_query {
     match interaction {
       Interaction::Hovered => {
         *bg = BackgroundColor(Color::srgb(0.16, 0.16, 0.22));
@@ -227,7 +240,20 @@ pub fn death_ui_interaction(
         *border = BorderColor::all(Color::srgb(0.3, 0.3, 0.4));
       }
       Interaction::Pressed => {
+        if lprog.used_lucidty + checkbox.feature.cost > lprog.lucidty {
+          continue;
+        }
+
         checkbox.is_checked = !checkbox.is_checked;
+        if let Some(indicator_entity) = children.first()
+          && let Ok(mut indicator_bg) = checkbox_indicator_query.get_mut(*indicator_entity)
+        {
+          *indicator_bg = match checkbox.is_checked {
+            true => BackgroundColor(Color::srgb(0.2, 0.7, 0.3)),
+            false => BackgroundColor(Color::srgb(0.05, 0.05, 0.08)),
+          };
+        }
+
         if checkbox.is_checked {
           lprog.used_lucidty += checkbox.feature.cost;
           lprog.active_lprog_features.push(checkbox.feature.clone());

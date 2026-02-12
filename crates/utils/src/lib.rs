@@ -13,9 +13,20 @@ pub mod diff {
   pub fn get_power_budget_from_kills(kills: f32) -> f32 {
     ((kills.max(1.0).log10() - 1.0) * 4.0).max(1.0)
   }
+  pub fn get_mobility_from_rangeness(power_budget: f32, rangeness_score: f32) -> f32 {
+    const MIN_MOBILITY: f32 = 20.0;
+    const MIN_MOBILITY_AT_BUDGET_RATIO: f32 = 0.8;
 
-  pub fn get_mobility_from_rangeness(rangeness_score: f32) -> f32 {
-    1000. / rangeness_score
+    let capped_budget = power_budget.min(8.0);
+    let max_mobility = 100.0 + (capped_budget - 1.0) * (100.0 / 7.0); // 100 at budget=1, 200 at budget=8
+
+    let rangeness_ratio = rangeness_score / power_budget;
+    if rangeness_ratio >= MIN_MOBILITY_AT_BUDGET_RATIO {
+      MIN_MOBILITY
+    } else {
+      let t = rangeness_ratio / MIN_MOBILITY_AT_BUDGET_RATIO;
+      max_mobility * (1.0 - t) + MIN_MOBILITY * t
+    }
   }
   pub fn get_max_hp_from_toughness_score(toughness_score: f32) -> u32 {
     100 + (toughness_score * 500.).floor() as u32
@@ -82,12 +93,12 @@ pub mod diff {
   pub fn get_max_projectile_lifetime(speed: f32) -> f32 {
     MAX_PROJECTILE_LIFETIME.min(MAX_PROJECTILE_TRAVEL / speed)
   }
-  const LUCIDITY_GAIN_EXPONENT: f32 = 0.9;
+  const LUCIDITY_GAIN_EXPONENT: f32 = 1.0;
 
   pub fn get_lucidity_gain(current_lucidity: u32, kills: u32) -> u32 {
     // more lucidity, more kills needed for the next point
     let kills_per_lucidity = (current_lucidity as f32 + 1.0).powf(1.0 / LUCIDITY_GAIN_EXPONENT);
-    (kills as f32 / kills_per_lucidity).floor() as u32
+    100 + (kills as f32 / kills_per_lucidity).floor() as u32
   }
 }
 

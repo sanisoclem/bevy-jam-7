@@ -30,8 +30,8 @@ SpellBuilderConfig(
             ),
             SpellDownsideUpgrade(DownsideForceMovement): (
                 description: "Downside: Knockback",
-                min_value: 0.0,
-                max_value: 0.0,
+                min_value: 50.0,
+                max_value: 100.0,
                 min_rolls: 0,
                 is_downside: true,
             ),
@@ -97,8 +97,8 @@ SpellBuilderConfig(
             ),
             ChainlightningSpellUpgrade(BaseDamage): (
                 description: "Damage +{}",
-                min_value: 5.0,
-                max_value: 25.0,
+                min_value: 1.0,
+                max_value: 2.0,
                 min_rolls: 1,
                 is_downside: false,
             ),

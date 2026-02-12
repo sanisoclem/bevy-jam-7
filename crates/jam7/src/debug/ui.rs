@@ -53,9 +53,8 @@ pub fn debug_ui(
         .default_open(true)
         .show(ui, |ui| {
           ui.label(format!(
-            "Lucidity {}/{}",
-            lprog.lucidty - lprog.used_lucidty,
-            lprog.lucidty
+            "Used lucidity {}/{}",
+            lprog.used_lucidty, lprog.lucidty
           ));
           lprog.active_lprog_features.iter().for_each(|f| {
             ui.label(f.description.clone());

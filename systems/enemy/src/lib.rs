@@ -4,7 +4,7 @@ use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use sys_animation::{AtlasAnimation, SysAnimationPlugin};
 use sys_combat::{Combatant, KillCounter};
 use sys_magic::{SpellBook, SpellBookGenerator, SpellBookState};
-use sys_move::{IsoWorldCoords, MoveDirection, Moveable, Placeable};
+use sys_move::{IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
 use utils::{
   self,
@@ -29,8 +29,11 @@ impl Plugin for SysEnemyPlugin {
       .init_resource::<EnemyRegistry>()
       .register_asset_loader(EnemyDescriptorAssetLoader)
       .register_asset_loader(TextureAtlasLayoutAssetLoader)
-      // .add_systems(Update, load_enemy_registry)
-      .add_systems(FixedUpdate, (spawn_enemies, despawn_enemies));
+      .add_systems(Update, update_animation_state)
+      .add_systems(
+        FixedUpdate,
+        (spawn_enemies, despawn_enemies, update_enemy_objectives),
+      );
   }
 }
 
@@ -42,8 +45,10 @@ pub struct Enemy {
   pub spawned_at: IsoWorldCoords,
 }
 
+#[derive(Component, Clone, Debug)]
 pub struct EnemyState {
   pub objective: Option<IsoWorldCoords>,
+  pub idle_timer: Timer,
 }
 
 // will be attached to the player
@@ -198,6 +203,7 @@ impl EnemyRegistry {
       offense_score,
       toughness_score,
       rangeness_score,
+      power_budget,
     })
   }
 }
@@ -222,6 +228,7 @@ pub struct EnemyBlueprint {
   pub toughness_score: f32,
   pub rangeness_score: f32,
   pub offense_score: f32,
+  pub power_budget: f32,
 }
 
 // pub fn load_enemy_registry(
@@ -335,9 +342,13 @@ fn spawn_enemies(
         },
         Enemy {
           spawned_by: spawner_entity,
-          mobility: get_mobility_from_rangeness(enemy.rangeness_score),
+          mobility: get_mobility_from_rangeness(enemy.power_budget, enemy.rangeness_score),
           desired_range: get_effective_range_from_rangeness_score(enemy.rangeness_score),
           spawned_at: location,
+        },
+        EnemyState {
+          objective: None,
+          idle_timer: Timer::from_seconds(2.0, TimerMode::Once),
         },
         EnemyAnimationState {
           facing: MoveDirection::Southeast,
@@ -366,5 +377,73 @@ fn despawn_enemies(
         cmd.entity(enemy_entity).despawn();
       }
     }
+  }
+}
+fn update_enemy_objectives(
+  qry_enemies: Query<(&Enemy, &mut EnemyState, &Placeable, &mut Moveable)>,
+  player: Query<&Placeable, With<EnemySpawner>>,
+  time: Res<Time>,
+) {
+  let Some(player_pos) = player.iter().next().map(|p| p.location) else {
+    return;
+  };
+
+  for (enemy, mut state, placeable, mut mov) in qry_enemies {
+    let dist_to_player = placeable.location.distance(player_pos);
+    let player_dist_from_spawn = enemy.spawned_at.distance(player_pos);
+    let is_player_nearby = dist_to_player <= enemy.desired_range * 1.2;
+
+    if is_player_nearby {
+      if state.objective.is_some() {
+        state.objective = None;
+        state.idle_timer.reset();
+      }
+
+      let direction = (player_pos - placeable.location).normalize_or_zero();
+      let distance_error = dist_to_player - enemy.desired_range;
+
+      // give up if player is too far (2x effective_range from spawn point)
+      mov.net_forces =
+        if distance_error.abs() < 5.0 || player_dist_from_spawn > enemy.desired_range * 2. {
+          Vec2::ZERO
+        } else if distance_error > 0.0 {
+          direction
+        } else {
+          -direction
+        } * enemy.mobility;
+
+      continue;
+    }
+
+    if let Some(objective) = state.objective {
+      let dist_to_objective = placeable.location.distance_squared(objective);
+      if dist_to_objective < 25.0 {
+        state.objective = None;
+        mov.net_forces = Vec2::ZERO;
+        state.idle_timer.reset();
+      }
+      continue;
+    }
+
+    if !state.idle_timer.is_finished() {
+      state.idle_timer.tick(time.delta());
+      continue;
+    }
+
+    let max_travel_dist = enemy.mobility * 2.0;
+    let random_angle = fastrand::f32() * std::f32::consts::TAU;
+    let random_dist = fastrand::f32() * max_travel_dist;
+    let random_offset = IsoWorldCoords::new(
+      random_angle.cos() * random_dist,
+      random_angle.sin() * random_dist,
+    );
+    state.objective = Some(placeable.location + random_offset);
+    mov.net_forces = (*random_offset).normalize() * enemy.mobility;
+  }
+}
+fn update_animation_state(qry: Query<(&mut EnemyAnimationState, &MoveState), With<Enemy>>) {
+  for (mut anim, mov) in qry {
+    anim.moving = mov.is_moving_voluntary;
+    anim.facing = mov.direction.clone();
   }
 }
