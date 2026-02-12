@@ -1,12 +1,8 @@
 use std::fmt::Debug;
 
-use bevy::{
-  color::palettes::{css::*, tailwind::*},
-  prelude::*,
-};
+use bevy::{color::palettes::css::*, prelude::*};
 use bevy_egui::EguiPrimaryContextPass;
 use sys_combat::*;
-use sys_magic::{spells::fireball::FireballSpellGenerator, *};
 use sys_move::*;
 
 use crate::player::Player;

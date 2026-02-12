@@ -7,8 +7,8 @@ edition = "2024"
 bevy.workspace = true
 serde.workspace = true
 ron.workspace = true
-fastrand = "2.3.0"
-libnoise = "1.2"
+libnoise.workspace = true
+fastrand.workspace = true
 
 sys_move = { path = "../move", version = "0.1.0" }
 sys_combat = { path = "../combat", version = "0.1.0" }

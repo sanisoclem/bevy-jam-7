@@ -121,7 +121,6 @@ fn perk_display_text(perk: &LevelUpPerk) -> PerkItemDisplay {
     LevelUpPerk::SpellUpgradePerk(x) => &x.upgrades,
   }
   .iter()
-  .cloned()
   .map(|(_, v, d)| d.replace("{}", &format!("{:.1}", v)))
   .collect();
 

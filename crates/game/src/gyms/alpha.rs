@@ -100,8 +100,8 @@ fn spawn_damage_text(
     let screen_pos = p.location.to_screen(stage.aspect_ratio);
 
     let offset = Vec2::new(
-      (rand::random::<f32>() - 0.5) * 20.0,
-      (rand::random::<f32>() - 0.5) * 10.0,
+      (fastrand::f32() - 0.5) * 20.0,
+      (fastrand::f32() - 0.5) * 10.0,
     );
 
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");

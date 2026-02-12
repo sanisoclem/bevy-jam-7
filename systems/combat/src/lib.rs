@@ -1,4 +1,4 @@
-use bevy::{prelude::*, reflect::Is};
+use bevy::prelude::*;
 use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;

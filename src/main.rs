@@ -3,11 +3,7 @@ use game::GamePlugin;
 
 #[cfg(feature = "dev")]
 use bevy_egui::EguiPlugin;
-#[cfg(feature = "dev")]
-// #[cfg(feature = "debug")]
-// use bevy_egui::EguiPlugin;
-// #[cfg(feature = "debug")]
-// use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 

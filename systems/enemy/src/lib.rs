@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bevy::{asset::LoadedFolder, prelude::*, sprite::Anchor, time::Stopwatch};
+use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use sys_animation::{AtlasAnimation, SysAnimationPlugin};
 use sys_combat::{Combatant, KillCounter};
 use sys_magic::{SpellBook, SpellBookGenerator, SpellBookState};
@@ -25,11 +25,11 @@ impl Plugin for SysEnemyPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_plugins(SysAnimationPlugin::<EnemyAnimationState>::default())
-      .init_resource::<EnemyRegistry>()
       .init_asset::<EnemyDescriptor>()
+      .init_resource::<EnemyRegistry>()
       .register_asset_loader(EnemyDescriptorAssetLoader)
       .register_asset_loader(TextureAtlasLayoutAssetLoader)
-      .add_systems(Update, load_enemy_registry)
+      // .add_systems(Update, load_enemy_registry)
       .add_systems(FixedUpdate, (spawn_enemies, despawn_enemies));
   }
 }
@@ -60,19 +60,21 @@ pub struct EnemySpawnerState {
 #[derive(Resource)]
 pub struct EnemyRegistry {
   sb_generator: SpellBookGenerator,
-  descriptor_folder: Handle<LoadedFolder>,
   descriptors: Vec<Handle<EnemyDescriptor>>,
 }
 
 impl FromWorld for EnemyRegistry {
   fn from_world(world: &mut World) -> Self {
     let asset_server = world.resource::<AssetServer>();
-    let descriptor_folder = asset_server.load_folder("enemies");
+    // let descriptor_folder = asset_server.load_folder("enemies");
+    // NOTE: NO SUPPORT FOR LOADING FOLDERS IN WASM!!!!!!
+
+    let e1 = asset_server.load("enemies/test1.enemy.ron");
+    let e2 = asset_server.load("enemies/test2.enemy.ron");
 
     Self {
       sb_generator: SpellBookGenerator,
-      descriptor_folder,
-      descriptors: Vec::new(),
+      descriptors: vec![e1, e2],
     }
   }
 }
@@ -209,28 +211,28 @@ pub struct EnemyBlueprint {
   pub animation: AtlasAnimation<EnemyAnimationState>,
 }
 
-pub fn load_enemy_registry(
-  mut ev_asset: MessageReader<AssetEvent<LoadedFolder>>,
-  mut enemy_registry: ResMut<EnemyRegistry>,
-  loaded_folders: Res<Assets<LoadedFolder>>,
-) {
-  for ev in ev_asset.read() {
-    if !ev.is_loaded_with_dependencies(&enemy_registry.descriptor_folder) {
-      continue;
-    }
-
-    let loaded_folder = loaded_folders
-      .get(&enemy_registry.descriptor_folder)
-      .expect("folder should be loaded");
-
-    enemy_registry.descriptors = loaded_folder
-      .handles
-      .iter()
-      .cloned()
-      .filter_map(|h| h.try_typed::<EnemyDescriptor>().ok())
-      .collect();
-  }
-}
+// pub fn load_enemy_registry(
+//   mut ev_asset: MessageReader<AssetEvent<LoadedFolder>>,
+//   mut enemy_registry: ResMut<EnemyRegistry>,
+//   loaded_folders: Res<Assets<LoadedFolder>>,
+// ) {
+//   for ev in ev_asset.read() {
+//     if !ev.is_loaded_with_dependencies(&enemy_registry.descriptor_folder) {
+//       continue;
+//     }
+//
+//     let loaded_folder = loaded_folders
+//       .get(&enemy_registry.descriptor_folder)
+//       .expect("folder should be loaded");
+//
+//     enemy_registry.descriptors = loaded_folder
+//       .handles
+//       .iter()
+//       .cloned()
+//       .filter_map(|h| h.try_typed::<EnemyDescriptor>().ok())
+//       .collect();
+//   }
+// }
 
 fn spawn_enemies(
   mut cmd: Commands,

@@ -42,7 +42,7 @@ fn generate_tile_data(
 
 pub fn render_tile_data(
   mut cmd: Commands,
-  asset_server: Res<AssetServer>,
+  // asset_server: Res<AssetServer>,
   mut cache: ResMut<IsoTilemapChunkMeshCache>,
   mut meshes: ResMut<Assets<Mesh>>,
   mut images: ResMut<Assets<Image>>,
@@ -68,13 +68,13 @@ pub fn render_tile_data(
           &packed_tile_data,
         );
 
-        let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-        let text_font = TextFont {
-          font: font.clone(),
-          font_size: 50.0,
-          ..default()
-        };
-        let text_justification = Justify::Center;
+        // let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+        // let text_font = TextFont {
+        //   font: font.clone(),
+        //   font_size: 50.0,
+        //   ..default()
+        // };
+        // let text_justification = Justify::Center;
 
         let tile_data_image_handle = images.add(tile_data_image);
         let mesh = mesh::get_chunk_mesh(
@@ -83,25 +83,23 @@ pub fn render_tile_data(
           &mut cache,
           &mut meshes,
         );
-        cmd
-          .entity(chunk_entity)
-          .insert((
-            NoFrustumCulling,
-            Mesh2d(mesh),
-            MeshMaterial2d(materials.add(material::ChunkMaterial {
-              tile_data: tile_data_image_handle,
-              alpha_mode: bevy::sprite_render::AlphaMode2d::Blend,
-            })),
-          ))
-          .with_children(|x| {
-            // x.spawn((
-            //   Text2d::new(format!("{:?}", chunk.id)),
-            //   text_font.clone(),
-            //   TextLayout::new_with_justify(text_justification),
-            //   TextBackgroundColor(Color::BLACK.with_alpha(0.5)),
-            //   Transform::default().with_translation(Vec3::new(0., 100.0, 100.)),
-            // ));
-          });
+        cmd.entity(chunk_entity).insert((
+          NoFrustumCulling,
+          Mesh2d(mesh),
+          MeshMaterial2d(materials.add(material::ChunkMaterial {
+            tile_data: tile_data_image_handle,
+            alpha_mode: bevy::sprite_render::AlphaMode2d::Blend,
+          })),
+        ));
+        // .with_children(|x| {
+        //   // x.spawn((
+        //   //   Text2d::new(format!("{:?}", chunk.id)),
+        //   //   text_font.clone(),
+        //   //   TextLayout::new_with_justify(text_justification),
+        //   //   TextBackgroundColor(Color::BLACK.with_alpha(0.5)),
+        //   //   Transform::default().with_translation(Vec3::new(0., 100.0, 100.)),
+        //   // ));
+        // });
       }
     }
   }
