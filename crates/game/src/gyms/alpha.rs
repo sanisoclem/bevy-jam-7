@@ -1,16 +1,15 @@
 use bevy::{color::palettes::css::RED, prelude::*};
-use jam7::{level::LevelCommand, player::Player};
-use sys_combat::{Combatant, CombatantGuages, DamageTaken};
+use jam7::level::LevelCommand;
+use sys_combat::DamageTaken;
 use sys_move::{IsoMovementStage, Placeable};
 
 pub struct AlphaGymPlugin;
 
 impl Plugin for AlphaGymPlugin {
   fn build(&self, app: &mut App) {
-    app.add_systems(Startup, setup).add_systems(
-      Update,
-      (spawn_damage_text, update_damage_text, spawn_death_text),
-    );
+    app
+      .add_systems(Startup, setup)
+      .add_systems(Update, (spawn_damage_text, update_damage_text));
   }
 }
 #[derive(Component, Reflect)]
@@ -24,65 +23,10 @@ pub struct DamageText {
   pub velocity: Vec2,
 }
 
-#[derive(Component)]
-pub struct DeathText;
-
 pub fn setup(mut level_cmd: MessageWriter<LevelCommand>) {
   level_cmd.write(LevelCommand::StartLevel("alpha".to_owned()));
 }
 
-fn spawn_death_text(
-  mut dead: Local<Option<Entity>>,
-  asset_server: Res<AssetServer>,
-  mut cmd: Commands,
-  stage: Query<&IsoMovementStage>,
-  mut qry: Query<(&Placeable, &Combatant, &CombatantGuages), With<Player>>,
-  mut qry_text: Query<&mut Text2d>,
-) {
-  let Some(stage) = stage.iter().next() else {
-    return;
-  };
-  let Some((p, _cd, g)) = qry.iter_mut().next() else {
-    return;
-  };
-
-  if g.death_timer.is_some() && dead.is_none() {
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    let text_font = TextFont {
-      font: font.clone(),
-      font_size: 12.0,
-      ..default()
-    };
-    let screen_pos = p.location.to_screen(stage.aspect_ratio);
-    *dead = Some(
-      cmd
-        .spawn((
-          Text2d::new("You died, respawning in 5 seconds"),
-          text_font.clone(),
-          TextColor(Color::from(RED).with_alpha(1.0)),
-          TextLayout::new_with_justify(Justify::Center),
-          Transform::from_translation((screen_pos).extend(100.0)),
-          DeathText,
-        ))
-        .id(),
-    );
-    return;
-  }
-
-  if let Some(text_entity) = dead.as_ref() {
-    let mut txt = qry_text.get_mut(*text_entity).unwrap();
-    let Some(dt) = &g.death_timer else {
-      cmd.entity(*text_entity).despawn();
-      *dead = None;
-      return;
-    };
-
-    txt.0 = format!(
-      "You died, respawning in {} seconds",
-      dt.remaining_secs().floor()
-    );
-  }
-}
 fn spawn_damage_text(
   asset_server: Res<AssetServer>,
   mut commands: Commands,

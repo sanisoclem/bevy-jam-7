@@ -14,6 +14,9 @@ pub mod diff {
     ((kills.max(1.0).log10() - 1.0) * 4.0).max(1.0)
   }
 
+  pub fn get_mobility_from_rangeness(rangeness_score: f32) -> f32 {
+    1000. / rangeness_score
+  }
   pub fn get_max_hp_from_toughness_score(toughness_score: f32) -> u32 {
     100 + (toughness_score * 500.).floor() as u32
   }
@@ -78,6 +81,13 @@ pub mod diff {
 
   pub fn get_max_projectile_lifetime(speed: f32) -> f32 {
     MAX_PROJECTILE_LIFETIME.min(MAX_PROJECTILE_TRAVEL / speed)
+  }
+  const LUCIDITY_GAIN_EXPONENT: f32 = 0.9;
+
+  pub fn get_lucidity_gain(current_lucidity: u32, kills: u32) -> u32 {
+    // more lucidity, more kills needed for the next point
+    let kills_per_lucidity = (current_lucidity as f32 + 1.0).powf(1.0 / LUCIDITY_GAIN_EXPONENT);
+    (kills as f32 / kills_per_lucidity).floor() as u32
   }
 }
 

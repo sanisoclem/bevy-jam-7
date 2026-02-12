@@ -1,14 +1,20 @@
 pub(crate) mod asset;
 pub(crate) mod render;
 
-use crate::player::create_player;
+use crate::player::{Player, create_player};
 use asset::LevelAsset;
 use bevy::{prelude::*, sprite_render::Material2dPlugin, time::Stopwatch};
 use render::{ChunkMaterial, ChunkMeshGenerator, IsoTilemapChunkMeshCache, render_tile_data};
 use sys_chonker::{ChunkGenerator, SysChonkerPlugin};
+use sys_combat::{CombatantKilled, KillCounter};
 use sys_move::IsoMovementStage;
 use sys_procgen::ProceduralLevel;
-use sys_prog::levelup::LevelUp;
+use sys_prog::{
+  LongTermProgger,
+  death::{RequestGameRestart, ShowDeathUi},
+  levelup::LevelUp,
+};
+use utils::diff::get_lucidity_gain;
 
 pub struct LevelPlugin;
 
@@ -23,9 +29,15 @@ impl Plugin for LevelPlugin {
       .init_asset::<asset::LevelAsset>()
       .init_resource::<IsoTilemapChunkMeshCache>()
       .init_asset_loader::<asset::LevelAssetLoader>()
+      .add_observer(on_game_restart)
       .add_systems(
         Update,
-        (load_level, process_level_commands, render_tile_data),
+        (
+          load_level,
+          process_level_commands,
+          render_tile_data,
+          wait_for_player_death,
+        ),
       );
   }
 }
@@ -94,7 +106,6 @@ pub fn load_level(
       let player = cmd
         .spawn(create_player(&asset_server, &mut layouts, spawned_level))
         .id();
-      cmd.trigger(LevelUp { target: player });
       cmd.spawn((
         ChunkGenerator {
           chunk_size_world,
@@ -115,6 +126,8 @@ pub fn load_level(
         .entity(entity)
         .despawn_children()
         .replace_children(&[spawned_level]);
+
+      cmd.trigger(LevelUp { target: player });
     }
   }
 }
@@ -150,4 +163,30 @@ pub fn process_level_commands(
       }
     }
   }
+}
+
+fn wait_for_player_death(
+  mut kill_reader: MessageReader<CombatantKilled>,
+  qry_player: Query<&KillCounter, With<Player>>,
+  mut time: ResMut<Time<Virtual>>,
+  mut cmd: Commands,
+  lprog: Res<LongTermProgger>,
+  mut level_cmd: MessageWriter<LevelCommand>,
+) {
+  for msg in kill_reader.read() {
+    let Some(kc) = qry_player.get(msg.victim).ok() else {
+      continue;
+    };
+
+    time.pause();
+    level_cmd.write(LevelCommand::UnloadLevel("alpha".to_owned()));
+    cmd.trigger(ShowDeathUi {
+      accumulated_lucidty: get_lucidity_gain(lprog.lucidty, kc.kills),
+    });
+  }
+}
+
+pub fn on_game_restart(_evt: On<RequestGameRestart>, mut level_cmd: MessageWriter<LevelCommand>) {
+  info!("Restart this game!");
+  level_cmd.write(LevelCommand::StartLevel("alpha".to_owned()));
 }

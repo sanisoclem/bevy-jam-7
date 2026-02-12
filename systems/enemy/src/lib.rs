@@ -11,7 +11,7 @@ use utils::{
   diff::{
     self, TEAM_ENEMY, get_effective_dps_from_offense_score,
     get_effective_range_from_rangeness_score, get_enemy_size_from_toughness, get_enemy_tint,
-    get_max_hp_from_toughness_score, get_power_budget_from_kills,
+    get_max_hp_from_toughness_score, get_mobility_from_rangeness, get_power_budget_from_kills,
   },
 };
 
@@ -36,7 +36,14 @@ impl Plugin for SysEnemyPlugin {
 
 #[derive(Component, Clone, Debug)]
 pub struct Enemy {
-  spawned_by: Entity,
+  pub spawned_by: Entity,
+  pub mobility: f32,
+  pub desired_range: f32,
+  pub spawned_at: IsoWorldCoords,
+}
+
+pub struct EnemyState {
+  pub objective: Option<IsoWorldCoords>,
 }
 
 // will be attached to the player
@@ -188,6 +195,9 @@ impl EnemyRegistry {
       anchor: Some(descriptor.anchor),
       scale,
       animation,
+      offense_score,
+      toughness_score,
+      rangeness_score,
     })
   }
 }
@@ -209,6 +219,9 @@ pub struct EnemyBlueprint {
   pub anchor: Option<Anchor>,
   pub scale: Vec2,
   pub animation: AtlasAnimation<EnemyAnimationState>,
+  pub toughness_score: f32,
+  pub rangeness_score: f32,
+  pub offense_score: f32,
 }
 
 // pub fn load_enemy_registry(
@@ -322,6 +335,9 @@ fn spawn_enemies(
         },
         Enemy {
           spawned_by: spawner_entity,
+          mobility: get_mobility_from_rangeness(enemy.rangeness_score),
+          desired_range: get_effective_range_from_rangeness_score(enemy.rangeness_score),
+          spawned_at: location,
         },
         EnemyAnimationState {
           facing: MoveDirection::Southeast,

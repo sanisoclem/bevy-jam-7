@@ -1,0 +1,14 @@
+LongTermProgConfig (
+  features: [
+    (
+      feature: ExtraSpellSlot,
+      description: "An extra spell slot",
+      cost: 500
+    ),
+    (
+      feature: DecipherSpellName,
+      description: "Decipher spell names",
+      cost: 50
+    ),
+  ]
+)
