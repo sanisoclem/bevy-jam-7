@@ -8,6 +8,7 @@ use render::{ChunkMaterial, ChunkMeshGenerator, IsoTilemapChunkMeshCache, render
 use sys_chonker::{ChunkGenerator, SysChonkerPlugin};
 use sys_move::IsoMovementStage;
 use sys_procgen::ProceduralLevel;
+use sys_prog::levelup::LevelUp;
 
 pub struct LevelPlugin;
 
@@ -88,31 +89,28 @@ pub fn load_level(
           Transform::default(),
           Visibility::default(),
         ))
-        .with_children(|c| {
-          let player = c
-            .spawn(create_player(
-              &asset_server,
-              &mut layouts,
-              c.target_entity(),
-            ))
-            .id();
-          c.spawn((
-            ChunkGenerator {
-              chunk_size_world,
-              load_around: player,
-              load_radius: 3,
-              unload_radius: 7,
-            },
-            ChunkMeshGenerator {
-              tile_size_screen: tile_size_screen.as_vec2(),
-              tile_size_world: tile_size_world.as_vec2(),
-              tiles_per_chunk: level_descriptor.tiles_per_chunk,
-            },
-            Transform::default(),
-            Visibility::default(),
-          ));
-        })
         .id();
+
+      let player = cmd
+        .spawn(create_player(&asset_server, &mut layouts, spawned_level))
+        .id();
+      cmd.trigger(LevelUp { target: player });
+      cmd.spawn((
+        ChunkGenerator {
+          chunk_size_world,
+          load_around: player,
+          load_radius: 3,
+          unload_radius: 7,
+        },
+        ChunkMeshGenerator {
+          tile_size_screen: tile_size_screen.as_vec2(),
+          tile_size_world: tile_size_world.as_vec2(),
+          tiles_per_chunk: level_descriptor.tiles_per_chunk,
+        },
+        Transform::default(),
+        Visibility::default(),
+        ChildOf(spawned_level),
+      ));
       cmd
         .entity(entity)
         .despawn_children()

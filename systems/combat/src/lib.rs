@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::Is};
 use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;
@@ -59,12 +59,12 @@ pub enum DeathBehavior {
   Respawn(Timer, Timer),
   Despawn(Timer),
 }
-#[derive(Component, Reflect, Debug, Clone)]
+
+#[derive(Component, Reflect, Debug, Clone, Default)]
 pub struct CombatantRadar {
   pub nearest: Option<(Entity, IsoWorldCoords)>,
-  // pub strongest: Option<Vec2>,
-  // pub densest: Option<Vec2>,
-  // pub weakest: Option<Vec2>,
+  pub strongest: Option<(Entity, IsoWorldCoords)>,
+  pub densest: Option<(Entity, IsoWorldCoords)>,
 }
 
 #[derive(Component, Reflect, Debug, Clone)]
@@ -76,7 +76,7 @@ pub struct CombatantGuages {
   pub current_hp: u32,
 }
 
-#[derive(Component, Reflect, Debug, Clone)]
+#[derive(Component, Reflect, Debug, Clone, Default)]
 pub struct CombatantState {
   pub reeling: bool,
   pub stunned: bool,
@@ -156,7 +156,7 @@ fn create_combat_guages(
         invulnerable: false,
         dead: false,
       },
-      CombatantRadar { nearest: None },
+      CombatantRadar::default(),
     ));
   }
 }
@@ -339,7 +339,6 @@ fn sync_combat_state(qry: Query<(&CombatantGuages, &mut CombatantState)>) {
     cs.dead = cg.current_hp == 0;
   }
 }
-
 fn sync_combat_radar(
   mut qry: Query<(
     Entity,
@@ -357,17 +356,21 @@ fn sync_combat_radar(
   for (_e1, c1, mut cr1, cg1, p1) in &mut qry {
     if cg1.current_hp == 0 {
       cr1.nearest = None;
+      cr1.strongest = None;
+      cr1.densest = None;
       continue;
     }
 
+    let mut strongest_hp = 0u32;
+    let mut strongest_pos = None;
     let mut nearest_dist = f32::MAX;
     let mut nearest_pos: Option<(Entity, IsoWorldCoords)> = None;
 
+    let mut quadrant_counts = [0usize; 4];
+    let mut quadrant_last: [Option<(Entity, IsoWorldCoords)>; 4] = [None, None, None, None];
+
     for (e2, team, hp, location) in &data {
-      if *team == c1.team {
-        continue;
-      }
-      if *hp == 0 {
+      if *team == c1.team || *hp == 0 {
         continue;
       }
 
@@ -377,9 +380,35 @@ fn sync_combat_radar(
         nearest_dist = dist;
         nearest_pos = Some((*e2, *location));
       }
+      if hp > &strongest_hp {
+        strongest_hp = *hp;
+        strongest_pos = Some((*e2, *location));
+      }
+
+      // determine quadrant relative to p1
+      let delta = *location - p1.location;
+      let quadrant = match (delta.x >= 0.0, delta.y >= 0.0) {
+        (true, true) => 0,   // NE
+        (false, true) => 1,  // NW
+        (false, false) => 2, // SW
+        (true, false) => 3,  // SE
+      };
+
+      quadrant_counts[quadrant] += 1;
+      quadrant_last[quadrant] = Some((*e2, *location));
     }
 
+    let densest_quadrant = quadrant_counts
+      .iter()
+      .enumerate()
+      .max_by_key(|(_, count)| *count)
+      .map(|(idx, _)| idx);
+
+    let densest_pos = densest_quadrant.and_then(|idx| quadrant_last[idx]);
+
     cr1.nearest = nearest_pos;
+    cr1.strongest = strongest_pos;
+    cr1.densest = densest_pos;
   }
 }
 

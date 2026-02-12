@@ -60,7 +60,7 @@ impl FireballSpellGenerator {
       },
       Placeable {
         layer: 5,
-        location: caster.1.location + (IsoWorldCoords::from(direction * self.radius)),
+        location: caster.1.location + (IsoWorldCoords::from(direction * self.radius * 1.1)),
       },
       Moveable {
         damping: 1.0,
@@ -142,7 +142,7 @@ pub fn cast_fireball(
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
-  let Some((_, nearest)) = radar.nearest else {
+  let Some((_, nearest)) = radar.strongest else {
     return;
   };
   let Some(ss) = sbs.spells_states.get_mut(evt.spell_slot) else {

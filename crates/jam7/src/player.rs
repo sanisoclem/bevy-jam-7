@@ -108,6 +108,7 @@ pub fn create_player(
     .clone();
   (
     Player,
+    ChildOf(spawn_parent),
     KillCounter { kills: 0 },
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),

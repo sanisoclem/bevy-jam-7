@@ -9,7 +9,7 @@ pub mod ui;
 
 #[derive(Debug, Clone)]
 pub enum LevelUpPerk {
-  NewSpell(EquippedSpell),
+  NewSpell(EquippedSpell, Vec<(SpellUpgrade, f32, String)>),
   SpellUpgradePerk(SpellUpgradePerk),
 }
 
@@ -18,17 +18,7 @@ pub struct SpellUpgradePerk {
   pub upgrades: Vec<(SpellUpgrade, f32, String)>,
   pub slot: usize,
 }
-impl std::fmt::Display for SpellUpgradePerk {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    writeln!(f, "Upgrade for slot {}", self.slot)?;
-    for (_upgrade, value, description) in &self.upgrades {
-      // use the description as a format template
-      let formatted = description.replace("{}", &format!("{:.1}", value));
-      writeln!(f, "  - {}", formatted)?;
-    }
-    Ok(())
-  }
-}
+
 #[derive(EntityEvent)]
 pub struct LevelUp {
   #[event_target]
@@ -87,9 +77,11 @@ fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Le
     .spells
     .iter()
     .any(|s| matches!(s.generator, SpellGenerator::Frozenorb(_)));
-  let has_fireball = true;
+  // let has_fireball = true;
 
-  let mut available: Vec<fn(&SpellBuilder) -> Option<EquippedSpell>> = Vec::new();
+  let mut available: Vec<
+    fn(&SpellBuilder) -> Option<(EquippedSpell, Vec<(SpellUpgrade, f32, String)>)>,
+  > = Vec::new();
   if !has_fireball {
     available.push(|b| b.create_fireball_spell());
   }
@@ -105,7 +97,7 @@ fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Le
   }
 
   let idx = fastrand::usize(0..available.len());
-  available[idx](builder).map(LevelUpPerk::NewSpell)
+  available[idx](builder).map(|(x, y)| LevelUpPerk::NewSpell(x, y))
 }
 
 fn generate_upgrade_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<LevelUpPerk> {
@@ -156,7 +148,7 @@ pub fn on_apply_levelup(
   };
 
   match selection {
-    LevelUpPerk::NewSpell(s) => {
+    LevelUpPerk::NewSpell(s, _) => {
       sb.spells.push(s.clone());
       ss.spells_states.push(EquippedSpellState::default());
     }

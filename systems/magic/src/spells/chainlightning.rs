@@ -90,19 +90,26 @@ pub fn on_detonate_chainlightning(
   let Some((parent, proj)) = qry.get(evt.target).ok() else {
     return;
   };
+  let Some((hit_c, hit_pos)) = evt.hit.as_ref().and_then(|x| qry_combatants.get(*x).ok()) else {
+    return;
+  };
+
   let max_lifetime = get_max_projectile_lifetime(proj.speed);
   let max_range: f32 = proj.bounce_range.powi(2);
-
   cmd.entity(evt.target).despawn();
 
   if proj.bounces > 5 {
     return;
   }
+
+  let detonate_origin = hit_pos.location;
+  let detonate_offset = hit_c.hitbox.bounding_radius() * 2.;
+
   qry_combatants
     .iter()
     .filter(|(c, pos)| {
       let dist_squared = evt.location.distance_squared(pos.location);
-      c.team != proj.team && dist_squared > 2500. && dist_squared <= max_range
+      c.team != proj.team && dist_squared > 10000. && dist_squared <= max_range
     })
     .take(proj.bounce_children)
     .for_each(|(_, pos)| {
@@ -119,7 +126,7 @@ pub fn on_detonate_chainlightning(
             team: proj.team,
             bounce_mult: proj.bounce_mult,
           },
-          Placeable::mid(evt.location),
+          Placeable::mid(detonate_origin + IsoWorldCoords::from(direction * detonate_offset * 1.1)),
           Moveable::default(),
           Projectile {
             lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
@@ -158,7 +165,7 @@ pub fn cast_chainlightning(
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
-  let Some((_, nearest)) = radar.nearest else {
+  let Some((_, nearest)) = radar.densest else {
     return;
   };
   let Some(ss) = sbs.spells_states.get_mut(evt.spell_slot) else {

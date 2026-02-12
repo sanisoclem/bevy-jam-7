@@ -65,7 +65,7 @@ impl FrozenorbSpellGenerator {
       },
       Placeable {
         layer: 5,
-        location: caster.1.location + (IsoWorldCoords::from(direction * self.orb_size)),
+        location: caster.1.location + (IsoWorldCoords::from(direction * self.orb_size * 1.1)),
       },
       Moveable {
         damping: 1.0,

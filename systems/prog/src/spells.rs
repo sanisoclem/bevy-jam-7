@@ -98,91 +98,122 @@ impl SpellBuilder {
       slot: spell_index,
     }
   }
-  pub fn create_fireball_spell(&self) -> Option<EquippedSpell> {
-    let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
-    Some(EquippedSpell {
+  pub fn create_fireball_spell(&self) -> Option<(EquippedSpell, Vec<(SpellUpgrade, f32, String)>)> {
+    let mut breakdown = Vec::new();
+
+    let mut get = |key: SpellUpgrade| -> Option<f32> {
+      let roll = self.rolls.get(&key)?;
+      let value = roll.roll_minimum();
+      breakdown.push((key.clone(), value, roll.description.clone()));
+      Some(value)
+    };
+
+    let spell = EquippedSpell {
       generator: SpellGenerator::Fireball(FireballSpellGenerator {
-        speed: get(&SpellUpgrade::FireballSpellUpgrade(
-          FireballSpellRoll::Speed,
-        ))?,
-        base_damage: get(&SpellUpgrade::FireballSpellUpgrade(
+        speed: get(SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::Speed))?,
+        base_damage: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::BaseDamage,
         ))? as u32,
-        radius: get(&SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::Size))?,
-        explosion_radius: get(&SpellUpgrade::FireballSpellUpgrade(
+        radius: get(SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::Size))?,
+        explosion_radius: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionRadius,
         ))?,
-        explosion_damage_multiplier: get(&SpellUpgrade::FireballSpellUpgrade(
+        explosion_damage_multiplier: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionDamageMult,
         ))?,
-        explosion_lifetime: get(&SpellUpgrade::FireballSpellUpgrade(
+        explosion_lifetime: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionDuration,
         ))?,
         lifetime: DEFAULT_SPELL_LIFETIME,
       }),
-      cooldown: Timer::from_seconds(5.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(2.0, TimerMode::Once),
       downside: Vec::new(),
-    })
+    };
+
+    Some((spell, breakdown))
   }
 
-  pub fn create_chainlightning_spell(&self) -> Option<EquippedSpell> {
-    let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
+  pub fn create_chainlightning_spell(
+    &self,
+  ) -> Option<(EquippedSpell, Vec<(SpellUpgrade, f32, String)>)> {
+    let mut breakdown = Vec::new();
 
-    Some(EquippedSpell {
+    let mut get = |key: SpellUpgrade| -> Option<f32> {
+      let roll = self.rolls.get(&key)?;
+      let value = roll.roll_minimum();
+      breakdown.push((key.clone(), value, roll.description.clone()));
+      Some(value)
+    };
+
+    let spell = EquippedSpell {
       generator: SpellGenerator::Chainlightning(ChainlightningSpellGenerator {
-        speed: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+        speed: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::Speed,
         ))?,
-        base_damage: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+        base_damage: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BaseDamage,
         ))?,
-        bounce_children: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+        bounce_children: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BounceChildren,
         ))?,
-        bounce_range: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+        bounce_range: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BounceRange,
         ))?,
-        bounce_mult: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+        bounce_mult: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BounceMult,
         ))?,
       }),
-      cooldown: Timer::from_seconds(5.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(2.0, TimerMode::Once),
       downside: Vec::new(),
-    })
+    };
+
+    Some((spell, breakdown))
   }
 
-  pub fn create_frozenorb_spell(&self) -> Option<EquippedSpell> {
-    let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
-    Some(EquippedSpell {
+  pub fn create_frozenorb_spell(
+    &self,
+  ) -> Option<(EquippedSpell, Vec<(SpellUpgrade, f32, String)>)> {
+    let mut breakdown = Vec::new();
+
+    let mut get = |key: SpellUpgrade| -> Option<f32> {
+      let roll = self.rolls.get(&key)?;
+      let value = roll.roll_minimum();
+      breakdown.push((key.clone(), value, roll.description.clone()));
+      Some(value)
+    };
+
+    let spell = EquippedSpell {
       generator: SpellGenerator::Frozenorb(FrozenorbSpellGenerator {
-        speed: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        speed: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::Speed,
         ))?,
-        orb_size: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        orb_size: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::OrbSize,
         ))?,
-        base_damage: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        base_damage: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::BaseDamage,
         ))?,
-        shard_frequency: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        shard_frequency: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardFrequency,
         ))?,
-        shard_speed: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        shard_speed: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardSpeed,
         ))?,
-        shard_lifetime: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        shard_lifetime: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardLifetime,
         ))?,
-        shard_damage_mult: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        shard_damage_mult: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardDamageMult,
         ))?,
-        shard_count: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+        shard_count: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardCount,
         ))?,
       }),
-      cooldown: Timer::from_seconds(5.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(2.0, TimerMode::Once),
       downside: Vec::new(),
-    })
+    };
+
+    Some((spell, breakdown))
   }
 }
 

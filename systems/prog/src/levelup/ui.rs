@@ -42,14 +42,6 @@ pub fn on_levelup_ui(
     ))
     .with_children(|root| {
       root.spawn((
-        Text::new("LEVEL UP"),
-        TextFont {
-          font: font.clone(),
-          font_size: 48.0,
-          ..default()
-        },
-      ));
-      root.spawn((
         Text::new("Choose your path"),
         TextFont {
           font: font.clone(),
@@ -66,7 +58,7 @@ pub fn on_levelup_ui(
         })
         .with_children(|row| {
           for (i, choice) in pending.choices.iter().enumerate() {
-            let (title, description) = perk_display_text(choice);
+            let texts = perk_display_text(choice);
             row
               .spawn((
                 PerkCard(entity, i),
@@ -87,48 +79,53 @@ pub fn on_levelup_ui(
               ))
               .with_children(|card| {
                 card.spawn((
-                  Text::new(title),
+                  Text::new(texts.title),
                   TextFont {
                     font: font.clone(),
                     font_size: 20.0,
                     ..default()
                   },
                 ));
-                card.spawn((
-                  Text::new(description),
-                  TextFont {
-                    font: font.clone(),
-                    font_size: 13.0,
-                    ..default()
-                  },
-                ));
+                for t in texts.line_items {
+                  card.spawn((
+                    Text::new(t),
+                    TextFont {
+                      font: font.clone(),
+                      font_size: 13.0,
+                      ..default()
+                    },
+                  ));
+                }
               });
           }
         });
     });
 }
 
-fn perk_display_text(perk: &LevelUpPerk) -> (&'static str, String) {
-  match perk {
-    LevelUpPerk::NewSpell(p) => match &p.generator {
-      SpellGenerator::Fireball(g) => (
-        "🔥 New Spell: Fireball",
-        format!(
-          "DMG {}  SPD {:.0}  SIZE {:.1}  LIFE {:.1}s",
-          g.base_damage, g.speed, g.radius, g.lifetime
-        ),
-      ),
-      SpellGenerator::Chainlightning(g) => (
-        "New Spell: Lightning",
-        format!("DMG {}  SPD {:.0}", g.base_damage, g.speed,),
-      ),
-      SpellGenerator::Frozenorb(g) => (
-        " New Spell: FrozenOrb",
-        format!("DMG {}  SPD {:.0} ", g.base_damage, g.speed,),
-      ),
+pub struct PerkItemDisplay {
+  pub title: String,
+  pub line_items: Vec<String>,
+}
+fn perk_display_text(perk: &LevelUpPerk) -> PerkItemDisplay {
+  let title = match perk {
+    LevelUpPerk::NewSpell(p, _) => match &p.generator {
+      SpellGenerator::Fireball(_) => "Fireball".to_owned(),
+      SpellGenerator::Chainlightning(_) => "Lightning".to_owned(),
+      SpellGenerator::Frozenorb(_) => "FrozenOrb".to_owned(),
     },
-    LevelUpPerk::SpellUpgradePerk(x) => ("⬆ Spell Upgrade", format!("{}", x)),
+    LevelUpPerk::SpellUpgradePerk(x) => format!("Slot {} Upgrade", x.slot),
+  };
+
+  let line_items = match perk {
+    LevelUpPerk::NewSpell(_, d) => d,
+    LevelUpPerk::SpellUpgradePerk(x) => &x.upgrades,
   }
+  .iter()
+  .cloned()
+  .map(|(_, v, d)| d.replace("{}", &format!("{:.1}", v)))
+  .collect();
+
+  PerkItemDisplay { title, line_items }
 }
 
 pub fn levelup_ui_interaction(
@@ -156,7 +153,7 @@ pub fn levelup_ui_interaction(
         *border = BorderColor::all(Color::srgb(0.3, 0.3, 0.3));
       }
       Interaction::Pressed => {
-        let Some((pending_entity, pending)) = qry.get(card.0).ok() else {
+        let Some((pending_entity, _pending)) = qry.get(card.0).ok() else {
           return;
         };
 
