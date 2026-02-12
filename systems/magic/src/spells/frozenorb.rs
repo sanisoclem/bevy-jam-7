@@ -45,6 +45,7 @@ impl FrozenorbSpellGenerator {
     spawn_parent: Entity,
     downside: &Option<SpellDownside>,
     direction: Vec2,
+    target: Entity,
   ) {
     let team = if let Some(SpellDownside::FriendFire) = downside {
       TEAM_OTHER
@@ -77,7 +78,11 @@ impl FrozenorbSpellGenerator {
           1.0 / self.shard_frequency,
           TimerMode::Repeating,
         )),
-        movement: ProjectileMovement::Straight(direction * self.speed),
+        movement: ProjectileMovement::Seek {
+          target,
+          speed: self.speed,
+          max_angular_velocity: 1.0,
+        },
       },
       CombatAreaEffect {
         owner: caster.0,
@@ -93,6 +98,16 @@ impl FrozenorbSpellGenerator {
   }
 }
 
+pub fn on_frozenorb_shard_detonate(
+  evt: On<DetonatePayload>,
+  mut cmd: Commands,
+  qry: Query<&FrozenorbShard>,
+) {
+  let Some(_) = qry.get(evt.target).ok() else {
+    return;
+  };
+  cmd.entity(evt.target).despawn();
+}
 pub fn on_frozenorb_detonate(
   evt: On<DetonatePayload>,
   mut cmd: Commands,
@@ -105,7 +120,6 @@ pub fn on_frozenorb_detonate(
   subdivide_circle(fp.num_shards)
     .into_iter()
     .for_each(|direction| {
-      info!("sharded!");
       cmd.entity(parent.get()).with_children(|x| {
         x.spawn((
           FrozenorbShard,
@@ -151,7 +165,7 @@ pub fn cast_frozenorb(
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
-  let Some((_, nearest)) = radar.nearest else {
+  let Some((nearest_entity, nearest)) = radar.nearest else {
     return;
   };
   let Some(ss) = sbs.spells_states.get_mut(evt.spell_slot) else {
@@ -194,5 +208,6 @@ pub fn cast_frozenorb(
       .find(|f| matches!(f, SpellDownside::FriendFire))
       .cloned(),
     direction,
+    nearest_entity,
   );
 }

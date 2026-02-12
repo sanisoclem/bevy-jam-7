@@ -94,13 +94,13 @@ pub fn render_tile_data(
             })),
           ))
           .with_children(|x| {
-            x.spawn((
-              Text2d::new(format!("{:?}", chunk.id)),
-              text_font.clone(),
-              TextLayout::new_with_justify(text_justification),
-              TextBackgroundColor(Color::BLACK.with_alpha(0.5)),
-              Transform::default().with_translation(Vec3::new(0., 100.0, 100.)),
-            ));
+            // x.spawn((
+            //   Text2d::new(format!("{:?}", chunk.id)),
+            //   text_font.clone(),
+            //   TextLayout::new_with_justify(text_justification),
+            //   TextBackgroundColor(Color::BLACK.with_alpha(0.5)),
+            //   Transform::default().with_translation(Vec3::new(0., 100.0, 100.)),
+            // ));
           });
       }
     }

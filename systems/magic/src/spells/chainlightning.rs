@@ -1,23 +1,33 @@
-use bevy::prelude::*;
+use bevy::{ecs::relationship::Relationship, prelude::*};
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
-  CombatantRadar, DetonationTrigger, HitTestableShape, Projectile, ProjectileMovement,
+  CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,
+  ProjectileMovement,
 };
 use sys_move::{ApplyImpulse, IsoWorldCoords, Moveable, Placeable};
-use utils::diff::{MAX_PROJECTILE_TRAVEL, TEAM_OTHER};
+use utils::diff::{TEAM_OTHER, get_max_projectile_lifetime};
 
 use crate::{SpellBookState, SpellDownside, SpellReady};
 
 #[derive(Component, Debug, Clone)]
-pub struct ChainlightningProjectile;
+pub struct ChainlightningProjectile {
+  pub bounce_range: f32,
+  pub base_damage: f32,
+  pub bounces: u32,
+  pub bounce_children: usize,
+  pub bounce_mult: f32,
+  pub speed: f32,
+  pub caster: Entity,
+  pub team: u8,
+}
 
 #[derive(Clone, Debug, Reflect)]
 pub struct ChainlightningSpellGenerator {
   pub speed: f32,
   pub base_damage: f32,
-  pub num_chains: f32,
-  pub bounce_mult: f32,
+  pub bounce_children: f32,
   pub bounce_range: f32,
+  pub bounce_mult: f32,
 }
 
 impl ChainlightningSpellGenerator {
@@ -36,29 +46,31 @@ impl ChainlightningSpellGenerator {
       caster_team
     };
     let speed = 80. + self.speed;
-    let max_lifetime = 2.0f32.min(MAX_PROJECTILE_TRAVEL / speed);
+    let max_lifetime = get_max_projectile_lifetime(speed);
 
     cmd.entity(spawn_parent).with_child((
-      ChainlightningProjectile,
-      Placeable {
-        layer: 5,
-        location: caster.1.location + (IsoWorldCoords::from(direction * 100.)),
+      ChainlightningProjectile {
+        base_damage: self.base_damage,
+        bounce_range: self.bounce_range,
+        bounces: 1,
+        bounce_children: self.bounce_children.floor() as usize,
+        speed: self.speed,
+        caster: caster.0,
+        team,
+        bounce_mult: self.bounce_mult,
       },
-      Moveable {
-        damping: 1.0,
-        net_forces: Vec2::ZERO,
-        impulses: Vec::new(),
-      },
+      Placeable::mid(caster.1.location + (IsoWorldCoords::from(direction * 30.))),
+      Moveable::default(),
       Projectile {
         lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
-        detonate_trigger: DetonationTrigger::None,
+        detonate_trigger: DetonationTrigger::Contact,
         movement: ProjectileMovement::Straight(speed * direction),
       },
       CombatAreaEffect {
         owner: caster.0,
         team,
         shape: HitTestableShape::Obb {
-          half_extents: Vec2::new(100., 50.),
+          half_extents: Vec2::new(10., 2.),
           rotation: direction.to_angle(),
         },
         effects: vec![CombatEffectBlueprint::Damage(self.base_damage as u32)],
@@ -67,6 +79,69 @@ impl ChainlightningSpellGenerator {
       },
     ));
   }
+}
+
+pub fn on_detonate_chainlightning(
+  evt: On<DetonatePayload>,
+  mut cmd: Commands,
+  qry: Query<(&ChildOf, &ChainlightningProjectile)>,
+  qry_combatants: Query<(&Combatant, &Placeable)>,
+) {
+  let Some((parent, proj)) = qry.get(evt.target).ok() else {
+    return;
+  };
+  let max_lifetime = get_max_projectile_lifetime(proj.speed);
+  let max_range: f32 = proj.bounce_range.powi(2);
+
+  cmd.entity(evt.target).despawn();
+
+  if proj.bounces > 5 {
+    return;
+  }
+  qry_combatants
+    .iter()
+    .filter(|(c, pos)| {
+      let dist_squared = evt.location.distance_squared(pos.location);
+      c.team != proj.team && dist_squared > 2500. && dist_squared <= max_range
+    })
+    .take(proj.bounce_children)
+    .for_each(|(_, pos)| {
+      cmd.entity(parent.get()).with_children(|x| {
+        let direction = (pos.location - evt.location).normalize();
+        x.spawn((
+          ChainlightningProjectile {
+            base_damage: proj.base_damage,
+            bounce_range: proj.bounce_range,
+            bounces: proj.bounces + 1,
+            bounce_children: proj.bounce_children,
+            speed: proj.speed,
+            caster: proj.caster,
+            team: proj.team,
+            bounce_mult: proj.bounce_mult,
+          },
+          Placeable::mid(evt.location),
+          Moveable::default(),
+          Projectile {
+            lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
+            detonate_trigger: DetonationTrigger::Contact,
+            movement: ProjectileMovement::Straight(proj.speed * direction),
+          },
+          CombatAreaEffect {
+            owner: proj.caster,
+            team: proj.team,
+            shape: HitTestableShape::Obb {
+              half_extents: Vec2::new(10., 2.),
+              rotation: direction.to_angle(),
+            },
+            effects: vec![CombatEffectBlueprint::Damage(
+              proj.base_damage as u32 * (proj.bounces + 1),
+            )],
+            effect_tick: None,
+            hit: false,
+          },
+        ));
+      });
+    });
 }
 
 pub fn cast_chainlightning(

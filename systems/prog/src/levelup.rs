@@ -58,12 +58,6 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
     let pick_new = sb.spells.is_empty() || (max_new_spells > 0 && fastrand::f32() < 0.5);
 
     if pick_new && let Some(perk) = generate_new_spell_perk(sb, lprog) {
-      info!(
-        "generating new spell: {} existing spells, empty: {}, max_new_spells: {}",
-        sb.spells.len(),
-        sb.spells.is_empty(),
-        max_new_spells
-      );
       choices.push(perk);
       continue;
     }
@@ -73,7 +67,7 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
       choices.push(perk);
     }
   }
-  info!("generated choies: {:?}", choices);
+  debug!("generated choies: {:?}", choices);
 
   choices
 }
@@ -93,6 +87,7 @@ fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Le
     .spells
     .iter()
     .any(|s| matches!(s.generator, SpellGenerator::Frozenorb(_)));
+  let has_fireball = true;
 
   let mut available: Vec<fn(&SpellBuilder) -> Option<EquippedSpell>> = Vec::new();
   if !has_fireball {

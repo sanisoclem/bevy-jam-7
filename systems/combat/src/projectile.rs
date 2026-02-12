@@ -1,17 +1,12 @@
 use bevy::prelude::*;
 use sys_move::{IsoWorldCoords, Moveable, Placeable};
 
-use crate::CombatAreaEffect;
-
 #[derive(Component, Clone)]
 pub struct Projectile {
   pub lifetime: Timer,
   pub detonate_trigger: DetonationTrigger,
   pub movement: ProjectileMovement,
 }
-
-#[derive(Component)]
-pub struct Detonated;
 
 #[derive(Debug, Clone)]
 pub enum ProjectileMovement {
@@ -41,21 +36,9 @@ pub struct DetonatePayload {
   #[event_target]
   pub target: Entity,
   pub location: IsoWorldCoords,
+  pub hit: Option<Entity>,
 }
 
-pub fn on_detonate(evt: On<DetonatePayload>, mut cmd: Commands) {
-  let e = evt.target;
-
-  let Some(_) = cmd.get_entity(e).ok() else {
-    return;
-  };
-  cmd.queue_silenced(move |x: &mut World| {
-    x.entities_and_commands()
-      .1
-      .entity(e)
-      .insert_if_new(Detonated);
-  });
-}
 pub fn despawn_expired_projectiles(
   mut cmd: Commands,
   qry: Query<(Entity, &mut Projectile, &Placeable)>,
@@ -70,6 +53,7 @@ pub fn despawn_expired_projectiles(
         cmd.trigger(DetonatePayload {
           target: e,
           location: loc.location,
+          hit: None,
         });
       } else {
         // no detonation on expiry, just  despawn
@@ -94,43 +78,18 @@ pub fn pulse_projectiles(
       cmd.trigger(DetonatePayload {
         target: e,
         location: loc.location,
+        hit: None,
       });
     }
-  }
-}
-
-pub fn detonate_hit_projectiles(
-  mut cmd: Commands,
-  qry: Query<(Entity, &Projectile, &CombatAreaEffect, &Placeable), Without<Detonated>>,
-) {
-  for (e, p, cae, loc) in qry {
-    if !cae.hit {
-      continue;
-    }
-
-    if let DetonationTrigger::Contact = &p.detonate_trigger {
-      let Some(_) = cmd.get_entity(e).ok() else {
-        continue;
-      };
-
-      let a = e;
-      let b = loc.location;
-      cmd.queue_silenced(move |x: &mut World| {
-        x.trigger(DetonatePayload {
-          target: a,
-          location: b,
-        })
-      });
-    };
   }
 }
 
 pub fn update_movement_forces(
   qry_pos: Query<&Placeable>,
-  qry: Query<(&Placeable, &mut Moveable, &Projectile, Option<&Detonated>)>,
+  qry: Query<(&Placeable, &mut Moveable, &Projectile)>,
   time: Res<Time>,
 ) {
-  for (p, mut mov, proj, detonated) in qry {
+  for (p, mut mov, proj) in qry {
     // if detonated.is_some() {
     //   mov.net_forces = Vec2::ZERO;
     //   return;

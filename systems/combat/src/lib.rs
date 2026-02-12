@@ -33,11 +33,9 @@ impl Plugin for SysCombatPlugin {
           projectile::update_movement_forces,
           projectile::despawn_expired_projectiles,
           projectile::pulse_projectiles,
-          projectile::detonate_hit_projectiles,
         ),
       )
-      .add_observer(apply_combat_effects)
-      .add_observer(projectile::on_detonate);
+      .add_observer(apply_combat_effects);
   }
 }
 
@@ -190,10 +188,15 @@ fn tick_guages(qry: Query<&mut CombatantGuages>, time: Res<Time>) {
 fn test_hitboxes(
   mut cmd: Commands,
   qry_hitboxes: Query<(Entity, &Combatant, &CombatantGuages, &Placeable)>,
-  qry_effects: Query<(&mut CombatAreaEffect, &Placeable)>,
+  qry_effects: Query<(
+    Entity,
+    &mut CombatAreaEffect,
+    &Placeable,
+    Option<&Projectile>,
+  )>,
   time: Res<Time>,
 ) {
-  for (mut eb, eb_pos) in qry_effects {
+  for (effect_entity, mut eb, eb_pos, maybe_projectile) in qry_effects {
     if let Some(effect_timer) = eb.effect_tick.as_mut() {
       effect_timer.tick(time.delta());
       if !effect_timer.just_finished() {
@@ -238,7 +241,18 @@ fn test_hitboxes(
         source: eb.owner,
       });
 
-      eb.hit = true;
+      if !eb.hit {
+        eb.hit = true;
+        if let Some(DetonationTrigger::Contact) =
+          maybe_projectile.as_ref().map(|x| &x.detonate_trigger)
+        {
+          cmd.trigger(DetonatePayload {
+            target: effect_entity,
+            location: eb_pos.location,
+            hit: Some(hb_entity),
+          });
+        }
+      }
     }
   }
 }

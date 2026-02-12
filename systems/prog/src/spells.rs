@@ -100,7 +100,6 @@ impl SpellBuilder {
   }
   pub fn create_fireball_spell(&self) -> Option<EquippedSpell> {
     let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
-    return None;
     Some(EquippedSpell {
       generator: SpellGenerator::Fireball(FireballSpellGenerator {
         speed: get(&SpellUpgrade::FireballSpellUpgrade(
@@ -121,7 +120,7 @@ impl SpellBuilder {
         ))?,
         lifetime: DEFAULT_SPELL_LIFETIME,
       }),
-      cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(5.0, TimerMode::Once),
       downside: Vec::new(),
     })
   }
@@ -129,7 +128,6 @@ impl SpellBuilder {
   pub fn create_chainlightning_spell(&self) -> Option<EquippedSpell> {
     let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
 
-    return None;
     Some(EquippedSpell {
       generator: SpellGenerator::Chainlightning(ChainlightningSpellGenerator {
         speed: get(&SpellUpgrade::ChainlightningSpellUpgrade(
@@ -138,24 +136,23 @@ impl SpellBuilder {
         base_damage: get(&SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BaseDamage,
         ))?,
-        num_chains: get(&SpellUpgrade::ChainlightningSpellUpgrade(
-          ChainlightningSpellRoll::NumChains,
-        ))?,
-        bounce_mult: get(&SpellUpgrade::ChainlightningSpellUpgrade(
-          ChainlightningSpellRoll::BounceMult,
+        bounce_children: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::BounceChildren,
         ))?,
         bounce_range: get(&SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BounceRange,
         ))?,
+        bounce_mult: get(&SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::BounceMult,
+        ))?,
       }),
-      cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(5.0, TimerMode::Once),
       downside: Vec::new(),
     })
   }
 
   pub fn create_frozenorb_spell(&self) -> Option<EquippedSpell> {
     let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
-
     Some(EquippedSpell {
       generator: SpellGenerator::Frozenorb(FrozenorbSpellGenerator {
         speed: get(&SpellUpgrade::FrozenorbSpellUpgrade(
@@ -233,9 +230,9 @@ pub enum ChainlightningSpellRoll {
   #[default]
   Speed,
   BaseDamage,
-  NumChains,
-  BounceMult,
+  BounceChildren,
   BounceRange,
+  BounceMult,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Default, Deserialize)]
@@ -314,17 +311,17 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
         SpellGenerator::Chainlightning(g),
       ) => g.base_damage += value,
       (
-        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::NumChains),
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceChildren),
         SpellGenerator::Chainlightning(g),
-      ) => g.num_chains += value,
-      (
-        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceMult),
-        SpellGenerator::Chainlightning(g),
-      ) => g.bounce_mult += value,
+      ) => g.bounce_children += value,
       (
         SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceRange),
         SpellGenerator::Chainlightning(g),
       ) => g.bounce_range += value,
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceMult),
+        SpellGenerator::Chainlightning(g),
+      ) => g.bounce_mult += value,
 
       // frozenorb
       (

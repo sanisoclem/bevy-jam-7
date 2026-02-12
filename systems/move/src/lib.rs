@@ -31,12 +31,30 @@ pub struct Placeable {
   pub location: IsoWorldCoords,
   pub layer: u8,
 }
+impl Placeable {
+  pub fn mid(pos: IsoWorldCoords) -> Self {
+    Self {
+      location: pos,
+      layer: 5,
+    }
+  }
+}
+
 #[derive(Component, Debug, Clone, Reflect)]
 pub struct Moveable {
   pub damping: f32,
   // pub mass: f32,
   pub net_forces: Vec2,
   pub impulses: Vec<(Vec2, Timer)>,
+}
+impl Default for Moveable {
+  fn default() -> Self {
+    Moveable {
+      damping: 1.0,
+      net_forces: Vec2::ZERO,
+      impulses: Vec::new(),
+    }
+  }
 }
 
 #[derive(Component, Debug, Clone, Reflect)]

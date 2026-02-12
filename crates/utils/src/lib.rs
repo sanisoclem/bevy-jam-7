@@ -6,6 +6,7 @@ pub mod diff {
   use bevy::prelude::*;
 
   pub const MAX_PROJECTILE_TRAVEL: f32 = 5000.;
+  pub const MAX_PROJECTILE_LIFETIME: f32 = 2.;
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
   pub const TEAM_OTHER: u8 = 7;
@@ -42,10 +43,6 @@ pub mod diff {
     );
     retval
   }
-  // pub fn normalize_scores(power_budget: f32, scores: [f32; 4]) -> [f32; 4] {
-  //   let total: f32 = scores.iter().copied().sum();
-  //   scores.map(|x| x / total * power_budget)
-  // }
   pub fn normalize_scores(power_budget: f32, scores: [f32; 4]) -> [f32; 4] {
     let mut result = scores;
 
@@ -77,6 +74,10 @@ pub mod diff {
       return scores.map(|_| power_budget / 4.0);
     }
     result.map(|x| x / total * power_budget)
+  }
+
+  pub fn get_max_projectile_lifetime(speed: f32) -> f32 {
+    MAX_PROJECTILE_LIFETIME.min(MAX_PROJECTILE_TRAVEL / speed)
   }
 }
 

@@ -16,8 +16,10 @@ impl Plugin for SysMagicPlugin {
       .add_observer(spells::fireball::cast_fireball)
       .add_observer(spells::fireball::on_fireball_detonate)
       .add_observer(spells::chainlightning::cast_chainlightning)
+      .add_observer(spells::chainlightning::on_detonate_chainlightning)
       .add_observer(spells::frozenorb::cast_frozenorb)
       .add_observer(spells::frozenorb::on_frozenorb_detonate)
+      .add_observer(spells::frozenorb::on_frozenorb_shard_detonate)
       .add_systems(FixedUpdate, (update_cooldowns, cast_auto_spells));
   }
 }

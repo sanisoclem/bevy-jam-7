@@ -90,9 +90,9 @@ SpellBuilderConfig(
             // --- Chainlightning ---
             ChainlightningSpellUpgrade(Speed): (
                 description: "Speed +{}",
-                min_value: 150.0,
-                max_value: 500.0,
-                min_rolls: 1,
+                min_value: 50.0,
+                max_value: 75.0,
+                min_rolls: 3,
                 is_downside: false,
             ),
             ChainlightningSpellUpgrade(BaseDamage): (
@@ -102,10 +102,10 @@ SpellBuilderConfig(
                 min_rolls: 1,
                 is_downside: false,
             ),
-            ChainlightningSpellUpgrade(NumChains): (
-                description: "Chains +{}",
+            ChainlightningSpellUpgrade(BounceChildren): (
+                description: "Discharges +{}",
                 min_value: 1.0,
-                max_value: 5.0,
+                max_value: 2.0,
                 min_rolls: 1,
                 is_downside: false,
             ),
@@ -119,8 +119,8 @@ SpellBuilderConfig(
             ChainlightningSpellUpgrade(BounceRange): (
                 description: "Bounce range +{}",
                 min_value: 50.0,
-                max_value: 200.0,
-                min_rolls: 1,
+                max_value: 75.0,
+                min_rolls: 4,
                 is_downside: false,
             ),
 
