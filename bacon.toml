@@ -2,7 +2,7 @@ default_job = "clippy"
 env.CARGO_TERM_COLOR = "always"
 
 [jobs.clippy]
-command = ["cargo", "clippy", "--all-targets"]
+command = ["cargo", "clippy", "--all-targets", "--features=dev"]
 need_stdout = false
 
 

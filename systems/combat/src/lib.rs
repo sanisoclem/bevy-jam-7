@@ -1,14 +1,11 @@
-use bevy::{
-  color::palettes::css::{GREEN, RED},
-  prelude::*,
-};
-use sys_move::{IsoMovementStage, IsoWorldCoords, Placeable};
+use bevy::prelude::*;
+use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;
 mod projectile;
 
 pub use hittest::HitTestableShape;
-pub use projectile::{DetonationTrigger, Projectile, ProjectileMovement, ProjectilePayload};
+pub use projectile::{DetonatePayload, DetonationTrigger, Projectile, ProjectileMovement};
 
 pub struct SysCombatPlugin;
 
@@ -35,14 +32,10 @@ impl Plugin for SysCombatPlugin {
         (
           projectile::update_movement_forces,
           projectile::despawn_expired_projectiles,
-          projectile::detonate_hit_projectiles,
+          projectile::pulse_projectiles,
         ),
       )
-      .add_observer(apply_combat_effects)
-      .add_observer(projectile::process_detonations);
-
-    #[cfg(feature = "dev")]
-    app.add_systems(Update, draw_gizmos);
+      .add_observer(apply_combat_effects);
   }
 }
 
@@ -66,12 +59,12 @@ pub enum DeathBehavior {
   Respawn(Timer, Timer),
   Despawn(Timer),
 }
-#[derive(Component, Reflect, Debug, Clone)]
+
+#[derive(Component, Reflect, Debug, Clone, Default)]
 pub struct CombatantRadar {
   pub nearest: Option<(Entity, IsoWorldCoords)>,
-  // pub strongest: Option<Vec2>,
-  // pub densest: Option<Vec2>,
-  // pub weakest: Option<Vec2>,
+  pub strongest: Option<(Entity, IsoWorldCoords)>,
+  pub densest: Option<(Entity, IsoWorldCoords)>,
 }
 
 #[derive(Component, Reflect, Debug, Clone)]
@@ -83,7 +76,7 @@ pub struct CombatantGuages {
   pub current_hp: u32,
 }
 
-#[derive(Component, Reflect, Debug, Clone)]
+#[derive(Component, Reflect, Debug, Clone, Default)]
 pub struct CombatantState {
   pub reeling: bool,
   pub stunned: bool,
@@ -163,7 +156,7 @@ fn create_combat_guages(
         invulnerable: false,
         dead: false,
       },
-      CombatantRadar { nearest: None },
+      CombatantRadar::default(),
     ));
   }
 }
@@ -195,10 +188,15 @@ fn tick_guages(qry: Query<&mut CombatantGuages>, time: Res<Time>) {
 fn test_hitboxes(
   mut cmd: Commands,
   qry_hitboxes: Query<(Entity, &Combatant, &CombatantGuages, &Placeable)>,
-  qry_effects: Query<(&mut CombatAreaEffect, &Placeable)>,
+  qry_effects: Query<(
+    Entity,
+    &mut CombatAreaEffect,
+    &Placeable,
+    Option<&Projectile>,
+  )>,
   time: Res<Time>,
 ) {
-  for (mut eb, eb_pos) in qry_effects {
+  for (effect_entity, mut eb, eb_pos, maybe_projectile) in qry_effects {
     if let Some(effect_timer) = eb.effect_tick.as_mut() {
       effect_timer.tick(time.delta());
       if !effect_timer.just_finished() {
@@ -243,7 +241,18 @@ fn test_hitboxes(
         source: eb.owner,
       });
 
-      eb.hit = true;
+      if !eb.hit {
+        eb.hit = true;
+        if let Some(DetonationTrigger::Contact) =
+          maybe_projectile.as_ref().map(|x| &x.detonate_trigger)
+        {
+          cmd.trigger(DetonatePayload {
+            target: effect_entity,
+            location: eb_pos.location,
+            hit: Some(hb_entity),
+          });
+        }
+      }
     }
   }
 }
@@ -330,7 +339,6 @@ fn sync_combat_state(qry: Query<(&CombatantGuages, &mut CombatantState)>) {
     cs.dead = cg.current_hp == 0;
   }
 }
-
 fn sync_combat_radar(
   mut qry: Query<(
     Entity,
@@ -348,17 +356,21 @@ fn sync_combat_radar(
   for (_e1, c1, mut cr1, cg1, p1) in &mut qry {
     if cg1.current_hp == 0 {
       cr1.nearest = None;
+      cr1.strongest = None;
+      cr1.densest = None;
       continue;
     }
 
+    let mut strongest_hp = 0u32;
+    let mut strongest_pos = None;
     let mut nearest_dist = f32::MAX;
     let mut nearest_pos: Option<(Entity, IsoWorldCoords)> = None;
 
+    let mut quadrant_counts = [0usize; 4];
+    let mut quadrant_last: [Option<(Entity, IsoWorldCoords)>; 4] = [None, None, None, None];
+
     for (e2, team, hp, location) in &data {
-      if *team == c1.team {
-        continue;
-      }
-      if *hp == 0 {
+      if *team == c1.team || *hp == 0 {
         continue;
       }
 
@@ -368,9 +380,35 @@ fn sync_combat_radar(
         nearest_dist = dist;
         nearest_pos = Some((*e2, *location));
       }
+      if hp > &strongest_hp {
+        strongest_hp = *hp;
+        strongest_pos = Some((*e2, *location));
+      }
+
+      // determine quadrant relative to p1
+      let delta = *location - p1.location;
+      let quadrant = match (delta.x >= 0.0, delta.y >= 0.0) {
+        (true, true) => 0,   // NE
+        (false, true) => 1,  // NW
+        (false, false) => 2, // SW
+        (true, false) => 3,  // SE
+      };
+
+      quadrant_counts[quadrant] += 1;
+      quadrant_last[quadrant] = Some((*e2, *location));
     }
 
+    let densest_quadrant = quadrant_counts
+      .iter()
+      .enumerate()
+      .max_by_key(|(_, count)| *count)
+      .map(|(idx, _)| idx);
+
+    let densest_pos = densest_quadrant.and_then(|idx| quadrant_last[idx]);
+
     cr1.nearest = nearest_pos;
+    cr1.strongest = strongest_pos;
+    cr1.densest = densest_pos;
   }
 }
 
@@ -400,41 +438,6 @@ fn despawn_respawn_dead(
         }
       }
     }
-  }
-}
-
-fn draw_gizmos(
-  mut gizmos: Gizmos,
-  qry: Query<(&Combatant, &CombatantGuages, &CombatantState, &Placeable)>,
-  qry_aoe: Query<(&CombatAreaEffect, &Placeable)>,
-  qry_stage: Query<&IsoMovementStage>,
-) {
-  let Some(stage) = qry_stage.iter().next() else {
-    return;
-  };
-
-  for (c, _cg, cs, p) in qry {
-    if cs.dead || cs.invulnerable {
-      continue;
-    }
-    c.hitbox.draw_gizmo(
-      &mut gizmos,
-      p.location,
-      stage.aspect_ratio,
-      Color::from(GREEN),
-    );
-  }
-
-  for (c, p) in qry_aoe {
-    let Some(stage) = qry_stage.iter().next() else {
-      continue;
-    };
-    c.shape.draw_gizmo(
-      &mut gizmos,
-      p.location,
-      stage.aspect_ratio,
-      Color::from(RED),
-    );
   }
 }
 

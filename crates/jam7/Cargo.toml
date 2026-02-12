@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true, features = ["2d", "ui"] }
 bevy_enhanced_input.workspace = true
+bevy_egui.workspace = true
 bytemuck.workspace = true
 libnoise = "1.2"
 serde.workspace = true 
@@ -24,7 +25,8 @@ sys_combat = { path = "../../systems/combat", version = "0.1.0" }
 sys_magic = { path = "../../systems/magic", version = "0.1.0" }
 sys_enemy = { path = "../../systems/enemy", version = "0.1.0" }
 sys_procgen = { path = "../../systems/procgen", version = "0.1.0" }
+sys_prog = { path = "../../systems/prog", version = "0.1.0" }
 
 [features]
 default = []
-dev = ["bevy/dev", "sys_move/dev", "sys_combat/dev"]
+dev = ["bevy/dev"]

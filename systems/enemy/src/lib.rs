@@ -1,17 +1,17 @@
 use std::marker::PhantomData;
 
-use bevy::{asset::LoadedFolder, prelude::*, sprite::Anchor, time::Stopwatch};
+use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use sys_animation::{AtlasAnimation, SysAnimationPlugin};
 use sys_combat::{Combatant, KillCounter};
 use sys_magic::{SpellBook, SpellBookGenerator, SpellBookState};
-use sys_move::{IsoWorldCoords, MoveDirection, Moveable, Placeable};
+use sys_move::{IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
 use utils::{
   self,
   diff::{
     self, TEAM_ENEMY, get_effective_dps_from_offense_score,
     get_effective_range_from_rangeness_score, get_enemy_size_from_toughness, get_enemy_tint,
-    get_max_hp_from_toughness_score, get_power_budget_from_kills,
+    get_max_hp_from_toughness_score, get_mobility_from_rangeness, get_power_budget_from_kills,
   },
 };
 
@@ -25,18 +25,30 @@ impl Plugin for SysEnemyPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_plugins(SysAnimationPlugin::<EnemyAnimationState>::default())
-      .init_resource::<EnemyRegistry>()
       .init_asset::<EnemyDescriptor>()
+      .init_resource::<EnemyRegistry>()
       .register_asset_loader(EnemyDescriptorAssetLoader)
       .register_asset_loader(TextureAtlasLayoutAssetLoader)
-      .add_systems(Update, load_enemy_registry)
-      .add_systems(FixedUpdate, (spawn_enemies, despawn_enemies));
+      .add_systems(Update, update_animation_state)
+      .add_systems(
+        FixedUpdate,
+        (spawn_enemies, despawn_enemies, update_enemy_objectives),
+      );
   }
 }
 
 #[derive(Component, Clone, Debug)]
 pub struct Enemy {
-  spawned_by: Entity,
+  pub spawned_by: Entity,
+  pub mobility: f32,
+  pub desired_range: f32,
+  pub spawned_at: IsoWorldCoords,
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct EnemyState {
+  pub objective: Option<IsoWorldCoords>,
+  pub idle_timer: Timer,
 }
 
 // will be attached to the player
@@ -60,19 +72,21 @@ pub struct EnemySpawnerState {
 #[derive(Resource)]
 pub struct EnemyRegistry {
   sb_generator: SpellBookGenerator,
-  descriptor_folder: Handle<LoadedFolder>,
   descriptors: Vec<Handle<EnemyDescriptor>>,
 }
 
 impl FromWorld for EnemyRegistry {
   fn from_world(world: &mut World) -> Self {
     let asset_server = world.resource::<AssetServer>();
-    let descriptor_folder = asset_server.load_folder("enemies");
+    // let descriptor_folder = asset_server.load_folder("enemies");
+    // NOTE: NO SUPPORT FOR LOADING FOLDERS IN WASM!!!!!!
+
+    let e1 = asset_server.load("enemies/test1.enemy.ron");
+    let e2 = asset_server.load("enemies/test2.enemy.ron");
 
     Self {
       sb_generator: SpellBookGenerator,
-      descriptor_folder,
-      descriptors: Vec::new(),
+      descriptors: vec![e1, e2],
     }
   }
 }
@@ -116,7 +130,7 @@ impl EnemyRegistry {
     descriptors: &Assets<EnemyDescriptor>,
     procgen: &ProceduralLevel,
   ) -> Option<EnemyBlueprint> {
-    let power_budget = get_power_budget_from_kills(total_kills as f32 + 100000.);
+    let power_budget = get_power_budget_from_kills(total_kills as f32);
 
     let [
       density_score,
@@ -128,10 +142,10 @@ impl EnemyRegistry {
       [0, 1, 2, 3].map(|layer| procgen.sample(location, layer)),
     );
 
-    info!(
-      "spawning, density: {}, range: {}, tough: {}, offense: {}",
-      density_score, rangeness_score, toughness_score, offense_score
-    );
+    // info!(
+    //   "spawning, density: {}, range: {}, tough: {}, offense: {}",
+    //   density_score, rangeness_score, toughness_score, offense_score
+    // );
 
     let max_density = diff::get_density_ceiling_from_score(density_score);
     if current_density > max_density {
@@ -155,7 +169,7 @@ impl EnemyRegistry {
     let descriptor = self.get_enemy_descriptor(descriptors, location)?;
 
     let scale = descriptor.scale * get_enemy_size_from_toughness(toughness_score);
-    let tint = get_enemy_tint(0., rangeness_score, offense_score);
+    let tint = get_enemy_tint(toughness_score, rangeness_score, offense_score);
     let animation = AtlasAnimation {
       tint: Some(tint),
       phantom: PhantomData,
@@ -186,6 +200,10 @@ impl EnemyRegistry {
       anchor: Some(descriptor.anchor),
       scale,
       animation,
+      offense_score,
+      toughness_score,
+      rangeness_score,
+      power_budget,
     })
   }
 }
@@ -207,30 +225,34 @@ pub struct EnemyBlueprint {
   pub anchor: Option<Anchor>,
   pub scale: Vec2,
   pub animation: AtlasAnimation<EnemyAnimationState>,
+  pub toughness_score: f32,
+  pub rangeness_score: f32,
+  pub offense_score: f32,
+  pub power_budget: f32,
 }
 
-pub fn load_enemy_registry(
-  mut ev_asset: MessageReader<AssetEvent<LoadedFolder>>,
-  mut enemy_registry: ResMut<EnemyRegistry>,
-  loaded_folders: Res<Assets<LoadedFolder>>,
-) {
-  for ev in ev_asset.read() {
-    if !ev.is_loaded_with_dependencies(&enemy_registry.descriptor_folder) {
-      continue;
-    }
-
-    let loaded_folder = loaded_folders
-      .get(&enemy_registry.descriptor_folder)
-      .expect("folder should be loaded");
-
-    enemy_registry.descriptors = loaded_folder
-      .handles
-      .iter()
-      .cloned()
-      .filter_map(|h| h.try_typed::<EnemyDescriptor>().ok())
-      .collect();
-  }
-}
+// pub fn load_enemy_registry(
+//   mut ev_asset: MessageReader<AssetEvent<LoadedFolder>>,
+//   mut enemy_registry: ResMut<EnemyRegistry>,
+//   loaded_folders: Res<Assets<LoadedFolder>>,
+// ) {
+//   for ev in ev_asset.read() {
+//     if !ev.is_loaded_with_dependencies(&enemy_registry.descriptor_folder) {
+//       continue;
+//     }
+//
+//     let loaded_folder = loaded_folders
+//       .get(&enemy_registry.descriptor_folder)
+//       .expect("folder should be loaded");
+//
+//     enemy_registry.descriptors = loaded_folder
+//       .handles
+//       .iter()
+//       .cloned()
+//       .filter_map(|h| h.try_typed::<EnemyDescriptor>().ok())
+//       .collect();
+//   }
+// }
 
 fn spawn_enemies(
   mut cmd: Commands,
@@ -316,9 +338,17 @@ fn spawn_enemies(
         Moveable {
           net_forces: Vec2::ZERO,
           damping: 1.0,
+          impulses: Vec::new(),
         },
         Enemy {
           spawned_by: spawner_entity,
+          mobility: get_mobility_from_rangeness(enemy.power_budget, enemy.rangeness_score),
+          desired_range: get_effective_range_from_rangeness_score(enemy.rangeness_score),
+          spawned_at: location,
+        },
+        EnemyState {
+          objective: None,
+          idle_timer: Timer::from_seconds(2.0, TimerMode::Once),
         },
         EnemyAnimationState {
           facing: MoveDirection::Southeast,
@@ -344,8 +374,76 @@ fn despawn_enemies(
       let dist_sqd = spawner_pos.location.distance_squared(enemy_pos.location);
 
       if dist_sqd >= despawn_dist_sqd {
-        // cmd.entity(enemy_entity).despawn();
+        cmd.entity(enemy_entity).despawn();
       }
     }
+  }
+}
+fn update_enemy_objectives(
+  qry_enemies: Query<(&Enemy, &mut EnemyState, &Placeable, &mut Moveable)>,
+  player: Query<&Placeable, With<EnemySpawner>>,
+  time: Res<Time>,
+) {
+  let Some(player_pos) = player.iter().next().map(|p| p.location) else {
+    return;
+  };
+
+  for (enemy, mut state, placeable, mut mov) in qry_enemies {
+    let dist_to_player = placeable.location.distance(player_pos);
+    let player_dist_from_spawn = enemy.spawned_at.distance(player_pos);
+    let is_player_nearby = dist_to_player <= enemy.desired_range * 1.2;
+
+    if is_player_nearby {
+      if state.objective.is_some() {
+        state.objective = None;
+        state.idle_timer.reset();
+      }
+
+      let direction = (player_pos - placeable.location).normalize_or_zero();
+      let distance_error = dist_to_player - enemy.desired_range;
+
+      // give up if player is too far (2x effective_range from spawn point)
+      mov.net_forces =
+        if distance_error.abs() < 5.0 || player_dist_from_spawn > enemy.desired_range * 2. {
+          Vec2::ZERO
+        } else if distance_error > 0.0 {
+          direction
+        } else {
+          -direction
+        } * enemy.mobility;
+
+      continue;
+    }
+
+    if let Some(objective) = state.objective {
+      let dist_to_objective = placeable.location.distance_squared(objective);
+      if dist_to_objective < 25.0 {
+        state.objective = None;
+        mov.net_forces = Vec2::ZERO;
+        state.idle_timer.reset();
+      }
+      continue;
+    }
+
+    if !state.idle_timer.is_finished() {
+      state.idle_timer.tick(time.delta());
+      continue;
+    }
+
+    let max_travel_dist = enemy.mobility * 2.0;
+    let random_angle = fastrand::f32() * std::f32::consts::TAU;
+    let random_dist = fastrand::f32() * max_travel_dist;
+    let random_offset = IsoWorldCoords::new(
+      random_angle.cos() * random_dist,
+      random_angle.sin() * random_dist,
+    );
+    state.objective = Some(placeable.location + random_offset);
+    mov.net_forces = (*random_offset).normalize() * enemy.mobility;
+  }
+}
+fn update_animation_state(qry: Query<(&mut EnemyAnimationState, &MoveState), With<Enemy>>) {
+  for (mut anim, mov) in qry {
+    anim.moving = mov.is_moving_voluntary;
+    anim.facing = mov.direction.clone();
   }
 }

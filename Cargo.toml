@@ -34,6 +34,8 @@ ron =  "0.12.0"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 libnoise = "1.2"
+fastrand = { version =  "2.3.0", features = ["js"] }
+getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
