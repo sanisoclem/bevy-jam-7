@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bevy::prelude::*;
 use sys_move::{IsoWorldCoords, Moveable, Placeable};
 
@@ -9,9 +7,11 @@ use crate::CombatAreaEffect;
 pub struct Projectile {
   pub lifetime: Timer,
   pub detonate_trigger: DetonationTrigger,
-  pub payload: Option<ProjectilePayload>,
   pub movement: ProjectileMovement,
 }
+
+#[derive(Component)]
+pub struct Detonated;
 
 #[derive(Debug, Clone)]
 pub enum ProjectileMovement {
@@ -30,33 +30,31 @@ pub enum ProjectileMovement {
 
 #[derive(Debug, Clone)]
 pub enum DetonationTrigger {
+  None,
   Contact,
   Expiry,
+  Pulse(Timer),
 }
 
-pub type PayloadFn =
-  Arc<dyn Fn(&mut Commands, &IsoWorldCoords) -> Vec<Entity> + Send + Sync + 'static>;
-
-#[derive(Clone)]
-pub enum ProjectilePayload {
-  SpawnEntities(Entity, PayloadFn),
-}
-
-#[derive(Event, Clone)]
+#[derive(EntityEvent, Clone)]
 pub struct DetonatePayload {
-  pub payload: ProjectilePayload,
+  #[event_target]
+  pub target: Entity,
   pub location: IsoWorldCoords,
 }
 
-pub fn process_detonations(msg: On<DetonatePayload>, mut cmd: Commands) {
-  let ProjectilePayload::SpawnEntities(parent, spawn_fn) = &msg.payload;
-  let spawned = spawn_fn(&mut cmd, &msg.location);
+pub fn on_detonate(evt: On<DetonatePayload>, mut cmd: Commands) {
+  let e = evt.target;
 
-  if let Ok(mut pcmd) = cmd.get_entity(*parent) {
-    pcmd.add_children(&spawned);
-  } else {
-    warn!("orphaned projectile payloads created");
+  let Some(_) = cmd.get_entity(e).ok() else {
+    return;
   };
+  cmd.queue_silenced(move |x: &mut World| {
+    x.entities_and_commands()
+      .1
+      .entity(e)
+      .insert_if_new(Detonated);
+  });
 }
 pub fn despawn_expired_projectiles(
   mut cmd: Commands,
@@ -67,32 +65,61 @@ pub fn despawn_expired_projectiles(
     p.lifetime.tick(time.delta());
 
     if p.lifetime.just_finished() {
-      cmd.entity(e).despawn();
-
-      if let (DetonationTrigger::Expiry, Some(payload)) = (&p.detonate_trigger, &p.payload) {
+      // if detonate on expiry, detonation will be determined by the projectile owner
+      if let DetonationTrigger::Expiry = &p.detonate_trigger {
         cmd.trigger(DetonatePayload {
-          payload: payload.clone(),
+          target: e,
           location: loc.location,
         });
-      };
+      } else {
+        // no detonation on expiry, just  despawn
+        cmd.entity(e).despawn();
+      }
+    }
+  }
+}
+pub fn pulse_projectiles(
+  mut cmd: Commands,
+  qry: Query<(Entity, &mut Projectile, &Placeable)>,
+  time: Res<Time>,
+) {
+  for (e, mut p, loc) in qry {
+    let DetonationTrigger::Pulse(timer) = &mut p.detonate_trigger else {
+      continue;
+    };
+
+    timer.tick(time.delta());
+
+    if timer.just_finished() {
+      cmd.trigger(DetonatePayload {
+        target: e,
+        location: loc.location,
+      });
     }
   }
 }
 
 pub fn detonate_hit_projectiles(
   mut cmd: Commands,
-  qry: Query<(Entity, &Projectile, &CombatAreaEffect, &Placeable)>,
+  qry: Query<(Entity, &Projectile, &CombatAreaEffect, &Placeable), Without<Detonated>>,
 ) {
   for (e, p, cae, loc) in qry {
     if !cae.hit {
       continue;
     }
 
-    if let (DetonationTrigger::Contact, Some(payload)) = (&p.detonate_trigger, &p.payload) {
-      cmd.entity(e).despawn();
-      cmd.trigger(DetonatePayload {
-        payload: payload.clone(),
-        location: loc.location,
+    if let DetonationTrigger::Contact = &p.detonate_trigger {
+      let Some(_) = cmd.get_entity(e).ok() else {
+        continue;
+      };
+
+      let a = e;
+      let b = loc.location;
+      cmd.queue_silenced(move |x: &mut World| {
+        x.trigger(DetonatePayload {
+          target: a,
+          location: b,
+        })
       });
     };
   }
@@ -100,10 +127,14 @@ pub fn detonate_hit_projectiles(
 
 pub fn update_movement_forces(
   qry_pos: Query<&Placeable>,
-  qry: Query<(&Placeable, &mut Moveable, &Projectile)>,
+  qry: Query<(&Placeable, &mut Moveable, &Projectile, Option<&Detonated>)>,
   time: Res<Time>,
 ) {
-  for (p, mut mov, proj) in qry {
+  for (p, mut mov, proj, detonated) in qry {
+    // if detonated.is_some() {
+    //   mov.net_forces = Vec2::ZERO;
+    //   return;
+    // }
     mov.net_forces = match proj.movement {
       ProjectileMovement::Static => Vec2::splat(0.),
       ProjectileMovement::Straight(vel) => vel,
@@ -131,16 +162,16 @@ pub fn update_movement_forces(
         } else {
           mov.net_forces
         }
-      } // ProjectileMovement::Orbit {
-        //   target,
-        //   orbit_radius,
-        // } => {
-        //   if let Ok(pos) = qry_pos.get(target) {
-        //     todo!()
-        //   } else {
-        //     mov.net_forces
-        //   }
-        // }
+      } /* ProjectileMovement::Orbit {
+         *   target,
+         *   orbit_radius,
+         * } => {
+         *   if let Ok(pos) = qry_pos.get(target) {
+         *     todo!()
+         *   } else {
+         *     mov.net_forces
+         *   }
+         * } */
     };
   }
 }

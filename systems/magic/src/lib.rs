@@ -14,6 +14,10 @@ impl Plugin for SysMagicPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_observer(spells::fireball::cast_fireball)
+      .add_observer(spells::fireball::on_fireball_detonate)
+      .add_observer(spells::chainlightning::cast_chainlightning)
+      .add_observer(spells::frozenorb::cast_frozenorb)
+      .add_observer(spells::frozenorb::on_frozenorb_detonate)
       .add_systems(FixedUpdate, (update_cooldowns, cast_auto_spells));
   }
 }
@@ -65,7 +69,20 @@ fn cast_auto_spells(
           spell_slot: idx,
           cooldown: spell.cooldown.clone(),
         }),
-        _ => todo!(),
+        SpellGenerator::Chainlightning(generator) => cmd.trigger(SpellReady {
+          caster,
+          generator: generator.clone(),
+          downside: spell.downside.clone(),
+          spell_slot: idx,
+          cooldown: spell.cooldown.clone(),
+        }),
+        SpellGenerator::Frozenorb(generator) => cmd.trigger(SpellReady {
+          caster,
+          generator: generator.clone(),
+          downside: spell.downside.clone(),
+          spell_slot: idx,
+          cooldown: spell.cooldown.clone(),
+        }),
       };
     }
   }

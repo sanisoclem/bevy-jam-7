@@ -2,10 +2,7 @@ use asset::{SpellBuilderConfig, SpellBuilderConfigLoader};
 use bevy::prelude::*;
 
 use crate::{
-  levelup::{
-    PendingLevelUp,
-    ui::{despawn_levelup_ui, levelup_ui_interaction, spawn_levelup_ui},
-  },
+  levelup::ui::{levelup_ui_interaction, on_levelup_ui},
   spells::SpellBuilder,
 };
 
@@ -21,12 +18,9 @@ impl Plugin for SysProgPlugin {
       .init_asset::<SpellBuilderConfig>()
       .init_asset_loader::<SpellBuilderConfigLoader>()
       .init_resource::<LongTermProgger>()
-      .init_resource::<PendingLevelUp>()
       .add_systems(Update, (sync_spell_builders,))
-      .add_systems(
-        Update,
-        (spawn_levelup_ui, levelup_ui_interaction, despawn_levelup_ui),
-      )
+      .add_systems(Update, (levelup_ui_interaction,))
+      .add_observer(on_levelup_ui)
       .add_observer(levelup::on_levelup)
       .add_observer(levelup::on_apply_levelup);
   }

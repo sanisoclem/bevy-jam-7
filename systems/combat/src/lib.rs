@@ -5,7 +5,7 @@ mod hittest;
 mod projectile;
 
 pub use hittest::HitTestableShape;
-pub use projectile::{DetonationTrigger, Projectile, ProjectileMovement, ProjectilePayload};
+pub use projectile::{DetonatePayload, DetonationTrigger, Projectile, ProjectileMovement};
 
 pub struct SysCombatPlugin;
 
@@ -32,11 +32,12 @@ impl Plugin for SysCombatPlugin {
         (
           projectile::update_movement_forces,
           projectile::despawn_expired_projectiles,
+          projectile::pulse_projectiles,
           projectile::detonate_hit_projectiles,
         ),
       )
       .add_observer(apply_combat_effects)
-      .add_observer(projectile::process_detonations);
+      .add_observer(projectile::on_detonate);
   }
 }
 

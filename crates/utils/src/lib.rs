@@ -5,6 +5,7 @@ pub mod easing;
 pub mod diff {
   use bevy::prelude::*;
 
+  pub const MAX_PROJECTILE_TRAVEL: f32 = 5000.;
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
   pub const TEAM_OTHER: u8 = 7;
@@ -76,5 +77,53 @@ pub mod diff {
       return scores.map(|_| power_budget / 4.0);
     }
     result.map(|x| x / total * power_budget)
+  }
+}
+
+pub mod vecstuff {
+  use bevy::prelude::*;
+
+  pub fn subdivide_circle(count: usize) -> Vec<Vec2> {
+    if count == 0 {
+      return Vec::new();
+    }
+
+    let angle_step = std::f32::consts::TAU / count as f32;
+
+    (0..count)
+      .map(|i| {
+        let angle = i as f32 * angle_step;
+        Vec2::from_angle(angle)
+      })
+      .collect()
+  }
+
+  #[cfg(test)]
+  mod tests {
+    use super::*;
+
+    #[test]
+    fn test_subdivide_circle() {
+      let dirs = subdivide_circle(2);
+      assert_eq!(dirs.len(), 2);
+      assert!((dirs[0] - Vec2::Y).length() < 0.001);
+      assert!((dirs[1] - -Vec2::Y).length() < 0.001);
+
+      let dirs = subdivide_circle(4);
+      assert_eq!(dirs.len(), 4);
+      assert!((dirs[0] - Vec2::Y).length() < 0.001);
+      assert!((dirs[1] - -Vec2::X).length() < 0.001);
+      assert!((dirs[2] - -Vec2::Y).length() < 0.001);
+      assert!((dirs[3] - Vec2::X).length() < 0.001);
+
+      let dirs = subdivide_circle(8);
+      assert_eq!(dirs.len(), 8);
+      for dir in &dirs {
+        assert!((dir.length() - 1.0).abs() < 0.001);
+      }
+
+      let dirs = subdivide_circle(0);
+      assert_eq!(dirs.len(), 0);
+    }
   }
 }

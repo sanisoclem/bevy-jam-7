@@ -1,25 +1,31 @@
 use bevy::prelude::*;
 use sys_magic::SpellGenerator;
 
-use crate::levelup::{ApplyLevelUp, LevelUpPerk, PendingLevelUp};
+use crate::levelup::{ApplyLevelUp, LevelUpPerk, PendingLevelUp, ShowPendingLevelUpUi};
 
 #[derive(Component)]
 pub struct LevelUpUI;
 
 #[derive(Component)]
-pub struct PerkCard(pub usize);
+pub struct PerkCard(Entity, pub usize);
 
-pub fn spawn_levelup_ui(
-  mut commands: Commands,
-  pending: Res<PendingLevelUp>,
+#[derive(Component)]
+pub struct LevelUpUiShown;
+
+pub fn on_levelup_ui(
+  evt: On<ShowPendingLevelUpUi>,
+  mut cmd: Commands,
+  qry: Query<(Entity, &PendingLevelUp), Without<LevelUpUiShown>>,
   asset_server: Res<AssetServer>,
 ) {
-  if pending.target.is_none() {
+  let Some((entity, pending)) = qry.get(evt.0).ok() else {
     return;
-  }
+  };
+
   let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
 
-  commands
+  cmd.entity(entity).insert(LevelUpUiShown);
+  cmd
     .spawn((
       LevelUpUI,
       Node {
@@ -63,7 +69,7 @@ pub fn spawn_levelup_ui(
             let (title, description) = perk_display_text(choice);
             row
               .spawn((
-                PerkCard(i),
+                PerkCard(entity, i),
                 Button,
                 Node {
                   width: Val::Px(220.0),
@@ -121,12 +127,12 @@ fn perk_display_text(perk: &LevelUpPerk) -> (&'static str, String) {
         format!("DMG {}  SPD {:.0} ", g.base_damage, g.speed,),
       ),
     },
-    LevelUpPerk::SpellUpgradePerk(_) => ("⬆ Spell Upgrade", "Enhance an equipped spell".into()),
+    LevelUpPerk::SpellUpgradePerk(x) => ("⬆ Spell Upgrade", format!("{}", x)),
   }
 }
 
 pub fn levelup_ui_interaction(
-  mut commands: Commands,
+  mut cmd: Commands,
   mut interaction_query: Query<
     (
       &Interaction,
@@ -136,8 +142,7 @@ pub fn levelup_ui_interaction(
     ),
     (Changed<Interaction>, With<Button>),
   >,
-  mut pending: ResMut<PendingLevelUp>,
-  mut time: ResMut<Time<Virtual>>,
+  qry: Query<(Entity, &PendingLevelUp)>,
   ui_root: Query<Entity, With<LevelUpUI>>,
 ) {
   for (interaction, card, mut bg, mut border) in &mut interaction_query {
@@ -151,31 +156,19 @@ pub fn levelup_ui_interaction(
         *border = BorderColor::all(Color::srgb(0.3, 0.3, 0.3));
       }
       Interaction::Pressed => {
-        let Some(target) = pending.target else {
-          continue;
+        let Some((pending_entity, pending)) = qry.get(card.0).ok() else {
+          return;
         };
-        let perk = pending.choices.remove(card.0);
 
-        commands.trigger(ApplyLevelUp { target, perk });
-        pending.target = None;
-        pending.choices.clear();
-        time.unpause();
+        cmd.trigger(ApplyLevelUp {
+          target: pending_entity,
+          slot: card.1,
+        });
+        cmd.entity(pending_entity).remove::<LevelUpUiShown>();
         for entity in &ui_root {
-          commands.entity(entity).despawn();
+          cmd.entity(entity).despawn();
         }
       }
-    }
-  }
-}
-
-pub fn despawn_levelup_ui(
-  mut commands: Commands,
-  ui_root: Query<Entity, With<LevelUpUI>>,
-  pending: Res<PendingLevelUp>,
-) {
-  if pending.is_changed() && pending.target.is_none() {
-    for entity in &ui_root {
-      commands.entity(entity).despawn();
     }
   }
 }

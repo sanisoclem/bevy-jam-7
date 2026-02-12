@@ -7,16 +7,28 @@ use sys_magic::{EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, Sp
 
 pub mod ui;
 
+#[derive(Debug, Clone)]
 pub enum LevelUpPerk {
   NewSpell(EquippedSpell),
   SpellUpgradePerk(SpellUpgradePerk),
 }
 
+#[derive(Debug, Clone)]
 pub struct SpellUpgradePerk {
-  pub upgrades: Vec<(SpellUpgrade, f32)>,
+  pub upgrades: Vec<(SpellUpgrade, f32, String)>,
   pub slot: usize,
 }
-
+impl std::fmt::Display for SpellUpgradePerk {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    writeln!(f, "Upgrade for slot {}", self.slot)?;
+    for (_upgrade, value, description) in &self.upgrades {
+      // use the description as a format template
+      let formatted = description.replace("{}", &format!("{:.1}", value));
+      writeln!(f, "  - {}", formatted)?;
+    }
+    Ok(())
+  }
+}
 #[derive(EntityEvent)]
 pub struct LevelUp {
   #[event_target]
@@ -27,12 +39,14 @@ pub struct LevelUp {
 pub struct ApplyLevelUp {
   #[event_target]
   pub target: Entity,
-  pub perk: LevelUpPerk,
+  pub slot: usize,
 }
 
-#[derive(Resource, Default)]
+#[derive(EntityEvent)]
+pub struct ShowPendingLevelUpUi(Entity);
+
+#[derive(Component, Default)]
 pub struct PendingLevelUp {
-  pub target: Option<Entity>,
   pub choices: Vec<LevelUpPerk>,
 }
 
@@ -44,6 +58,12 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
     let pick_new = sb.spells.is_empty() || (max_new_spells > 0 && fastrand::f32() < 0.5);
 
     if pick_new && let Some(perk) = generate_new_spell_perk(sb, lprog) {
+      info!(
+        "generating new spell: {} existing spells, empty: {}, max_new_spells: {}",
+        sb.spells.len(),
+        sb.spells.is_empty(),
+        max_new_spells
+      );
       choices.push(perk);
       continue;
     }
@@ -53,6 +73,7 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
       choices.push(perk);
     }
   }
+  info!("generated choies: {:?}", choices);
 
   choices
 }
@@ -107,29 +128,39 @@ fn generate_upgrade_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Leve
 
 pub fn on_levelup(
   evt: On<LevelUp>,
+  mut cmd: Commands,
   qry: Query<&SpellBook>,
   mut time: ResMut<Time<Virtual>>,
   lprog: Res<LongTermProgger>,
-  mut pending: ResMut<PendingLevelUp>,
 ) {
   let Some(sb) = qry.get(evt.target).ok() else {
     return;
   };
 
-  pending.target = Some(evt.target);
-  pending.choices = generate_levelup_choices(sb, &lprog);
+  cmd
+    .entity(evt.target)
+    .insert_if_new(PendingLevelUp {
+      choices: generate_levelup_choices(sb, &lprog),
+    })
+    .trigger(ShowPendingLevelUpUi);
   time.pause();
 }
 
 pub fn on_apply_levelup(
   evt: On<ApplyLevelUp>,
-  mut qry: Query<(&mut SpellBook, &mut SpellBookState)>,
+  mut cmd: Commands,
+  mut qry: Query<(&mut SpellBook, &mut SpellBookState, &PendingLevelUp)>,
+  mut time: ResMut<Time<Virtual>>,
 ) {
-  let Some((mut sb, mut ss)) = qry.get_mut(evt.target).ok() else {
+  let Some((mut sb, mut ss, pending)) = qry.get_mut(evt.target).ok() else {
     return;
   };
 
-  match &evt.perk {
+  let Some(selection) = pending.choices.get(evt.slot) else {
+    return;
+  };
+
+  match selection {
     LevelUpPerk::NewSpell(s) => {
       sb.spells.push(s.clone());
       ss.spells_states.push(EquippedSpellState::default());
@@ -142,4 +173,7 @@ pub fn on_apply_levelup(
       upgrade_spell(existing, &u.upgrades);
     }
   }
+  cmd.entity(evt.target).remove::<PendingLevelUp>();
+
+  time.unpause();
 }

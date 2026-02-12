@@ -128,10 +128,10 @@ impl EnemyRegistry {
       [0, 1, 2, 3].map(|layer| procgen.sample(location, layer)),
     );
 
-    info!(
-      "spawning, density: {}, range: {}, tough: {}, offense: {}",
-      density_score, rangeness_score, toughness_score, offense_score
-    );
+    // info!(
+    //   "spawning, density: {}, range: {}, tough: {}, offense: {}",
+    //   density_score, rangeness_score, toughness_score, offense_score
+    // );
 
     let max_density = diff::get_density_ceiling_from_score(density_score);
     if current_density > max_density {

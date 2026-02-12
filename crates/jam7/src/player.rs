@@ -108,7 +108,7 @@ pub fn create_player(
     .clone();
   (
     Player,
-    KillCounter { kills: 150 },
+    KillCounter { kills: 0 },
     CameraTarget,
     Transform::default().with_scale(Vec3::splat(0.1)),
     Visibility::default(),

@@ -15,7 +15,6 @@ const DEFAULT_SPELL_LIFETIME: f32 = 2.0;
 
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct SpellBuilder {
-  // what makes a spell (each one will be rolled once)
   pub rolls: HashMap<SpellUpgrade, SpellRoll>,
   pub rolls_per_upgrade: usize,
   pub downside_chance: f32,
@@ -24,6 +23,7 @@ pub struct SpellBuilder {
 
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct SpellRoll {
+  pub description: String,
   pub min_value: f32,
   pub max_value: f32,
   pub min_rolls: usize,
@@ -64,10 +64,10 @@ impl SpellBuilder {
 
     fastrand::shuffle(&mut upgrade_pool);
 
-    let mut upgrades: Vec<(SpellUpgrade, f32)> = upgrade_pool
+    let mut upgrades: Vec<(SpellUpgrade, f32, String)> = upgrade_pool
       .into_iter()
       .take(self.rolls_per_upgrade)
-      .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once()))
+      .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once(), roll.description.clone()))
       .collect();
 
     // roll downsides
@@ -83,7 +83,11 @@ impl SpellBuilder {
       while count < self.max_downside_rolls && fastrand::f32() < chance {
         let idx = fastrand::usize(0..downside_pool.len());
         let (upgrade, roll) = downside_pool[idx];
-        upgrades.push(((*upgrade).clone(), roll.roll_once()));
+        upgrades.push((
+          (*upgrade).clone(),
+          roll.roll_once(),
+          roll.description.clone(),
+        ));
         count += 1;
         chance *= self.downside_chance;
       }
@@ -96,7 +100,7 @@ impl SpellBuilder {
   }
   pub fn create_fireball_spell(&self) -> Option<EquippedSpell> {
     let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
-
+    return None;
     Some(EquippedSpell {
       generator: SpellGenerator::Fireball(FireballSpellGenerator {
         speed: get(&SpellUpgrade::FireballSpellUpgrade(
@@ -125,6 +129,7 @@ impl SpellBuilder {
   pub fn create_chainlightning_spell(&self) -> Option<EquippedSpell> {
     let get = |key: &SpellUpgrade| -> Option<f32> { Some(self.rolls.get(key)?.roll_minimum()) };
 
+    return None;
     Some(EquippedSpell {
       generator: SpellGenerator::Chainlightning(ChainlightningSpellGenerator {
         speed: get(&SpellUpgrade::ChainlightningSpellUpgrade(
@@ -162,17 +167,23 @@ impl SpellBuilder {
         base_damage: get(&SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::BaseDamage,
         ))?,
-        shard_cooldown: get(&SpellUpgrade::FrozenorbSpellUpgrade(
-          FrozenorbSpellRoll::ShardCooldown,
-        ))?,
-        shard_size: get(&SpellUpgrade::FrozenorbSpellUpgrade(
-          FrozenorbSpellRoll::ShardSize,
+        shard_frequency: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardFrequency,
         ))?,
         shard_speed: get(&SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardSpeed,
         ))?,
+        shard_lifetime: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardLifetime,
+        ))?,
+        shard_damage_mult: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardDamageMult,
+        ))?,
+        shard_count: get(&SpellUpgrade::FrozenorbSpellUpgrade(
+          FrozenorbSpellRoll::ShardCount,
+        ))?,
       }),
-      cooldown: Timer::from_seconds(1.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(5.0, TimerMode::Once),
       downside: Vec::new(),
     })
   }
@@ -233,17 +244,19 @@ pub enum FrozenorbSpellRoll {
   Speed,
   OrbSize,
   BaseDamage,
-  ShardCooldown,
-  ShardSize,
+  ShardFrequency,
+  ShardLifetime,
   ShardSpeed,
+  ShardCount,
+  ShardDamageMult,
 }
 
 pub trait SpellRollUpgrade: Sized + Clone + Eq + Hash {
   fn into_upgrade(self, value: f32) -> SpellUpgrade;
 }
 
-pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f32)>) {
-  for (key, value) in upgrades {
+pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f32, String)>) {
+  for (key, value, _) in upgrades {
     match (key, &mut spell.generator) {
       (SpellUpgrade::CooldownReduction, _) => {
         spell.cooldown = Timer::from_seconds(
@@ -259,7 +272,7 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
           SpellDownsideUpgrade::DownsideAddFriendlyFire => SpellDownside::FriendFire,
           SpellDownsideUpgrade::DownsideForceMovement => SpellDownside::ForceMovement {
             strength: *value,
-            duration: 0.2,
+            duration: 0.1,
           },
           SpellDownsideUpgrade::DownsideHpDrain => SpellDownside::HpDrain { strength: *value },
         });
@@ -327,17 +340,25 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
         SpellGenerator::Frozenorb(g),
       ) => g.base_damage += value,
       (
-        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardCooldown),
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardFrequency),
         SpellGenerator::Frozenorb(g),
-      ) => g.shard_cooldown += value,
-      (
-        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardSize),
-        SpellGenerator::Frozenorb(g),
-      ) => g.shard_size += value,
+      ) => g.shard_frequency += value,
       (
         SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardSpeed),
         SpellGenerator::Frozenorb(g),
       ) => g.shard_speed += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardLifetime),
+        SpellGenerator::Frozenorb(g),
+      ) => g.shard_lifetime += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardCount),
+        SpellGenerator::Frozenorb(g),
+      ) => g.shard_count += value,
+      (
+        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardDamageMult),
+        SpellGenerator::Frozenorb(g),
+      ) => g.shard_lifetime += value,
       _ => {
         warn!("Unprocessed upgrade, possible misconfiguration");
       }

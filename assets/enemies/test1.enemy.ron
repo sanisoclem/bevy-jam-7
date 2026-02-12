@@ -1,6 +1,6 @@
 EnemyDescriptorRon(
   prevalence: 1.0,
-  hitbox: Circle ( radius: 10. ),
+  hitbox: Circle ( radius: 20. ),
   rangeness: 1.0,
   scale: Vec2(
     0.1,

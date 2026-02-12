@@ -79,7 +79,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let t_3 = 0.5 + cos( (globals.time * 5.1) + f32(tile_coord.x) ) * 0.1;
     let t_4 = 0.5 + sin( (globals.time * 5.1) + f32(tile_coord.y) ) * 0.1;
 
-    var color = vec4<f32>(tile.data1.y * t_3, tile.data1.y * t_2,tile.data1.y * t_4, 1.0) * (1. - g);
+    var color = vec4<f32>(tile.data1.y * t_3 * 0., tile.data1.y * t_2,tile.data1.y * t_4 * t_3, 1.0) * (1. - g);
 
     if (color.a < 0.001) {
         discard;
