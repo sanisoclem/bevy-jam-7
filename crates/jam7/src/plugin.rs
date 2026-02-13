@@ -4,6 +4,7 @@ use crate::{level::LevelPlugin, player::PlayerPlugin};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use sys_cam::SysCamPlugin;
+use sys_candy::SysCandyPlugin;
 use sys_combat::SysCombatPlugin;
 use sys_enemy::SysEnemyPlugin;
 use sys_magic::SysMagicPlugin;
@@ -24,6 +25,7 @@ impl Plugin for Jam7Plugin {
       SysMagicPlugin,
       SysEnemyPlugin,
       SysProgPlugin,
+      SysCandyPlugin,
     ));
 
     #[cfg(feature = "dev")]

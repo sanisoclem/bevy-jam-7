@@ -6,7 +6,7 @@ use crate::spells::{
   frozenorb::FrozenorbSpellGenerator,
 };
 
-#[derive(Component, Debug, Reflect, Clone)]
+#[derive(Component, Debug, Reflect, Clone, Default)]
 pub struct SpellBook {
   pub spells: Vec<EquippedSpell>,
   pub disabled: bool,
@@ -18,7 +18,7 @@ pub struct EquippedSpell {
   pub downside: Vec<SpellDownside>,
 }
 
-#[derive(Component, Debug, Reflect, Clone)]
+#[derive(Component, Debug, Reflect, Clone, Default)]
 pub struct SpellBookState {
   pub spells_states: Vec<EquippedSpellState>,
 }

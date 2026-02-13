@@ -1,4 +1,4 @@
-use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
+use bevy::{color::palettes::css::RED, prelude::*, sprite::Anchor};
 use jam7::{
   level::{
     Level, LevelCommand, LevelResourcesLoaded, asset::LevelAsset, render::ChunkMeshGenerator,
@@ -6,22 +6,18 @@ use jam7::{
   player::{Player, PlayerAnimationState, create_player_animations, create_player_controls},
 };
 use sys_cam::CameraTarget;
-use sys_candy::Shadow;
+use sys_candy::{FireballBody, FireballExplosionBody, Shadow};
 use sys_chonker::ChunkGenerator;
-use sys_combat::{Combatant, DeathBehavior, HitTestableShape, KillCounter};
-use sys_enemy::{EnemySpawner, EnemySpawnerState};
-use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
-use sys_prog::levelup::LevelUp;
-use utils::diff::TEAM_PLAYER;
 
-pub struct AlphaGymPlugin;
+pub struct BetaGymPlugin;
 
-impl Plugin for AlphaGymPlugin {
+impl Plugin for BetaGymPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(Startup, setup)
+      .add_systems(Update, draw_gizmo)
       .add_observer(on_level_loaded);
   }
 }
@@ -80,12 +76,73 @@ fn on_level_loaded(
     Visibility::default(),
     ChildOf(spawned_level),
   ));
+
+  cmd.spawn((
+    FireballExplosionBody {
+      radius: 50.,
+      intensity: 1.0,
+      lifetime: Timer::from_seconds(2.0, TimerMode::Repeating),
+    },
+    ChildOf(spawned_level),
+    Transform::default().with_translation(Vec3::new(-500., 0.0, 1.0)),
+    Visibility::default(),
+  ));
+  cmd.spawn((
+    FireballExplosionBody {
+      radius: 150.,
+      intensity: 1.0,
+      lifetime: Timer::from_seconds(2.0, TimerMode::Repeating),
+    },
+    ChildOf(spawned_level),
+    Transform::default().with_translation(Vec3::new(-250., 0.0, 1.0)),
+    Visibility::default(),
+  ));
+  cmd.spawn((
+    FireballBody {
+      radius: 10.,
+      intensity: 1.0,
+    },
+    ChildOf(spawned_level),
+    Transform::default().with_translation(Vec3::new(250., 0.0, 1.0)),
+    Visibility::default(),
+  ));
+  cmd.spawn((
+    FireballBody {
+      radius: 50.,
+      intensity: 1.0,
+    },
+    ChildOf(spawned_level),
+    Transform::default().with_translation(Vec3::new(500., 0.0, 1.0)),
+    Visibility::default(),
+  ));
+
   cmd
     .entity(evt.0)
     .despawn_children()
     .replace_children(&[spawned_level]);
+}
 
-  cmd.trigger(LevelUp { target: player });
+pub fn draw_gizmo(mut gizmo: Gizmos) {
+  gizmo.ellipse_2d(
+    Isometry2d::from_translation(Vec2::new(500., 0.)),
+    Vec2::new(50. * 0.7, 50. * 0.35),
+    Color::from(RED),
+  );
+  gizmo.ellipse_2d(
+    Isometry2d::from_translation(Vec2::new(250., 0.)),
+    Vec2::new(10. * 0.7, 10. * 0.35),
+    Color::from(RED),
+  );
+  gizmo.ellipse_2d(
+    Isometry2d::from_translation(Vec2::new(-500., 0.)),
+    Vec2::new(50. * 0.7, 50. * 0.35),
+    Color::from(RED),
+  );
+  gizmo.ellipse_2d(
+    Isometry2d::from_translation(Vec2::new(-250., 0.)),
+    Vec2::new(150. * 0.7, 150. * 0.35),
+    Color::from(RED),
+  );
 }
 
 pub fn create_player(
@@ -97,39 +154,12 @@ pub fn create_player(
     (
       Player,
       ChildOf(spawn_parent),
-      KillCounter { kills: 0 },
       CameraTarget,
       Transform::default().with_scale(Vec3::splat(0.1)),
       Visibility::default(),
       Moveable::default(),
       Placeable::mid(IsoWorldCoords::default()),
     ),
-    (SpellBook::default(), SpellBookState::default()),
-    (
-      EnemySpawner {
-        spawn_parent,
-        despawn_radius: 1000,
-        no_spawn_radius: 400,
-        spawn_radius: 700,
-        initial_cooldown: 1.,
-        cooldown_decay_rate: 1.5,
-      },
-      EnemySpawnerState {
-        stopwatch: Stopwatch::new(),
-        cooldown: Timer::from_seconds(0.5, TimerMode::Once),
-      },
-    ),
-    (Combatant {
-      max_hp: 100000,
-      hitbox: HitTestableShape::Circle { radius: 7.0 },
-      team: TEAM_PLAYER,
-      regen: 0,
-      regen_delay: 0,
-      death_behavior: DeathBehavior::Respawn(
-        Timer::from_seconds(5.0, TimerMode::Once),
-        Timer::from_seconds(2.0, TimerMode::Once),
-      ),
-    }),
     (
       create_player_animations(asset_server, layouts),
       Anchor(Vec2::new(0., -0.42)),

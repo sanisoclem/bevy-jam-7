@@ -101,7 +101,23 @@ pub mod diff {
     100 + (kills as f32 / kills_per_lucidity).floor() as u32
   }
 }
+pub mod colors {
+  use bevy::color::Color;
 
+  const TEAM_COLOR_PALETTE: &[Color] = &[
+    Color::srgb(1.0, 0.3, 0.3), // red
+    Color::srgb(0.3, 1.0, 0.3), // green
+    Color::srgb(0.3, 0.3, 1.0), // blue
+    Color::srgb(1.0, 1.0, 0.3), // yellow
+    Color::srgb(1.0, 0.3, 1.0), // magenta
+    Color::srgb(0.3, 1.0, 1.0), // cyan
+  ];
+
+  pub fn color_from_team(team: u8) -> Color {
+    let index = (team as usize) % TEAM_COLOR_PALETTE.len();
+    TEAM_COLOR_PALETTE[index]
+  }
+}
 pub mod vecstuff {
   use bevy::prelude::*;
 

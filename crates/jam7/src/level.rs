@@ -1,18 +1,15 @@
-pub(crate) mod asset;
-pub(crate) mod render;
+pub mod asset;
+pub mod render;
 
-use crate::player::{Player, create_player};
+use crate::player::Player;
 use asset::LevelAsset;
-use bevy::{prelude::*, sprite_render::Material2dPlugin, time::Stopwatch};
-use render::{ChunkMaterial, ChunkMeshGenerator, IsoTilemapChunkMeshCache, render_tile_data};
-use sys_chonker::{ChunkGenerator, SysChonkerPlugin};
+use bevy::{prelude::*, sprite_render::Material2dPlugin};
+use render::{ChunkMaterial, IsoTilemapChunkMeshCache, render_tile_data};
+use sys_chonker::SysChonkerPlugin;
 use sys_combat::{CombatantKilled, KillCounter};
-use sys_move::IsoMovementStage;
-use sys_procgen::ProceduralLevel;
 use sys_prog::{
   LongTermProgger,
   death::{RequestGameRestart, ShowDeathUi},
-  levelup::LevelUp,
 };
 use utils::diff::get_lucidity_gain;
 
@@ -33,7 +30,7 @@ impl Plugin for LevelPlugin {
       .add_systems(
         Update,
         (
-          load_level,
+          check_level_loaded,
           process_level_commands,
           render_tile_data,
           wait_for_player_death,
@@ -44,22 +41,22 @@ impl Plugin for LevelPlugin {
 
 #[derive(Debug, Message)]
 pub enum LevelCommand {
-  StartLevel(String),
+  LoadLevel(String),
   UnloadLevel(String),
 }
 
 #[derive(Component, Debug)]
 pub struct Level {
-  name: String,
-  descriptor: Handle<LevelAsset>,
+  pub name: String,
+  pub descriptor: Handle<LevelAsset>,
 }
 
-pub fn load_level(
+#[derive(EntityEvent, Debug, Clone)]
+pub struct LevelResourcesLoaded(pub Entity);
+
+pub fn check_level_loaded(
   mut cmd: Commands,
   mut ev_asset: MessageReader<AssetEvent<LevelAsset>>,
-  mut layouts: ResMut<Assets<TextureAtlasLayout>>,
-  asset_server: Res<AssetServer>,
-  levels: Res<Assets<LevelAsset>>,
   qry: Query<(Entity, &Level)>,
 ) {
   for ev in ev_asset.read() {
@@ -70,64 +67,7 @@ pub fn load_level(
       if &level.descriptor.id() != id {
         continue;
       }
-      let level_descriptor = levels
-        .get(&level.descriptor)
-        .expect("level asset should be loaded");
-
-      let tile_size_screen = UVec2::new(
-        level_descriptor.tileset.tile_width_screen,
-        level_descriptor.tileset.tile_height_screen,
-      );
-      let tile_size_world = UVec2::new(
-        level_descriptor.tileset.tile_width_world,
-        level_descriptor.tileset.tile_height_world,
-      );
-      let chunk_size_world = (level_descriptor.tiles_per_chunk * tile_size_world).as_vec2();
-
-      let spawned_level = cmd
-        .spawn((
-          IsoMovementStage {
-            aspect_ratio: tile_size_screen.y as f32 / tile_size_screen.x as f32,
-            stopwatch: Stopwatch::new(),
-          },
-          ProceduralLevel {
-            seed: level_descriptor.seed,
-            tile_size: tile_size_world,
-            noisegen: level_descriptor
-              .noisegen_settings
-              .clone()
-              .map(|s| s.create_generator(level_descriptor.seed + s.seed_offset)),
-          },
-          Transform::default(),
-          Visibility::default(),
-        ))
-        .id();
-
-      let player = cmd
-        .spawn(create_player(&asset_server, &mut layouts, spawned_level))
-        .id();
-      cmd.spawn((
-        ChunkGenerator {
-          chunk_size_world,
-          load_around: player,
-          load_radius: 3,
-          unload_radius: 7,
-        },
-        ChunkMeshGenerator {
-          tile_size_screen: tile_size_screen.as_vec2(),
-          tile_size_world: tile_size_world.as_vec2(),
-          tiles_per_chunk: level_descriptor.tiles_per_chunk,
-        },
-        Transform::default(),
-        Visibility::default(),
-        ChildOf(spawned_level),
-      ));
-      cmd
-        .entity(entity)
-        .despawn_children()
-        .replace_children(&[spawned_level]);
-
-      cmd.trigger(LevelUp { target: player });
+      cmd.trigger(LevelResourcesLoaded(entity));
     }
   }
 }
@@ -140,7 +80,7 @@ pub fn process_level_commands(
 ) {
   for command in reader.read() {
     match command {
-      LevelCommand::StartLevel(level_name) => {
+      LevelCommand::LoadLevel(level_name) => {
         let handle: Handle<LevelAsset> =
           asset_server.load(format!("levels/{}.level.ron", level_name));
         cmd.spawn((
@@ -188,5 +128,5 @@ fn wait_for_player_death(
 
 pub fn on_game_restart(_evt: On<RequestGameRestart>, mut level_cmd: MessageWriter<LevelCommand>) {
   info!("Restart this game!");
-  level_cmd.write(LevelCommand::StartLevel("alpha".to_owned()));
+  level_cmd.write(LevelCommand::LoadLevel("alpha".to_owned()));
 }

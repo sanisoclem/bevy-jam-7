@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use sys_animation::{AtlasAnimation, SysAnimationPlugin};
+use sys_candy::Shadow;
 use sys_combat::{Combatant, KillCounter};
 use sys_magic::{SpellBook, SpellBookGenerator, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
@@ -326,35 +327,46 @@ fn spawn_enemies(
         continue;
       };
 
-      cmd.entity(spawner.spawn_parent).with_child((
-        Transform::default().with_scale(enemy.scale.extend(enemy.scale.x)),
-        Visibility::default(),
-        enemy.spell_book.clone(),
-        enemy.spell_book_state.clone(),
-        enemy.combatant.clone(),
-        enemy.animation.clone(),
-        enemy.anchor.unwrap_or_default(),
-        Placeable { location, layer: 5 },
-        Moveable {
-          net_forces: Vec2::ZERO,
-          damping: 1.0,
-          impulses: Vec::new(),
-        },
-        Enemy {
-          spawned_by: spawner_entity,
-          mobility: get_mobility_from_rangeness(enemy.power_budget, enemy.rangeness_score),
-          desired_range: get_effective_range_from_rangeness_score(enemy.rangeness_score),
-          spawned_at: location,
-        },
-        EnemyState {
-          objective: None,
-          idle_timer: Timer::from_seconds(2.0, TimerMode::Once),
-        },
-        EnemyAnimationState {
-          facing: MoveDirection::Southeast,
-          moving: false,
-        },
-      ));
+      cmd.entity(spawner.spawn_parent).with_children(|x| {
+        x.spawn((
+          Transform::default().with_scale(enemy.scale.extend(enemy.scale.x)),
+          Visibility::default(),
+          enemy.spell_book.clone(),
+          enemy.spell_book_state.clone(),
+          enemy.combatant.clone(),
+          enemy.animation.clone(),
+          enemy.anchor.unwrap_or_default(),
+          Placeable { location, layer: 5 },
+          Moveable {
+            net_forces: Vec2::ZERO,
+            damping: 1.0,
+            impulses: Vec::new(),
+          },
+          Enemy {
+            spawned_by: spawner_entity,
+            mobility: get_mobility_from_rangeness(enemy.power_budget, enemy.rangeness_score),
+            desired_range: get_effective_range_from_rangeness_score(enemy.rangeness_score),
+            spawned_at: location,
+          },
+          EnemyState {
+            objective: None,
+            idle_timer: Timer::from_seconds(2.0, TimerMode::Once),
+          },
+          EnemyAnimationState {
+            facing: MoveDirection::Southeast,
+            moving: false,
+          },
+        ))
+        .with_children(|x2| {
+          x2.spawn((
+            Shadow {
+              radius: enemy.combatant.hitbox.bounding_radius() * (1. / enemy.scale.x) * 0.8,
+            },
+            Transform::default().with_translation(-Vec3::Z),
+            Visibility::default(),
+          ));
+        });
+      });
     }
   }
 }

@@ -1,4 +1,5 @@
-use bevy::{ecs::relationship::Relationship, prelude::*};
+use bevy::{ecs::relationship::Relationship, prelude::*, sprite::Anchor};
+use sys_candy::{FireballBody, FireballExplosionBody, Shadow};
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,
@@ -50,39 +51,62 @@ impl FireballSpellGenerator {
     let payload_damage =
       (self.base_damage as f32 * self.explosion_damage_multiplier).floor() as u32;
 
-    cmd.entity(spawn_parent).with_child((
-      FireballProjectile {
-        explosion_radius: self.explosion_radius,
-        explosion_lifetime: self.explosion_lifetime,
-        explosion_damage: payload_damage,
-        caster: caster.0,
-        team,
-      },
-      Placeable {
-        layer: 5,
-        location: caster.1.location + (IsoWorldCoords::from(direction * self.radius * 2.)),
-      },
-      Moveable {
-        damping: 1.0,
-        net_forces: Vec2::ZERO,
-        impulses: Vec::new(),
-      },
-      Projectile {
-        lifetime: Timer::from_seconds(self.lifetime, TimerMode::Once),
-        detonate_trigger: DetonationTrigger::Contact,
-        movement: ProjectileMovement::Straight(direction * self.speed),
-      },
-      CombatAreaEffect {
-        owner: caster.0,
-        team,
-        shape: HitTestableShape::Circle {
-          radius: self.radius,
+    let cast_location = caster.1.location + (IsoWorldCoords::from(direction * self.radius * 2.));
+
+    cmd.entity(spawn_parent).with_children(|x| {
+      x.spawn((
+        Visibility::default(),
+        Transform::default(),
+        FireballProjectile {
+          explosion_radius: self.explosion_radius,
+          explosion_lifetime: self.explosion_lifetime,
+          explosion_damage: payload_damage,
+          caster: caster.0,
+          team,
         },
-        effects: vec![CombatEffectBlueprint::Damage(self.base_damage)],
-        effect_tick: None,
-        hit: false,
-      },
-    ));
+        Placeable {
+          layer: 5,
+          location: cast_location,
+        },
+        Moveable {
+          damping: 1.0,
+          net_forces: Vec2::ZERO,
+          impulses: Vec::new(),
+        },
+        Projectile {
+          lifetime: Timer::from_seconds(self.lifetime, TimerMode::Once),
+          detonate_trigger: DetonationTrigger::Contact,
+          movement: ProjectileMovement::Straight(direction * self.speed),
+        },
+        CombatAreaEffect {
+          owner: caster.0,
+          team,
+          shape: HitTestableShape::Circle {
+            radius: self.radius,
+          },
+          effects: vec![CombatEffectBlueprint::Damage(self.base_damage)],
+          effect_tick: None,
+          hit: false,
+        },
+      ))
+      .with_children(|x2| {
+        x2.spawn((
+          Shadow {
+            radius: self.radius * 0.8,
+          },
+          Transform::default().with_translation(-Vec3::Z),
+          Visibility::default(),
+        ));
+        x2.spawn((
+          FireballBody {
+            radius: self.radius,
+            intensity: self.base_damage as f32,
+          },
+          Transform::default().with_translation(Vec3::new(0.0, 16., -1.)),
+          Visibility::default(),
+        ));
+      });
+    });
   }
 }
 
@@ -123,6 +147,11 @@ pub fn on_fireball_detonate(
         effects: vec![CombatEffectBlueprint::Damage(fb.explosion_damage)],
         effect_tick: Some(Timer::from_seconds(0.5, TimerMode::Repeating)),
         hit: false,
+      },
+      FireballExplosionBody {
+        radius: fb.explosion_radius,
+        intensity: fb.explosion_damage as f32,
+        lifetime: Timer::from_seconds(fb.explosion_lifetime, TimerMode::Once),
       },
     ));
   });

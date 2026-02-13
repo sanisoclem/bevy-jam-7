@@ -2789,10 +2789,14 @@ dependencies = [
  "sys_animation",
  "sys_audio",
  "sys_cam",
+ "sys_candy",
  "sys_chonker",
  "sys_combat",
+ "sys_enemy",
  "sys_magic",
  "sys_move",
+ "sys_procgen",
+ "sys_prog",
  "utils",
 ]
 
@@ -3297,6 +3301,7 @@ dependencies = [
  "sys_animation",
  "sys_audio",
  "sys_cam",
+ "sys_candy",
  "sys_chonker",
  "sys_combat",
  "sys_enemy",
@@ -5116,6 +5121,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sys_candy"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "fastrand",
+ "sys_move",
+]
+
+[[package]]
 name = "sys_chonker"
 version = "0.1.0"
 dependencies = [
@@ -5128,8 +5142,10 @@ name = "sys_combat"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "fastrand",
  "serde",
  "sys_move",
+ "utils",
 ]
 
 [[package]]
@@ -5142,6 +5158,7 @@ dependencies = [
  "ron",
  "serde",
  "sys_animation",
+ "sys_candy",
  "sys_combat",
  "sys_magic",
  "sys_move",
@@ -5155,6 +5172,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "serde",
+ "sys_candy",
  "sys_combat",
  "sys_move",
  "utils",

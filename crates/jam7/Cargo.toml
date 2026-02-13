@@ -26,6 +26,7 @@ sys_magic = { path = "../../systems/magic", version = "0.1.0" }
 sys_enemy = { path = "../../systems/enemy", version = "0.1.0" }
 sys_procgen = { path = "../../systems/procgen", version = "0.1.0" }
 sys_prog = { path = "../../systems/prog", version = "0.1.0" }
+sys_candy = { path = "../../systems/candy", version = "0.1.0" }
 
 [features]
 default = []

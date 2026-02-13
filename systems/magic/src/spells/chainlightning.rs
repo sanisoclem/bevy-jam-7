@@ -1,4 +1,5 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
+use sys_candy::Shadow;
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,
@@ -48,36 +49,47 @@ impl ChainlightningSpellGenerator {
     let speed = 80. + self.speed;
     let max_lifetime = get_max_projectile_lifetime(speed);
 
-    cmd.entity(spawn_parent).with_child((
-      ChainlightningProjectile {
-        base_damage: self.base_damage,
-        bounce_range: self.bounce_range,
-        bounces: 1,
-        bounce_children: self.bounce_children.floor() as usize,
-        speed: self.speed,
-        caster: caster.0,
-        team,
-        bounce_mult: self.bounce_mult,
-      },
-      Placeable::mid(caster.1.location + (IsoWorldCoords::from(direction * 30.))),
-      Moveable::default(),
-      Projectile {
-        lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
-        detonate_trigger: DetonationTrigger::Contact,
-        movement: ProjectileMovement::Straight(speed * direction),
-      },
-      CombatAreaEffect {
-        owner: caster.0,
-        team,
-        shape: HitTestableShape::Obb {
-          half_extents: Vec2::new(10., 2.),
-          rotation: direction.to_angle(),
+    cmd.entity(spawn_parent).with_children(|x| {
+      x.spawn((
+        Visibility::default(),
+        Transform::default(),
+        ChainlightningProjectile {
+          base_damage: self.base_damage,
+          bounce_range: self.bounce_range,
+          bounces: 1,
+          bounce_children: self.bounce_children.floor() as usize,
+          speed: self.speed,
+          caster: caster.0,
+          team,
+          bounce_mult: self.bounce_mult,
         },
-        effects: vec![CombatEffectBlueprint::Damage(self.base_damage as u32)],
-        effect_tick: None,
-        hit: false,
-      },
-    ));
+        Placeable::mid(caster.1.location + (IsoWorldCoords::from(direction * 30.))),
+        Moveable::default(),
+        Projectile {
+          lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
+          detonate_trigger: DetonationTrigger::Contact,
+          movement: ProjectileMovement::Straight(speed * direction),
+        },
+        CombatAreaEffect {
+          owner: caster.0,
+          team,
+          shape: HitTestableShape::Obb {
+            half_extents: Vec2::new(10., 2.),
+            rotation: direction.to_angle(),
+          },
+          effects: vec![CombatEffectBlueprint::Damage(self.base_damage as u32)],
+          effect_tick: None,
+          hit: false,
+        },
+      ))
+      .with_children(|x2| {
+        x2.spawn((
+          Shadow { radius: 2. * 0.8 },
+          Transform::default().with_translation(-Vec3::Z),
+          Visibility::default(),
+        ));
+      });
+    });
   }
 }
 
@@ -113,41 +125,54 @@ pub fn on_detonate_chainlightning(
     })
     .take(proj.bounce_children)
     .for_each(|(_, pos)| {
-      cmd.entity(parent.get()).with_children(|x| {
-        let direction = (pos.location - evt.location).normalize();
-        x.spawn((
-          ChainlightningProjectile {
-            base_damage: proj.base_damage,
-            bounce_range: proj.bounce_range,
-            bounces: proj.bounces + 1,
-            bounce_children: proj.bounce_children,
-            speed: proj.speed,
-            caster: proj.caster,
-            team: proj.team,
-            bounce_mult: proj.bounce_mult,
-          },
-          Placeable::mid(detonate_origin + IsoWorldCoords::from(direction * detonate_offset * 1.1)),
-          Moveable::default(),
-          Projectile {
-            lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
-            detonate_trigger: DetonationTrigger::Contact,
-            movement: ProjectileMovement::Straight(proj.speed * direction),
-          },
-          CombatAreaEffect {
-            owner: proj.caster,
-            team: proj.team,
-            shape: HitTestableShape::Obb {
-              half_extents: Vec2::new(10., 2.),
-              rotation: direction.to_angle(),
+      cmd
+        .entity(parent.get())
+        .with_children(|x| {
+          let direction = (pos.location - evt.location).normalize();
+          x.spawn((
+            Visibility::default(),
+            Transform::default(),
+            ChainlightningProjectile {
+              base_damage: proj.base_damage,
+              bounce_range: proj.bounce_range,
+              bounces: proj.bounces + 1,
+              bounce_children: proj.bounce_children,
+              speed: proj.speed,
+              caster: proj.caster,
+              team: proj.team,
+              bounce_mult: proj.bounce_mult,
             },
-            effects: vec![CombatEffectBlueprint::Damage(
-              proj.base_damage as u32 * (proj.bounces + 1),
-            )],
-            effect_tick: None,
-            hit: false,
-          },
-        ));
-      });
+            Placeable::mid(
+              detonate_origin + IsoWorldCoords::from(direction * detonate_offset * 1.1),
+            ),
+            Moveable::default(),
+            Projectile {
+              lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
+              detonate_trigger: DetonationTrigger::Contact,
+              movement: ProjectileMovement::Straight(proj.speed * direction),
+            },
+            CombatAreaEffect {
+              owner: proj.caster,
+              team: proj.team,
+              shape: HitTestableShape::Obb {
+                half_extents: Vec2::new(10., 2.),
+                rotation: direction.to_angle(),
+              },
+              effects: vec![CombatEffectBlueprint::Damage(
+                proj.base_damage as u32 * (proj.bounces + 1),
+              )],
+              effect_tick: None,
+              hit: false,
+            },
+          ));
+        })
+        .with_children(|x2| {
+          x2.spawn((
+            Shadow { radius: 2. * 0.8 },
+            Transform::default().with_translation(-Vec3::Z),
+            Visibility::default(),
+          ));
+        });
     });
 }
 

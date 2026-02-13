@@ -1,4 +1,5 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
+use sys_candy::Shadow;
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,
@@ -54,47 +55,60 @@ impl FrozenorbSpellGenerator {
     };
     let max_lifetime = 2.0f32.min(MAX_PROJECTILE_TRAVEL / self.speed);
 
-    cmd.entity(spawn_parent).with_child((
-      FrozenorbProjectile {
-        num_shards: self.shard_count.floor() as usize,
-        shard_lifetime: self.shard_lifetime,
-        shard_speed: self.shard_speed,
-        shard_damage: (self.base_damage * self.shard_damage_mult) as u32,
-        caster: caster.0,
-        team,
-      },
-      Placeable {
-        layer: 5,
-        location: caster.1.location + (IsoWorldCoords::from(direction * self.orb_size * 1.1)),
-      },
-      Moveable {
-        damping: 1.0,
-        net_forces: Vec2::ZERO,
-        impulses: Vec::new(),
-      },
-      Projectile {
-        lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
-        detonate_trigger: DetonationTrigger::Pulse(Timer::from_seconds(
-          1.0 / self.shard_frequency,
-          TimerMode::Repeating,
-        )),
-        movement: ProjectileMovement::Seek {
-          target,
-          speed: self.speed,
-          max_angular_velocity: 1.0,
+    cmd.entity(spawn_parent).with_children(|x| {
+      x.spawn((
+        Visibility::default(),
+        Transform::default(),
+        FrozenorbProjectile {
+          num_shards: self.shard_count.floor() as usize,
+          shard_lifetime: self.shard_lifetime,
+          shard_speed: self.shard_speed,
+          shard_damage: (self.base_damage * self.shard_damage_mult) as u32,
+          caster: caster.0,
+          team,
         },
-      },
-      CombatAreaEffect {
-        owner: caster.0,
-        team,
-        shape: HitTestableShape::Circle {
-          radius: self.orb_size,
+        Placeable {
+          layer: 5,
+          location: caster.1.location + (IsoWorldCoords::from(direction * self.orb_size * 1.1)),
         },
-        effects: vec![CombatEffectBlueprint::Damage(self.base_damage as u32)],
-        effect_tick: Some(Timer::from_seconds(0.1, TimerMode::Repeating)),
-        hit: false,
-      },
-    ));
+        Moveable {
+          damping: 1.0,
+          net_forces: Vec2::ZERO,
+          impulses: Vec::new(),
+        },
+        Projectile {
+          lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
+          detonate_trigger: DetonationTrigger::Pulse(Timer::from_seconds(
+            1.0 / self.shard_frequency,
+            TimerMode::Repeating,
+          )),
+          movement: ProjectileMovement::Seek {
+            target,
+            speed: self.speed,
+            max_angular_velocity: 1.0,
+          },
+        },
+        CombatAreaEffect {
+          owner: caster.0,
+          team,
+          shape: HitTestableShape::Circle {
+            radius: self.orb_size,
+          },
+          effects: vec![CombatEffectBlueprint::Damage(self.base_damage as u32)],
+          effect_tick: Some(Timer::from_seconds(0.1, TimerMode::Repeating)),
+          hit: false,
+        },
+      ))
+      .with_children(|x2| {
+        x2.spawn((
+          Shadow {
+            radius: self.orb_size * 0.8,
+          },
+          Transform::default().with_translation(-Vec3::Z),
+          Visibility::default(),
+        ));
+      });
+    });
   }
 }
 
@@ -120,35 +134,44 @@ pub fn on_frozenorb_detonate(
   subdivide_circle(fp.num_shards)
     .into_iter()
     .for_each(|direction| {
-      cmd.entity(parent.get()).with_children(|x| {
-        x.spawn((
-          FrozenorbShard,
-          Projectile {
-            lifetime: Timer::from_seconds(fp.shard_lifetime, TimerMode::Once),
-            detonate_trigger: DetonationTrigger::Contact,
-            movement: ProjectileMovement::Straight(direction * fp.shard_speed),
-          },
-          Transform::default(),
-          Visibility::default(),
-          Placeable {
-            layer: 5,
-            location: evt.location,
-          },
-          Moveable {
-            damping: 1.0,
-            net_forces: Vec2::ZERO,
-            impulses: Vec::new(),
-          },
-          CombatAreaEffect {
-            owner: fp.caster,
-            team: fp.team,
-            shape: HitTestableShape::Circle { radius: 5. },
-            effects: vec![CombatEffectBlueprint::Damage(fp.shard_damage)],
-            effect_tick: None,
-            hit: false,
-          },
-        ));
-      });
+      cmd
+        .entity(parent.get())
+        .with_children(|x| {
+          x.spawn((
+            FrozenorbShard,
+            Projectile {
+              lifetime: Timer::from_seconds(fp.shard_lifetime, TimerMode::Once),
+              detonate_trigger: DetonationTrigger::Contact,
+              movement: ProjectileMovement::Straight(direction * fp.shard_speed),
+            },
+            Transform::default(),
+            Visibility::default(),
+            Placeable {
+              layer: 5,
+              location: evt.location,
+            },
+            Moveable {
+              damping: 1.0,
+              net_forces: Vec2::ZERO,
+              impulses: Vec::new(),
+            },
+            CombatAreaEffect {
+              owner: fp.caster,
+              team: fp.team,
+              shape: HitTestableShape::Circle { radius: 5. },
+              effects: vec![CombatEffectBlueprint::Damage(fp.shard_damage)],
+              effect_tick: None,
+              hit: false,
+            },
+          ));
+        })
+        .with_children(|x2| {
+          x2.spawn((
+            Shadow { radius: 5. * 0.8 },
+            Transform::default().with_translation(-Vec3::Z),
+            Visibility::default(),
+          ));
+        });
     });
 }
 pub fn cast_frozenorb(
