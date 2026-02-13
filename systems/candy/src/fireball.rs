@@ -11,17 +11,19 @@ use bevy::{
 pub struct FireballBody {
   pub intensity: f32,
   pub radius: f32,
+  pub team: u8,
 }
 
 fn on_add_fireball_body(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
   let fb = world.get::<FireballBody>(entity).unwrap();
   let radius = fb.radius;
   let intensity = fb.intensity;
+  let team = fb.team as f32;
   let mut meshes = world.resource_mut::<Assets<Mesh>>();
   let mesh = meshes.add(Circle::new(radius));
   let mut materials = world.resource_mut::<Assets<FireballMaterial>>();
   let material = materials.add(FireballMaterial {
-    data: Vec4::new(0.0, 0.0, intensity, radius),
+    data: Vec4::new(fastrand::f32(), team, intensity, radius),
   });
 
   world

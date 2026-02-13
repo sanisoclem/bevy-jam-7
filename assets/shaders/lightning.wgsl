@@ -3,7 +3,7 @@
     mesh2d_view_bindings::{view, globals},
 }
 
-// (time_offset, intensity, length, width)
+// (time_offset, bounces, team, )
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> data: vec4<f32>;
 
 struct VertexOutput {
@@ -90,49 +90,49 @@ fn noise(p: vec2<f32>) -> f32 {
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time_offset = data.x;
     let intensity = data.y;
-    
     let time = globals.time + time_offset;
-    
-    // center UV to -1 to 1
-    let uv = (in.uv - 0.5) * 2.0;
-    
-    // jagged lightning bolt along x-axis
+    var uv = (in.uv - 0.5) * 2.0;
+
+    let angle = (data.w + 3.1416 / 2.0);
+    uv = vec2<f32>(
+          uv.x + uv.y / 0.5,
+          uv.y / 0.5 - uv.x
+      );
+
+    uv = vec2(
+        uv.x * cos(angle) - uv.y * sin(angle),
+        uv.x * sin(angle) + uv.y * cos(angle)
+    );
     let bolt_noise = noise(vec2(uv.x * 8.0, time * 20.0)) * 0.3;
     let bolt_dist = abs(uv.y - bolt_noise);
     
-    // core bolt (bright white)
     let core = smoothstep(0.05, 0.0, bolt_dist);
-    
-    // inner glow (cyan-white)
     let inner = smoothstep(0.15, 0.02, bolt_dist);
-    
-    // outer glow (blue)
     let outer = smoothstep(0.35, 0.1, bolt_dist);
-    
-    // arcs/branches
     let arc_noise = noise(vec2(uv.x * 12.0 + time * 15.0, uv.y * 8.0));
     let arc = step(0.85, arc_noise) * smoothstep(0.5, 0.0, abs(uv.y));
-    
-    // rapid flickering
     let flicker = 0.8 + 0.2 * sin(time * 50.0 + noise(uv * 10.0) * 6.28);
     
-    // color composition
     let white = vec3(1.0, 1.0, 1.0);
     let cyan = vec3(0.5, 0.9, 1.0);
-    let blue = vec3(0.2, 0.5, 1.0);
+    var halo = vec3(0.9, 0.1, 0.2);
+    if data.w > 0.0 {
+        halo = vec3(0.0, 0.4, 0.7);
+    } else if data.w > 5.0 {
+        halo = vec3(0.9, 0.8, 0.9);
+    }
     
     var color = vec3(0.0);
-    color = mix(color, blue, outer);
+    color = mix(color, halo, outer);
     color = mix(color, cyan, inner);
     color = mix(color, white, core);
     color += arc * cyan * 0.5;
     
     color *= flicker * intensity;
     
-    // alpha
     let alpha = max(outer, arc * 0.8);
     
-    var final_color = vec4(color, alpha);
+    var final_color = vec4(color* 5.0, alpha);
 
 #ifdef TONEMAP_IN_SHADER
     final_color = tonemapping::tone_mapping(final_color, view.color_grading);

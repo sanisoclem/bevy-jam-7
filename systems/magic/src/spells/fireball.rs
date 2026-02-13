@@ -101,6 +101,7 @@ impl FireballSpellGenerator {
           FireballBody {
             radius: self.radius,
             intensity: self.base_damage as f32,
+            team,
           },
           Transform::default().with_translation(Vec3::new(0.0, 16., -1.)),
           Visibility::default(),
@@ -148,12 +149,15 @@ pub fn on_fireball_detonate(
         effect_tick: Some(Timer::from_seconds(0.5, TimerMode::Repeating)),
         hit: false,
       },
-      FireballExplosionBody {
+    ))
+    .with_children(|x2| {
+      x2.spawn(FireballExplosionBody {
         radius: fb.explosion_radius,
         intensity: fb.explosion_damage as f32,
         lifetime: Timer::from_seconds(fb.explosion_lifetime, TimerMode::Once),
-      },
-    ));
+        team: fb.team,
+      });
+    });
   });
 }
 

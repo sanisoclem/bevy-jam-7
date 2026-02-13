@@ -15,8 +15,8 @@ impl Plugin for GamePlugin {
         ..default()
       }))
       .add_plugins(Jam7Plugin)
-      .add_plugins(BetaGymPlugin);
-    // .add_plugins(AlphaGymPlugin);
+      // .add_plugins(BetaGymPlugin);
+      .add_plugins(AlphaGymPlugin);
 
     #[cfg(feature = "dev")]
     app.add_plugins(dev::DevGamePlugin);

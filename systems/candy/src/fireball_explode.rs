@@ -12,23 +12,24 @@ use bevy::{
 
 #[derive(Component)]
 #[component(on_insert = on_add_fireball_explosion)]
-pub struct FireballExplodeBody {
+pub struct FireballExplosionBody {
   pub lifetime: Timer,
   pub intensity: f32,
   pub radius: f32,
+  pub team: u8,
 }
 
 fn on_add_fireball_explosion(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-  let explosion = world.get::<FireballExplodeBody>(entity).unwrap();
+  let explosion = world.get::<FireballExplosionBody>(entity).unwrap();
   let radius = explosion.radius;
-  let intensity = explosion.intensity;
+  let team = explosion.team as f32;
 
   let mut meshes = world.resource_mut::<Assets<Mesh>>();
   let mesh = meshes.add(Circle::new(radius));
 
   let mut materials = world.resource_mut::<Assets<FireballExplosionMaterial>>();
   let material = materials.add(FireballExplosionMaterial {
-    data: Vec4::new(fastrand::f32(), intensity, radius, 0.0),
+    data: Vec4::new(fastrand::f32(), 0.0, radius, team),
   });
 
   world
@@ -75,5 +76,34 @@ impl Material2d for FireballExplosionMaterial {
     }
 
     Ok(())
+  }
+}
+pub fn update_fireball_explosion(
+  mut query: Query<(
+    &mut FireballExplosionBody,
+    &MeshMaterial2d<FireballExplosionMaterial>,
+  )>,
+  mut materials: ResMut<Assets<FireballExplosionMaterial>>,
+  time: Res<Time>,
+) {
+  for (mut explosion, material_handle) in &mut query {
+    explosion.lifetime.tick(time.delta());
+
+    if let Some(material) = materials.get_mut(&material_handle.0) {
+      let fade_duration = 0.2;
+      let total_duration = explosion.lifetime.duration().as_secs_f32();
+      let elapsed = explosion.lifetime.elapsed_secs();
+      let fade_start = total_duration - fade_duration;
+
+      if elapsed >= fade_start {
+        let fade_progress = (elapsed - fade_start) / fade_duration;
+        material.data.y = explosion.intensity * (1.0 - fade_progress);
+      } else {
+        material.data.y = explosion.intensity
+          * (explosion.lifetime.elapsed_secs() / fade_duration)
+            .powi(2)
+            .min(1.0);
+      }
+    }
   }
 }

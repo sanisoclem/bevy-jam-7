@@ -2,8 +2,8 @@
     mesh2d_functions as mesh_functions,
     mesh2d_view_bindings::{view, globals},
 }
-
-@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> data: vec4<f32>; // (time_offset, intensity, inner_radius, outer_radius)
+// (time_offset, intensity, inner_radius, outer_radius)
+@group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> data: vec4<f32>;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -65,13 +65,11 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     return out;
 }
 
-// Simple noise function
 fn hash(p: vec2<f32>) -> f32 {
     var p3 = fract(vec3(p.xyx) * 0.13);
     p3 += dot(p3, p3.yzx + 3.333);
     return fract((p3.x + p3.y) * p3.z);
 }
-
 fn noise(p: vec2<f32>) -> f32 {
     let i = floor(p);
     let f = fract(p);
@@ -104,37 +102,41 @@ fn fbm(p: vec2<f32>) -> f32 {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time_offset = data.x;
-    let intensity = data.y;
+    let intensity = data.z * 10.;
     let inner_radius = 50.;
     let outer_radius = 100.;
+    let team = data.y;
+    let time = globals.time + time_offset * 7.;
     
-    let time = globals.time + time_offset;
-    
-    let uv = (in.uv - 0.5) * 2.0;
+    let uv = (in.uv - 0.5) * 1.8;
     let dist = length(uv);
     
     let noise_val = fbm(uv * 3.0 + vec2(time * 0.5, time * 0.3));
     let distortion = fbm(uv * 5.0 - vec2(time * 0.8, time * 0.6)) * 0.1;
     let distorted_dist = dist + distortion;
-    let core = smoothstep(0.3, 0.0, distorted_dist);
-    let inner = smoothstep(0.6, 0.2, distorted_dist) * (1.0 - core);
+    let core = smoothstep(0.6, 0.0, distorted_dist);
     let outer = smoothstep(1.0, 0.4, distorted_dist + noise_val * 0.2);
     let flicker = 0.9 + 0.1 * sin(time * 10.0 + noise_val * 6.28);
     
-    let white = vec3(1.0, 1.0, 1.0);
-    let yellow = vec3(1.0, 0.9, 0.3);
-    let orange = vec3(1.0, 0.5, 0.1);
-    let red = vec3(0.8, 0.1, 0.0);
+    let c1 = vec3(0.8, 0.8, 1.0);
+    var halo = vec3(0.9, 0.1, 0.2);
+    if data.w > 0.0 {
+        halo = vec3(0.0, 0.4, 0.7);
+    } else if data.w > 5.0 {
+        halo = vec3(0.9, 0.8, 0.9);
+    }
     
     var color = vec3(0.0);
-    color = mix(color, red, outer);
-    color = mix(color, orange, outer * 0.5);
-    color = mix(color, yellow, inner);
-    color = mix(color, white, core);
-    
+    color = mix(color, halo, outer);
+    color = mix(color, c1, core * 2.0);
+
     color *= flicker * intensity;
     
-    let alpha = smoothstep(1.0, 0.5, dist) * outer;
+    var alpha = smoothstep(1.0, 0.0, dist);
+   
+    // lol but it works
+    let angle = atan2(in.uv.x, in.uv.y);
+    color = clamp((alpha *- angle) * -color, vec3(0.0), vec3(1.0)); 
     
     var final_color = vec4(color, alpha);
 

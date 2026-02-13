@@ -6,10 +6,11 @@ use jam7::{
   player::{Player, PlayerAnimationState, create_player_animations, create_player_controls},
 };
 use sys_cam::CameraTarget;
-use sys_candy::{FireballBody, FireballExplosionBody, Shadow};
+use sys_candy::{FireballBody, FireballExplosionBody, LightningShard, Shadow};
 use sys_chonker::ChunkGenerator;
 use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
+use utils::diff::{TEAM_ENEMY, TEAM_PLAYER};
 
 pub struct BetaGymPlugin;
 
@@ -78,10 +79,22 @@ fn on_level_loaded(
   ));
 
   cmd.spawn((
+    LightningShard {
+      intensity: 1.0,
+      size: Vec2::new(10., 10.),
+      team: TEAM_PLAYER,
+      direction: 1.3,
+    },
+    ChildOf(spawned_level),
+    Transform::default().with_translation(Vec3::new(0.0, -500., 1.0)),
+    Visibility::default(),
+  ));
+  cmd.spawn((
     FireballExplosionBody {
       radius: 50.,
       intensity: 1.0,
       lifetime: Timer::from_seconds(2.0, TimerMode::Repeating),
+      team: TEAM_PLAYER,
     },
     ChildOf(spawned_level),
     Transform::default().with_translation(Vec3::new(-500., 0.0, 1.0)),
@@ -92,6 +105,7 @@ fn on_level_loaded(
       radius: 150.,
       intensity: 1.0,
       lifetime: Timer::from_seconds(2.0, TimerMode::Repeating),
+      team: TEAM_ENEMY,
     },
     ChildOf(spawned_level),
     Transform::default().with_translation(Vec3::new(-250., 0.0, 1.0)),
@@ -101,6 +115,7 @@ fn on_level_loaded(
     FireballBody {
       radius: 10.,
       intensity: 1.0,
+      team: TEAM_PLAYER,
     },
     ChildOf(spawned_level),
     Transform::default().with_translation(Vec3::new(250., 0.0, 1.0)),
@@ -110,6 +125,7 @@ fn on_level_loaded(
     FireballBody {
       radius: 50.,
       intensity: 1.0,
+      team: TEAM_ENEMY,
     },
     ChildOf(spawned_level),
     Transform::default().with_translation(Vec3::new(500., 0.0, 1.0)),

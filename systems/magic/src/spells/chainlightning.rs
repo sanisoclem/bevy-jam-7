@@ -1,5 +1,5 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
-use sys_candy::Shadow;
+use sys_candy::{LightningShard, Shadow};
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,
@@ -84,8 +84,18 @@ impl ChainlightningSpellGenerator {
       ))
       .with_children(|x2| {
         x2.spawn((
-          Shadow { radius: 2. * 0.8 },
+          Shadow { radius: 5. * 0.8 },
           Transform::default().with_translation(-Vec3::Z),
+          Visibility::default(),
+        ));
+        x2.spawn((
+          LightningShard {
+            size: Vec2::new(10., 10.),
+            team,
+            intensity: 1.0,
+            direction: direction.to_angle(),
+          },
+          Transform::default().with_translation(Vec3::new(0.0, 16., -1.)),
           Visibility::default(),
         ));
       });
@@ -125,54 +135,60 @@ pub fn on_detonate_chainlightning(
     })
     .take(proj.bounce_children)
     .for_each(|(_, pos)| {
-      cmd
-        .entity(parent.get())
-        .with_children(|x| {
-          let direction = (pos.location - evt.location).normalize();
-          x.spawn((
-            Visibility::default(),
-            Transform::default(),
-            ChainlightningProjectile {
-              base_damage: proj.base_damage,
-              bounce_range: proj.bounce_range,
-              bounces: proj.bounces + 1,
-              bounce_children: proj.bounce_children,
-              speed: proj.speed,
-              caster: proj.caster,
-              team: proj.team,
-              bounce_mult: proj.bounce_mult,
+      cmd.entity(parent.get()).with_children(|x| {
+        let direction = (pos.location - evt.location).normalize();
+        x.spawn((
+          Visibility::default(),
+          Transform::default(),
+          ChainlightningProjectile {
+            base_damage: proj.base_damage,
+            bounce_range: proj.bounce_range,
+            bounces: proj.bounces + 1,
+            bounce_children: proj.bounce_children,
+            speed: proj.speed,
+            caster: proj.caster,
+            team: proj.team,
+            bounce_mult: proj.bounce_mult,
+          },
+          Placeable::mid(detonate_origin + IsoWorldCoords::from(direction * detonate_offset * 1.1)),
+          Moveable::default(),
+          Projectile {
+            lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
+            detonate_trigger: DetonationTrigger::Contact,
+            movement: ProjectileMovement::Straight(proj.speed * direction),
+          },
+          CombatAreaEffect {
+            owner: proj.caster,
+            team: proj.team,
+            shape: HitTestableShape::Obb {
+              half_extents: Vec2::new(10., 2.),
+              rotation: direction.to_angle(),
             },
-            Placeable::mid(
-              detonate_origin + IsoWorldCoords::from(direction * detonate_offset * 1.1),
-            ),
-            Moveable::default(),
-            Projectile {
-              lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
-              detonate_trigger: DetonationTrigger::Contact,
-              movement: ProjectileMovement::Straight(proj.speed * direction),
-            },
-            CombatAreaEffect {
-              owner: proj.caster,
-              team: proj.team,
-              shape: HitTestableShape::Obb {
-                half_extents: Vec2::new(10., 2.),
-                rotation: direction.to_angle(),
-              },
-              effects: vec![CombatEffectBlueprint::Damage(
-                proj.base_damage as u32 * (proj.bounces + 1),
-              )],
-              effect_tick: None,
-              hit: false,
-            },
-          ));
-        })
+            effects: vec![CombatEffectBlueprint::Damage(
+              proj.base_damage as u32 * (proj.bounces + 1),
+            )],
+            effect_tick: None,
+            hit: false,
+          },
+        ))
         .with_children(|x2| {
           x2.spawn((
             Shadow { radius: 2. * 0.8 },
             Transform::default().with_translation(-Vec3::Z),
             Visibility::default(),
           ));
+          x2.spawn((
+            LightningShard {
+              size: Vec2::new(10., 10.),
+              team: proj.team,
+              intensity: proj.bounces as f32,
+              direction: direction.to_angle(),
+            },
+            Transform::default().with_translation(-Vec3::Z),
+            Visibility::default(),
+          ));
         });
+      });
     });
 }
 
@@ -190,7 +206,7 @@ pub fn cast_chainlightning(
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
-  let Some((_, nearest)) = radar.densest else {
+  let Some((_, nearest)) = radar.nearest else {
     return;
   };
   let Some(ss) = sbs.spells_states.get_mut(evt.spell_slot) else {
