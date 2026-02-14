@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use sys_combat::{Combatant, CombatantGuages, CombatantKilled, KillCounter};
-use sys_enemy::{Enemy, EnemyAnimationState, EnemySpawner, EnemyState};
+use sys_enemy::{Enemy, EnemyAnimationState, EnemySpawner};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveState, Moveable, Placeable};
 
@@ -136,7 +136,6 @@ pub fn update_animation_state(qry: Query<(&mut EnemyAnimationState, &MoveState),
 #[derive(Component)]
 pub struct BossKillText {
   timer: Timer,
-  scale_curve: EasingCurve<f32>,
 }
 #[derive(Component)]
 pub struct BossKillUi;
@@ -172,7 +171,6 @@ pub fn spawn_boss_kill_text(
       root.spawn((
         BossKillText {
           timer: Timer::from_seconds(5.0, TimerMode::Once),
-          scale_curve: EasingCurve::new(1.0, 100., EaseFunction::QuadraticInOut),
         },
         Text::new(if trigger.count > 1 {
           format!("{} Boss Kills!", trigger.count)

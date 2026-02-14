@@ -1,5 +1,5 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
-use sys_candy::{LightningShard, Shadow};
+use sys_candy::LightningShard;
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,

@@ -1,10 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::{
-  color::palettes::{css::BLACK, tailwind::AMBER_500},
-  prelude::*,
-  text::FontFeatures,
-};
+use bevy::{color::palettes::tailwind::AMBER_500, prelude::*};
 use sys_move::{IsoMovementStage, Placeable};
 use utils::colors::color_from_team;
 
