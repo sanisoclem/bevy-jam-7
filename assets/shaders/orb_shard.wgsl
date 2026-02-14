@@ -3,7 +3,7 @@
     mesh2d_view_bindings::{view, globals},
 }
 
-// (time_offset, bounces, team, )
+
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> data: vec4<f32>;
 
 struct VertexOutput {
@@ -86,53 +86,76 @@ fn noise(p: vec2<f32>) -> f32 {
     return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
+fn fbm(p: vec2<f32>) -> f32 {
+    var value = 0.0;
+    var amplitude = 0.5;
+    var frequency = 1.0;
+    var pos = p;
+    
+    for (var i = 0; i < 5; i++) {
+        value += amplitude * noise(pos * frequency);
+        frequency *= 2.0;
+        amplitude *= 0.5;
+    }
+    
+    return value;
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time_offset = data.x;
     let intensity = data.y;
     let time = globals.time + time_offset;
+    
     var uv = (in.uv - 0.5) * 2.0;
-
-    let angle = (data.w + 3.1416 / 2.0);
+    let a2milk = (0.5 * 3.1416);
     uv = vec2<f32>(
           uv.x + uv.y / 0.5,
           uv.y / 0.5 - uv.x
       );
 
     uv = vec2(
-        uv.x * cos(angle) - uv.y * sin(angle),
-        uv.x * sin(angle) + uv.y * cos(angle)
+        uv.x * cos(a2milk) - uv.y * sin(a2milk),
+        uv.x * sin(a2milk) + uv.y * cos(a2milk)
     );
-    let bolt_noise = noise(vec2(uv.x * 8.0, time * 20.0)) * 0.3;
-    let bolt_dist = abs(uv.y - bolt_noise);
+
+
+
+
+    let dist = length(uv);
+    let angle = atan2(uv.y, uv.x);
     
-    let core = smoothstep(0.05, 0.0, bolt_dist);
-    let inner = smoothstep(0.15, 0.02, bolt_dist);
-    let outer = smoothstep(0.35, 0.1, bolt_dist);
-    let arc_noise = noise(vec2(uv.x * 12.0 + time * 15.0, uv.y * 8.0));
-    let arc = step(0.85, arc_noise) * smoothstep(0.5, 0.0, abs(uv.y));
-    let flicker = 0.8 + 0.2 * sin(time * 50.0 + noise(uv * 10.0) * 6.28);
+    let triangle_sides = 3.0;
+    let angle_step = 6.28318530718 / triangle_sides;
+    let sector_angle = (angle + 3.14159) % angle_step - angle_step * 0.5;
+    let triangle_dist = dist * cos(sector_angle) / cos(angle_step * 0.5);
     
-    let white = vec3(1.0, 1.0, 1.0);
-    let cyan = vec3(0.5, 0.9, 1.0);
-    var halo = vec3(0.9, 0.1, 0.2);
-    if data.z > 0.0 {
-        halo = vec3(0.0, 0.4, 0.7);
-    } else if data.z > 5.0 {
-        halo = vec3(0.9, 0.8, 0.9);
+    if (triangle_dist > 1.0) {
+        discard;
     }
     
+    let frost_noise = fbm(uv * 8.0 + vec2(time * 0.1, 0.0));
+    let crystals = step(0.65, frost_noise) * 0.3;
+    let edge_sharpness = abs(sector_angle) / (angle_step * 0.5);
+    let edge_glow = smoothstep(0.7, 1.0, edge_sharpness) * 0.5;
+    let core = smoothstep(1.0, 0.3, triangle_dist);
+    let shimmer = 0.9 + 0.1 * sin(time * 4.0 + triangle_dist * 8.0);
+    let white = vec3(1.0, 1.0, 1.0);
+    let bright_cyan = vec3(0.7, 1.0, 1.0);
+    let cyan = vec3(0.4, 0.85, 1.0);
+    let ice_blue = vec3(0.6, 0.9, 1.0);
+    
     var color = vec3(0.0);
-    color = mix(color, halo, outer);
-    color = mix(color, cyan, inner);
-    color = mix(color, white, core);
-    color += arc * cyan * 0.5;
+    color = mix(ice_blue, cyan, core);
+    color = mix(color, bright_cyan, core * 0.7);
+    color += crystals * white;
+    color += edge_glow * bright_cyan;
     
-    color *= flicker * (intensity * intensity);
+    color *= shimmer * intensity;
     
-    let alpha = max(outer, arc * 0.8);
+    let alpha = smoothstep(1.0, 0.5, triangle_dist);
     
-    var final_color = vec4(color* 5.0, alpha);
+    var final_color = vec4(color, alpha);
 
 #ifdef TONEMAP_IN_SHADER
     final_color = tonemapping::tone_mapping(final_color, view.color_grading);

@@ -184,7 +184,7 @@ pub fn on_detonate_chainlightning(
               intensity: proj.bounces as f32,
               direction: direction.to_angle(),
             },
-            Transform::default().with_translation(-Vec3::Z),
+            Transform::default(),
             Visibility::default(),
           ));
         });

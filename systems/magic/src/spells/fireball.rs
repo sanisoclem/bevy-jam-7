@@ -103,7 +103,7 @@ impl FireballSpellGenerator {
             intensity: self.base_damage as f32,
             team,
           },
-          Transform::default().with_translation(Vec3::new(0.0, 16., -1.)),
+          Transform::default().with_translation(Vec3::new(0.0, 16., 0.)),
           Visibility::default(),
         ));
       });
@@ -175,18 +175,22 @@ pub fn cast_fireball(
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
-  let Some((_, nearest)) = radar.strongest else {
+  let Some((_, nearest)) = radar.nearest else {
     return;
   };
   let Some(ss) = sbs.spells_states.get_mut(evt.spell_slot) else {
     return;
   };
 
+  let dist = nearest - pos.location;
+  if (evt.generator.lifetime * evt.generator.speed * 1.1).powi(2) <= dist.length_squared() {
+    return;
+  }
+
   debug!("Casting fireball");
 
   ss.cooldown = Some(evt.cooldown.clone());
-
-  let direction = (nearest - pos.location).normalize_or(Vec2::Y);
+  let direction = dist.normalize_or(Vec2::Y);
   for downside in evt.downside.iter() {
     if let SpellDownside::HpDrain { strength } = downside {
       cmd.trigger(ApplyCombatEffect {

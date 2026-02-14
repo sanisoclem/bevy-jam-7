@@ -1,5 +1,5 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
-use sys_candy::Shadow;
+use sys_candy::{FrozenOrb, FrozenOrbShard, Shadow};
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
   CombatantRadar, DetonatePayload, DetonationTrigger, HitTestableShape, Projectile,
@@ -102,9 +102,18 @@ impl FrozenorbSpellGenerator {
       .with_children(|x2| {
         x2.spawn((
           Shadow {
-            radius: self.orb_size * 0.8,
+            radius: self.orb_size * 0.9,
           },
           Transform::default().with_translation(-Vec3::Z),
+          Visibility::default(),
+        ));
+        x2.spawn((
+          FrozenOrb {
+            radius: self.orb_size,
+            team,
+            intensity: self.base_damage,
+          },
+          Transform::default().with_translation(Vec3::new(0.0, 8., 10.)),
           Visibility::default(),
         ));
       });
@@ -125,53 +134,60 @@ pub fn on_frozenorb_shard_detonate(
 pub fn on_frozenorb_detonate(
   evt: On<DetonatePayload>,
   mut cmd: Commands,
-  qry: Query<(&ChildOf, &FrozenorbProjectile)>,
+  qry: Query<(&ChildOf, &FrozenorbProjectile, &Moveable)>,
 ) {
-  let Some((parent, fp)) = qry.get(evt.target).ok() else {
+  let Some((parent, fp, mov)) = qry.get(evt.target).ok() else {
     return;
   };
 
-  subdivide_circle(fp.num_shards)
+  subdivide_circle(mov.net_forces.normalize_or(Vec2::Y), fp.num_shards)
     .into_iter()
     .for_each(|direction| {
-      cmd
-        .entity(parent.get())
-        .with_children(|x| {
-          x.spawn((
-            FrozenorbShard,
-            Projectile {
-              lifetime: Timer::from_seconds(fp.shard_lifetime, TimerMode::Once),
-              detonate_trigger: DetonationTrigger::Contact,
-              movement: ProjectileMovement::Straight(direction * fp.shard_speed),
-            },
-            Transform::default(),
-            Visibility::default(),
-            Placeable {
-              layer: 5,
-              location: evt.location,
-            },
-            Moveable {
-              damping: 1.0,
-              net_forces: Vec2::ZERO,
-              impulses: Vec::new(),
-            },
-            CombatAreaEffect {
-              owner: fp.caster,
-              team: fp.team,
-              shape: HitTestableShape::Circle { radius: 5. },
-              effects: vec![CombatEffectBlueprint::Damage(fp.shard_damage)],
-              effect_tick: None,
-              hit: false,
-            },
-          ));
-        })
+      cmd.entity(parent.get()).with_children(|x| {
+        x.spawn((
+          FrozenorbShard,
+          Projectile {
+            lifetime: Timer::from_seconds(fp.shard_lifetime, TimerMode::Once),
+            detonate_trigger: DetonationTrigger::None,
+            movement: ProjectileMovement::Straight(direction * fp.shard_speed),
+          },
+          Transform::default(),
+          Visibility::default(),
+          Placeable {
+            layer: 5,
+            location: evt.location,
+          },
+          Moveable {
+            damping: 1.0,
+            net_forces: Vec2::ZERO,
+            impulses: Vec::new(),
+          },
+          CombatAreaEffect {
+            owner: fp.caster,
+            team: fp.team,
+            shape: HitTestableShape::Circle { radius: 5. },
+            effects: vec![CombatEffectBlueprint::Damage(fp.shard_damage)],
+            effect_tick: Some(Timer::from_seconds(0.1, TimerMode::Repeating)),
+            hit: false,
+          },
+        ))
         .with_children(|x2| {
           x2.spawn((
-            Shadow { radius: 5. * 0.8 },
+            Shadow { radius: 5. * 0.9 },
             Transform::default().with_translation(-Vec3::Z),
             Visibility::default(),
           ));
+          x2.spawn((
+            FrozenOrbShard {
+              radius: 5.0,
+              team: fp.team,
+              intensity: fp.shard_damage as f32,
+            },
+            Transform::default().with_translation(Vec3::new(0.0, 4., 10.)),
+            Visibility::default(),
+          ));
         });
+      });
     });
 }
 pub fn cast_frozenorb(

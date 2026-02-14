@@ -11,22 +11,22 @@ use bevy::{
 };
 
 #[derive(Component)]
-#[component(on_insert=on_add_orb)]
-pub struct FrozenOrb {
+#[component(on_insert=on_add_orb_shard)]
+pub struct FrozenOrbShard {
   pub radius: f32,
   pub intensity: f32,
   pub team: u8,
 }
 
-fn on_add_orb(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
-  let fb = world.get::<FrozenOrb>(entity).unwrap();
+fn on_add_orb_shard(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+  let fb = world.get::<FrozenOrbShard>(entity).unwrap();
   let team = fb.team as f32;
   let radius = fb.radius;
   let intensity = fb.intensity;
   let mut meshes = world.resource_mut::<Assets<Mesh>>();
-  let mesh = meshes.add(Circle::new(radius * 2.));
-  let mut materials = world.resource_mut::<Assets<FrozenOrbMaterial>>();
-  let material = materials.add(FrozenOrbMaterial {
+  let mesh = meshes.add(Circle::new(radius));
+  let mut materials = world.resource_mut::<Assets<FrozenOrbShardMaterial>>();
+  let material = materials.add(FrozenOrbShardMaterial {
     data: Vec4::new(fastrand::f32(), intensity, team, 0.0),
   });
 
@@ -37,14 +37,14 @@ fn on_add_orb(mut world: DeferredWorld, HookContext { entity, .. }: HookContext)
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
-pub struct FrozenOrbMaterial {
+pub struct FrozenOrbShardMaterial {
   #[uniform(0)]
   pub data: Vec4,
 }
 
-impl Material2d for FrozenOrbMaterial {
+impl Material2d for FrozenOrbShardMaterial {
   fn fragment_shader() -> ShaderRef {
-    "shaders/orb.wgsl".into()
+    "shaders/orb_shard.wgsl".into()
   }
   fn alpha_mode(&self) -> AlphaMode2d {
     AlphaMode2d::Blend

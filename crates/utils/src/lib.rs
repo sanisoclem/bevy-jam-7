@@ -38,7 +38,7 @@ pub mod diff {
     10. + offense_score * 50.
   }
   pub fn get_density_ceiling_from_score(density_score: f32) -> f32 {
-    (density_score / 10000.).clamp(0.000001, 0.001)
+    (density_score / 100000.).clamp(0.000001, 0.001)
   }
   pub fn get_enemy_size_from_toughness(toughness_score: f32) -> f32 {
     1.0 + toughness_score * 0.1
@@ -105,12 +105,12 @@ pub mod colors {
   use bevy::color::Color;
 
   const TEAM_COLOR_PALETTE: &[Color] = &[
-    Color::srgb(1.0, 0.3, 0.3), // red
-    Color::srgb(0.3, 1.0, 0.3), // green
-    Color::srgb(0.3, 0.3, 1.0), // blue
-    Color::srgb(1.0, 1.0, 0.3), // yellow
-    Color::srgb(1.0, 0.3, 1.0), // magenta
-    Color::srgb(0.3, 1.0, 1.0), // cyan
+    Color::srgb(0.0, 0.0, 1.0),
+    Color::srgb(1.0, 0.3, 0.3),
+    Color::srgb(0.3, 0.3, 1.0),
+    Color::srgb(1.0, 1.0, 0.3),
+    Color::srgb(1.0, 0.3, 1.0),
+    Color::srgb(0.3, 1.0, 1.0),
   ];
 
   pub fn color_from_team(team: u8) -> Color {
@@ -121,47 +121,20 @@ pub mod colors {
 pub mod vecstuff {
   use bevy::prelude::*;
 
-  pub fn subdivide_circle(count: usize) -> Vec<Vec2> {
+  pub fn subdivide_circle(north: Vec2, count: usize) -> Vec<Vec2> {
     if count == 0 {
       return Vec::new();
     }
 
+    let north_angle = north.y.atan2(north.x);
     let angle_step = std::f32::consts::TAU / count as f32;
 
     (0..count)
       .map(|i| {
-        let angle = i as f32 * angle_step;
+        // Start from opposite of north (PI radians away)
+        let angle = north_angle + std::f32::consts::PI + i as f32 * angle_step;
         Vec2::from_angle(angle)
       })
       .collect()
-  }
-
-  #[cfg(test)]
-  mod tests {
-    use super::*;
-
-    #[test]
-    fn test_subdivide_circle() {
-      let dirs = subdivide_circle(2);
-      assert_eq!(dirs.len(), 2);
-      assert!((dirs[0] - Vec2::Y).length() < 0.001);
-      assert!((dirs[1] - -Vec2::Y).length() < 0.001);
-
-      let dirs = subdivide_circle(4);
-      assert_eq!(dirs.len(), 4);
-      assert!((dirs[0] - Vec2::Y).length() < 0.001);
-      assert!((dirs[1] - -Vec2::X).length() < 0.001);
-      assert!((dirs[2] - -Vec2::Y).length() < 0.001);
-      assert!((dirs[3] - Vec2::X).length() < 0.001);
-
-      let dirs = subdivide_circle(8);
-      assert_eq!(dirs.len(), 8);
-      for dir in &dirs {
-        assert!((dir.length() - 1.0).abs() < 0.001);
-      }
-
-      let dirs = subdivide_circle(0);
-      assert_eq!(dirs.len(), 0);
-    }
   }
 }

@@ -120,9 +120,9 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     
     let c1 = vec3(0.8, 0.8, 1.0);
     var halo = vec3(0.9, 0.1, 0.2);
-    if data.w > 0.0 {
+    if data.y > 0.0 {
         halo = vec3(0.0, 0.4, 0.7);
-    } else if data.w > 5.0 {
+    } else if data.y > 5.0 {
         halo = vec3(0.9, 0.8, 0.9);
     }
     

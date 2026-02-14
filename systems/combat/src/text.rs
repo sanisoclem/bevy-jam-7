@@ -1,4 +1,6 @@
-use bevy::prelude::*;
+use std::f32::consts::PI;
+
+use bevy::{prelude::*, text::FontFeatures};
 use sys_move::{IsoMovementStage, Placeable};
 use utils::colors::color_from_team;
 
@@ -8,6 +10,7 @@ use crate::DamageTaken;
 pub struct DamageText {
   pub timer: Timer,
   pub velocity: Vec2,
+  pub scale_curve: EasingCurve<f32>,
 }
 
 pub fn spawn_damage_text(
@@ -38,7 +41,7 @@ pub fn spawn_damage_text(
       ..default()
     };
 
-    let velocity = Vec2::from_angle(fastrand::f32() * 0.5 + 0.25) * 50.;
+    let velocity = Vec2::from_angle(fastrand::f32() * PI * 0.5 + 0.25) * 50.;
     commands.spawn((
       Text2d::new(format!("{:?}", msg.amount)),
       text_font.clone(),
@@ -48,6 +51,7 @@ pub fn spawn_damage_text(
       DamageText {
         timer: Timer::from_seconds(1.0, TimerMode::Once),
         velocity,
+        scale_curve: EasingCurve::new(1.0, 0.001, EaseFunction::Linear),
       },
     ));
   }
@@ -64,17 +68,20 @@ pub fn update_damage_text(
     transform.translation.x += damage_text.velocity.x * time.delta_secs();
     transform.translation.y += damage_text.velocity.y * time.delta_secs();
 
-    let progress = damage_text.timer.fraction();
-    let alpha = 1.0 - progress;
+    let remaining = damage_text.timer.remaining_secs();
 
-    color.0 = color.0.with_alpha(alpha);
+    const FADE_TIME: f32 = 0.3;
+    if remaining <= FADE_TIME {
+      let alpha = remaining / FADE_TIME;
+      color.0 = color.0.with_alpha(alpha);
+    }
 
-    let scale = if progress < 0.2 {
-      1.0 + (progress / 0.2) * 0.3 // Scale from 1.0 to 1.3 in first 20%
-    } else {
-      1.3
-    };
-    transform.scale = Vec3::splat(scale);
+    const SCALE_TIME: f32 = 0.2;
+    if remaining <= SCALE_TIME
+      && let Some(scale) = damage_text.scale_curve.sample(remaining / SCALE_TIME)
+    {
+      transform.scale = Vec3::splat(scale);
+    }
 
     if damage_text.timer.just_finished() {
       commands.entity(entity).despawn();

@@ -3,7 +3,7 @@
     mesh2d_view_bindings::{view, globals},
 }
 
-// (time_offset, intensity, inner_radius, outer_radius)
+
 @group(#{MATERIAL_BIND_GROUP}) @binding(0) var<uniform> data: vec4<f32>;
 
 struct VertexOutput {
@@ -105,39 +105,24 @@ fn fbm(p: vec2<f32>) -> f32 {
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time_offset = data.x;
     let intensity = data.y;
-    
     let time = globals.time + time_offset;
     
     let uv = (in.uv - 0.5) * 2.0;
     let dist = length(uv);
     let angle = atan2(uv.y, uv.x);
     
-    // slow rotation
     let rotated_uv = vec2(
         cos(time * 0.2) * uv.x - sin(time * 0.2) * uv.y,
         sin(time * 0.2) * uv.x + cos(time * 0.2) * uv.y
     );
     
-    // crystalline structure
     let crystal_noise = fbm(rotated_uv * 4.0 + vec2(time * 0.1, 0.0));
     let crystals = step(0.6, crystal_noise);
-    
-    // frost patterns
     let frost = fbm(uv * 8.0 + vec2(time * 0.05, time * 0.03)) * 0.5 + 0.5;
-    
-    // core (bright cyan-white)
     let core = smoothstep(0.4, 0.0, dist);
-    
-    // inner ice (cyan)
     let inner = smoothstep(0.7, 0.2, dist) * (1.0 - core);
-    
-    // outer frost (light blue)
     let outer = smoothstep(1.0, 0.5, dist);
-    
-    // shimmer effect
     let shimmer = 0.9 + 0.1 * sin(time * 3.0 + dist * 10.0);
-    
-    // color composition
     let white = vec3(1.0, 1.0, 1.0);
     let bright_cyan = vec3(0.7, 1.0, 1.0);
     let cyan = vec3(0.3, 0.8, 1.0);
@@ -151,7 +136,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     
     color *= shimmer * intensity;
     
-    // alpha
     let alpha = smoothstep(1.0, 0.6, dist) * outer;
     
     var final_color = vec4(color, alpha);
