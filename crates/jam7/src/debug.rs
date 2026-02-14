@@ -15,7 +15,7 @@ impl Plugin for DebugPlugin {
   fn build(&self, app: &mut App) {
     app
       .insert_resource(DebugConfig {
-        show_combat_effects: true,
+        show_combat_effects: false,
         ..Default::default()
       })
       .add_systems(

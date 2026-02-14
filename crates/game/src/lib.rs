@@ -1,4 +1,4 @@
-use crate::gyms::AlphaGymPlugin;
+use crate::gyms::{AlphaGymPlugin, beta::BetaGymPlugin};
 use bevy::prelude::*;
 use jam7::prelude::*;
 
@@ -15,6 +15,7 @@ impl Plugin for GamePlugin {
         ..default()
       }))
       .add_plugins(Jam7Plugin)
+      // .add_plugins(BetaGymPlugin);
       .add_plugins(AlphaGymPlugin);
 
     #[cfg(feature = "dev")]

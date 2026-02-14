@@ -3,6 +3,7 @@ use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;
 mod projectile;
+mod text;
 
 pub use hittest::HitTestableShape;
 pub use projectile::{DetonatePayload, DetonationTrigger, Projectile, ProjectileMovement};
@@ -35,6 +36,7 @@ impl Plugin for SysCombatPlugin {
           projectile::pulse_projectiles,
         ),
       )
+      .add_systems(Update, (text::spawn_damage_text, text::update_damage_text))
       .add_observer(apply_combat_effects);
   }
 }
@@ -125,6 +127,7 @@ pub struct DamageTaken {
   pub amount: u32,
   pub target: Entity,
   pub source: Entity,
+  pub team: u8,
 }
 
 #[derive(Reflect, Debug, Clone, Message)]
@@ -289,6 +292,7 @@ fn apply_combat_effects(
           target: msg.target,
           source: msg.source,
           amount: dealt,
+          team: c.team,
         });
 
         if g.current_hp == 0 {

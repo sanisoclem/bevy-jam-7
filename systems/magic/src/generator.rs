@@ -15,13 +15,13 @@ impl SpellBookGenerator {
       SpellBook {
         spells: vec![EquippedSpell {
           generator: SpellGenerator::Fireball(FireballSpellGenerator {
-            radius: 3.,
-            base_damage: 3,
+            radius: 12.,
+            base_damage: 10,
             lifetime: 2.,
             speed: effective_range / 2.,
             explosion_lifetime: 1.,
             explosion_damage_multiplier: 2.5,
-            explosion_radius: 30.,
+            explosion_radius: 30. + (effective_dps),
           }),
           cooldown: Timer::from_seconds(10. / effective_dps, TimerMode::Repeating),
           downside: Vec::new(),

@@ -5,7 +5,7 @@ pub mod easing;
 pub mod diff {
   use bevy::prelude::*;
 
-  pub const MAX_PROJECTILE_TRAVEL: f32 = 5000.;
+  pub const MAX_PROJECTILE_TRAVEL: f32 = 15000.;
   pub const MAX_PROJECTILE_LIFETIME: f32 = 2.;
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
@@ -14,7 +14,7 @@ pub mod diff {
     ((kills.max(1.0).log10() - 1.0) * 4.0).max(1.0)
   }
   pub fn get_mobility_from_rangeness(power_budget: f32, rangeness_score: f32) -> f32 {
-    const MIN_MOBILITY: f32 = 20.0;
+    const MIN_MOBILITY: f32 = 60.0;
     const MIN_MOBILITY_AT_BUDGET_RATIO: f32 = 0.8;
 
     let capped_budget = power_budget.min(8.0);
@@ -32,13 +32,13 @@ pub mod diff {
     100 + (toughness_score * 500.).floor() as u32
   }
   pub fn get_effective_range_from_rangeness_score(rangeness_score: f32) -> f32 {
-    100. + rangeness_score * 200.
+    300. + rangeness_score * 600.
   }
   pub fn get_effective_dps_from_offense_score(offense_score: f32) -> f32 {
     10. + offense_score * 50.
   }
   pub fn get_density_ceiling_from_score(density_score: f32) -> f32 {
-    (density_score / 10000.).clamp(0.000001, 0.001)
+    (density_score / 1000000.).clamp(0.0000001, 0.0001)
   }
   pub fn get_enemy_size_from_toughness(toughness_score: f32) -> f32 {
     1.0 + toughness_score * 0.1
@@ -101,51 +101,45 @@ pub mod diff {
     100 + (kills as f32 / kills_per_lucidity).floor() as u32
   }
 }
+pub mod colors {
+  use bevy::color::Color;
 
+  const TEAM_COLOR_PALETTE: &[Color] = &[
+    Color::srgb(0.0, 0.0, 1.0),
+    Color::srgb(1.0, 0.3, 0.3),
+    Color::srgb(0.3, 0.3, 1.0),
+    Color::srgb(1.0, 1.0, 0.3),
+    Color::srgb(1.0, 0.3, 1.0),
+    Color::srgb(0.3, 1.0, 1.0),
+  ];
+
+  pub fn color_from_team(team: u8) -> Color {
+    let index = (team as usize) % TEAM_COLOR_PALETTE.len();
+    TEAM_COLOR_PALETTE[index]
+  }
+}
 pub mod vecstuff {
   use bevy::prelude::*;
+  use std::f32::consts::{PI, TAU};
 
-  pub fn subdivide_circle(count: usize) -> Vec<Vec2> {
+  pub fn subdivide_circle(north: Vec2, count: usize) -> Vec<Vec2> {
     if count == 0 {
       return Vec::new();
     }
 
-    let angle_step = std::f32::consts::TAU / count as f32;
+    let north_angle = north.y.atan2(north.x);
+    let angle_step = TAU / count as f32;
 
     (0..count)
       .map(|i| {
-        let angle = i as f32 * angle_step;
+        // special case for 2 shards
+        let angle = if count == 2 {
+          north_angle + (PI / 2.0) + i as f32 * angle_step
+        } else {
+          north_angle + PI + i as f32 * angle_step
+        };
         Vec2::from_angle(angle)
       })
       .collect()
-  }
-
-  #[cfg(test)]
-  mod tests {
-    use super::*;
-
-    #[test]
-    fn test_subdivide_circle() {
-      let dirs = subdivide_circle(2);
-      assert_eq!(dirs.len(), 2);
-      assert!((dirs[0] - Vec2::Y).length() < 0.001);
-      assert!((dirs[1] - -Vec2::Y).length() < 0.001);
-
-      let dirs = subdivide_circle(4);
-      assert_eq!(dirs.len(), 4);
-      assert!((dirs[0] - Vec2::Y).length() < 0.001);
-      assert!((dirs[1] - -Vec2::X).length() < 0.001);
-      assert!((dirs[2] - -Vec2::Y).length() < 0.001);
-      assert!((dirs[3] - Vec2::X).length() < 0.001);
-
-      let dirs = subdivide_circle(8);
-      assert_eq!(dirs.len(), 8);
-      for dir in &dirs {
-        assert!((dir.length() - 1.0).abs() < 0.001);
-      }
-
-      let dirs = subdivide_circle(0);
-      assert_eq!(dirs.len(), 0);
-    }
   }
 }

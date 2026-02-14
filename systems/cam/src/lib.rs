@@ -34,7 +34,7 @@ fn setup_camera(mut cmd: Commands) {
       clear_color: ClearColorConfig::Custom(Color::BLACK),
       ..default()
     },
-    Transform::default().with_scale(Vec3::splat(0.45)),
+    Transform::default(),
     Tonemapping::TonyMcMapface,
     Bloom::default(),
     DebandDither::Enabled,

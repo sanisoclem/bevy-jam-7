@@ -1,13 +1,10 @@
 [package]
-name = "sys_combat"
+name = "sys_candy"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 bevy.workspace = true
-serde.workspace = true
 fastrand.workspace = true
 
 sys_move = { path = "../move", version = "0.1.0" }
-
-utils = { path = "../../crates/utils", version = "0.1.0" }

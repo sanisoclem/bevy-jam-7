@@ -15,4 +15,5 @@ sys_combat = { path = "../combat", version = "0.1.0" }
 sys_magic = { path = "../magic", version = "0.1.0" }
 sys_animation = { path = "../animation", version = "0.1.0" }
 sys_procgen = { path = "../../systems/procgen", version = "0.1.0" }
+sys_candy = { path = "../../systems/candy", version = "0.1.0" }
 utils = { path = "../../crates/utils", version = "0.1.0" }

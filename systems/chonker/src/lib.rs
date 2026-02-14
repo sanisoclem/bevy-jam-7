@@ -19,6 +19,16 @@ pub struct ChunkGenerator {
   pub unload_radius: u32,
   pub load_around: Entity,
 }
+impl ChunkGenerator {
+  pub fn from_player(player: Entity, chunk_size_world: Vec2) -> Self {
+    ChunkGenerator {
+      chunk_size_world,
+      load_around: player,
+      load_radius: 3,
+      unload_radius: 7,
+    }
+  }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
 pub struct ChunkId(i32, i32);

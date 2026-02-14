@@ -7,6 +7,9 @@ use crate::{LongTermProgDescriptor, LongTermProgger};
 pub struct DeathUI;
 
 #[derive(Component)]
+pub struct RestartGame;
+
+#[derive(Component)]
 pub struct LucidityCheckbox {
   pub is_checked: bool,
   pub feature: LongTermProgDescriptor,
@@ -35,7 +38,7 @@ pub fn spawn_death_ui(
   let lucidity = lprog.lucidty;
   let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
   let texture_handle = asset_server.load("ui/death.png");
-  let texture_atlas = TextureAtlasLayout::from_grid(UVec2::splat(24), 7, 1, None, None);
+  let texture_atlas = TextureAtlasLayout::from_grid(UVec2::splat(460), 8, 5, None, None);
   let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
   cmd
@@ -180,6 +183,7 @@ pub fn spawn_death_ui(
       root
         .spawn((
           Button,
+          RestartGame,
           Node {
             padding: UiRect::axes(Val::Px(32.0), Val::Px(16.0)),
             border: UiRect::all(Val::Px(2.0)),
@@ -222,6 +226,7 @@ pub fn death_ui_interaction(
     (&Interaction, &mut BackgroundColor, &mut BorderColor),
     (
       Changed<Interaction>,
+      With<RestartGame>,
       With<Button>,
       Without<LucidityCheckbox>,
     ),

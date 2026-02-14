@@ -1,14 +1,14 @@
 EnemyDescriptorRon(
   prevalence: 1.0,
-  hitbox: Circle ( radius: 20. ),
+  hitbox: Circle ( radius: 60. ),
   rangeness: 1.0,
   scale: Vec2(
-    0.1,
-    0.1,
+    0.2,
+    0.2,
   ),
   anchor: Vec2(
     0.0,
-    -0.3,
+    -0.42,
   ),
   spritesheets: [
     "placeholder/idle",
