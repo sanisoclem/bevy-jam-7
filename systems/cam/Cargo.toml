@@ -6,3 +6,9 @@ edition = "2024"
 [dependencies]
 bevy.workspace = true
 bevy_enhanced_input.workspace = true
+
+
+[features]
+default = []
+wasm = []
+

@@ -39,7 +39,7 @@ getrandom = { version = "0.4", features = ["wasm_js"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2" }
-
+game = { path = "crates/game", version = "0.1.0", features = [ "wasm"] }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

@@ -180,7 +180,7 @@ fn init_post_process_pipeline(
 #[derive(Component, Default, Clone, Copy, ExtractComponent, ShaderType)]
 struct PostProcessSettings {
   intensity: f32,
-  #[cfg(feature = "webgl2")]
+  #[cfg(feature = "wasm")]
   _webgl2_padding: Vec3,
 }
 
@@ -211,7 +211,11 @@ fn setup_camera(mut cmd: Commands) {
     Bloom::default(),
     DebandDither::Enabled,
     PlayerCamera,
-    PostProcessSettings { intensity: 0.0 },
+    PostProcessSettings {
+      intensity: 0.0,
+      #[cfg(feature = "wasm")]
+      _webgl2_padding: Vec3::default(),
+    },
     actions!(
       PlayerCamera[(
         Action::<ZoomCamera>::new(),

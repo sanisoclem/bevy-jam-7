@@ -26,3 +26,4 @@ sys_candy = { path = "../../systems/candy", version = "0.1.0" }
 [features]
 default = []
 dev = ["jam7/dev", "bevy/dev"]
+wasm = ["sys_cam/wasm", "jam7/wasm"]
