@@ -203,5 +203,5 @@ pub fn on_game_restart(
   mut candy: ResMut<CandySettings>,
   lprog: Res<LongTermProgger>,
 ) {
-  candy.aberrate_on_kill = lprog.has_upgrade(LongTermProgFeature::SeeInSingle);
+  candy.aberrate_on_kill = !lprog.has_upgrade(LongTermProgFeature::SeeInSingle);
 }

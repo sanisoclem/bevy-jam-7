@@ -61,6 +61,7 @@ pub struct EnemySpawner {
   pub despawn_radius: u32,
   pub initial_cooldown: f32,
   pub cooldown_decay_rate: f32,
+  pub disabled: bool,
 }
 
 #[derive(Component, Clone, Debug)]
@@ -275,7 +276,7 @@ fn spawn_enemies(
     for (spawner_entity, spawner, mut spawner_state, spawner_pos, spawner_child_of, kills) in
       qry.iter_mut()
     {
-      if spawner_child_of.0 != procgen_entity {
+      if spawner_child_of.0 != procgen_entity || spawner.disabled {
         continue;
       }
 

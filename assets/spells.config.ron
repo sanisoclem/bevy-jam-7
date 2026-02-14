@@ -66,7 +66,7 @@ SpellBuilderConfig(
                 is_downside: false,
             ),
             FireballSpellUpgrade(ExplosionRadius): (
-                description: "Explosion radius +{}",
+                description: "Explosion size +{}",
                 min_value: 20.0,
                 max_value: 25.0,
                 min_rolls: 3,
@@ -116,11 +116,18 @@ SpellBuilderConfig(
                 min_rolls: 1,
                 is_downside: false,
             ),
-            ChainlightningSpellUpgrade(BounceRange): (
-                description: "Bounce range +{}",
-                min_value: 80.0,
-                max_value: 100.0,
+            ChainlightningSpellUpgrade(FirstHitDamage): (
+                description: "First hit +{}",
+                min_value: 7.0,
+                max_value: 10.0,
                 min_rolls: 3,
+                is_downside: false,
+            ),
+            ChainlightningSpellUpgrade(MaxBounce): (
+                description: "Max bounces +{}",
+                min_value: 1.0,
+                max_value: 2.0,
+                min_rolls: 2,
                 is_downside: false,
             ),
 
@@ -141,8 +148,8 @@ SpellBuilderConfig(
             ),
             FrozenorbSpellUpgrade(BaseDamage): (
                 description: "Damage +{}",
-                min_value: 7.0,
-                max_value: 10.0,
+                min_value: 25.0,
+                max_value: 30.0,
                 min_rolls: 3,
                 is_downside: false,
             ),
@@ -160,25 +167,11 @@ SpellBuilderConfig(
                 min_rolls: 1,
                 is_downside: false,
             ),
-            FrozenorbSpellUpgrade(ShardSpeed): (
-                description: "Shard speed +{}",
-                min_value: 50.0,
-                max_value: 70.0,
-                min_rolls: 3,
-                is_downside: false,
-            ),
             FrozenorbSpellUpgrade(ShardCount): (
                 description: "Shard count +{}",
                 min_value: 0.6,
                 max_value: 1.0,
                 min_rolls: 3,
-                is_downside: false,
-            ),
-            FrozenorbSpellUpgrade(ShardDamageMult): (
-                description: "Shard damage ×{}",
-                min_value: 0.3,
-                max_value: 0.6,
-                min_rolls: 1,
                 is_downside: false,
             ),
         },

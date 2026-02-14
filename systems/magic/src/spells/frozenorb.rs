@@ -32,9 +32,7 @@ pub struct FrozenorbSpellGenerator {
   pub base_damage: f32,
   pub shard_frequency: f32,
   pub shard_lifetime: f32,
-  pub shard_speed: f32,
   pub shard_count: f32,
-  pub shard_damage_mult: f32,
 }
 
 impl FrozenorbSpellGenerator {
@@ -62,8 +60,8 @@ impl FrozenorbSpellGenerator {
         FrozenorbProjectile {
           num_shards: self.shard_count.floor() as usize,
           shard_lifetime: self.shard_lifetime,
-          shard_speed: self.shard_speed,
-          shard_damage: (self.base_damage * self.shard_damage_mult) as u32,
+          shard_speed: self.speed * 1.5,
+          shard_damage: (self.base_damage / self.shard_count) as u32,
           caster: caster.0,
           team,
         },

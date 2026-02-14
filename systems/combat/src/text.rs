@@ -66,7 +66,7 @@ pub fn spawn_damage_text(
 pub fn update_damage_text(
   mut commands: Commands,
   mut query: Query<(Entity, &mut Transform, &mut TextColor, &mut DamageText)>,
-  time: Res<Time>,
+  time: Res<Time<Real>>,
 ) {
   for (entity, mut transform, mut color, mut damage_text) in &mut query {
     damage_text.timer.tick(time.delta());

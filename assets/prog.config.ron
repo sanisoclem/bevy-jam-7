@@ -3,22 +3,22 @@ LongTermProgConfig (
   features: [
     (
       feature: BetterSpellUpgrades,
-      description: "More stats",
+      description: "More stat rolls",
       cost: 10
     ),
     (
       feature: MoreChoices,
-      description: "Analysis Paralysis",
+      description: "More choices",
       cost: 10
     ),
     (
       feature: SeeInSingle,
-      description: "Select this when you start to see double",
+      description: "Less seeing double",
       cost: 10
     ),
     (
       feature: SpellInfo,
-      description: "What even is happening",
+      description: "TODO",
       cost: 10
     ),
     (
@@ -28,7 +28,7 @@ LongTermProgConfig (
     ),
     (
       feature: CheaperRerolls,
-      description: "Rolls for days",
+      description: "More rerolls",
       cost: 10
     ),
   ]

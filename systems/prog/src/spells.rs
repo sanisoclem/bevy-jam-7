@@ -172,11 +172,14 @@ impl SpellBuilder {
         bounce_children: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BounceChildren,
         ))?,
-        bounce_range: get(SpellUpgrade::ChainlightningSpellUpgrade(
-          ChainlightningSpellRoll::BounceRange,
-        ))?,
         bounce_mult: get(SpellUpgrade::ChainlightningSpellUpgrade(
           ChainlightningSpellRoll::BounceMult,
+        ))?,
+        max_bounce: get(SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::MaxBounce,
+        ))?,
+        first_hit_damage: get(SpellUpgrade::ChainlightningSpellUpgrade(
+          ChainlightningSpellRoll::FirstHitDamage,
         ))?,
       }),
       cooldown: Timer::from_seconds(1.8, TimerMode::Once),
@@ -212,14 +215,8 @@ impl SpellBuilder {
         shard_frequency: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardFrequency,
         ))?,
-        shard_speed: get(SpellUpgrade::FrozenorbSpellUpgrade(
-          FrozenorbSpellRoll::ShardSpeed,
-        ))?,
         shard_lifetime: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardLifetime,
-        ))?,
-        shard_damage_mult: get(SpellUpgrade::FrozenorbSpellUpgrade(
-          FrozenorbSpellRoll::ShardDamageMult,
         ))?,
         shard_count: get(SpellUpgrade::FrozenorbSpellUpgrade(
           FrozenorbSpellRoll::ShardCount,
@@ -278,8 +275,9 @@ pub enum ChainlightningSpellRoll {
   Speed,
   BaseDamage,
   BounceChildren,
-  BounceRange,
+  MaxBounce,
   BounceMult,
+  FirstHitDamage,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Default, Deserialize)]
@@ -290,9 +288,7 @@ pub enum FrozenorbSpellRoll {
   BaseDamage,
   ShardFrequency,
   ShardLifetime,
-  ShardSpeed,
   ShardCount,
-  ShardDamageMult,
 }
 
 pub trait SpellRollUpgrade: Sized + Clone + Eq + Hash {
@@ -362,9 +358,13 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
         SpellGenerator::Chainlightning(g),
       ) => g.bounce_children += value,
       (
-        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceRange),
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::MaxBounce),
         SpellGenerator::Chainlightning(g),
-      ) => g.bounce_range += value,
+      ) => g.max_bounce += value,
+      (
+        SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::FirstHitDamage),
+        SpellGenerator::Chainlightning(g),
+      ) => g.first_hit_damage += value,
       (
         SpellUpgrade::ChainlightningSpellUpgrade(ChainlightningSpellRoll::BounceMult),
         SpellGenerator::Chainlightning(g),
@@ -388,10 +388,6 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
         SpellGenerator::Frozenorb(g),
       ) => g.shard_frequency += value,
       (
-        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardSpeed),
-        SpellGenerator::Frozenorb(g),
-      ) => g.shard_speed += value,
-      (
         SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardLifetime),
         SpellGenerator::Frozenorb(g),
       ) => g.shard_lifetime += value,
@@ -399,10 +395,6 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
         SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardCount),
         SpellGenerator::Frozenorb(g),
       ) => g.shard_count += value,
-      (
-        SpellUpgrade::FrozenorbSpellUpgrade(FrozenorbSpellRoll::ShardDamageMult),
-        SpellGenerator::Frozenorb(g),
-      ) => g.shard_lifetime += value,
       _ => {
         warn!("Unprocessed upgrade, possible misconfiguration");
       }

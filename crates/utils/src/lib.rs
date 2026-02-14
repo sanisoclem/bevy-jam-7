@@ -111,8 +111,8 @@ pub mod colors {
     TEAM_COLOR_PALETTE[index]
   }
 
-  const LEVEL_UP_BASE_KILLS: f32 = 1.0;
-  const LEVEL_UP_EXPONENT: f32 = 1.0;
+  const LEVEL_UP_BASE_KILLS: f32 = 3.0;
+  const LEVEL_UP_EXPONENT: f32 = 1.1;
 
   pub fn kills_required_for_level(current_level: u32) -> u32 {
     let kills = LEVEL_UP_BASE_KILLS * (current_level as f32).powf(LEVEL_UP_EXPONENT);
@@ -120,10 +120,10 @@ pub mod colors {
   }
 
   pub fn get_kills_needed_for_next(current_level: u32, total_kills: u32) -> u32 {
-    let kills_for_current: u32 = (1..=current_level).map(kills_required_for_level).sum();
+    let kills_for_current: u32 = (1..current_level).map(kills_required_for_level).sum();
     // fml
     let kills_since_level = total_kills.saturating_sub(kills_for_current);
-    let kills_needed = kills_required_for_level(current_level + 1);
+    let kills_needed = kills_required_for_level(current_level);
     kills_needed.saturating_sub(kills_since_level)
   }
 }

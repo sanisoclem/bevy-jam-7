@@ -16,6 +16,7 @@ pub fn spawn_boss(
   query: Query<(
     &KillCounter,
     &mut Progger,
+    &mut EnemySpawner,
     &SpellBook,
     &SpellBookState,
     &Placeable,
@@ -23,8 +24,8 @@ pub fn spawn_boss(
   qry_enemy: Query<(Entity, &Transform, &Combatant), With<Enemy>>,
   mut cmd: Commands,
 ) {
-  for (kc, mut prog, sb, sbs, pos) in query {
-    if kc.kills / 100 < prog.bosses_spawned + 1 {
+  for (kc, mut prog, mut spawner, sb, sbs, pos) in query {
+    if kc.kills / (100 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
       continue;
     }
 
@@ -33,6 +34,7 @@ pub fn spawn_boss(
     };
 
     prog.bosses_spawned += 1;
+    spawner.disabled = true;
 
     let spells_to_take = (prog.bosses_spawned / 3).max(1) as usize;
     let sbclone = SpellBook {
@@ -72,19 +74,20 @@ pub fn spawn_boss(
 pub fn wait_for_boss_kills(
   mut reader: MessageReader<CombatantKilled>,
   qry: Query<&BossEnemy>,
-  mut qry_prog: Query<&mut Progger>,
+  mut qry_prog: Query<(&mut Progger, &mut EnemySpawner)>,
   mut cmd: Commands,
 ) {
   for msg in reader.read() {
     let Some(_boss) = qry.get(msg.victim).ok() else {
       continue;
     };
-    let Some(mut progger) = qry_prog.get_mut(msg.killer).ok() else {
+    let Some((mut progger, mut spawner)) = qry_prog.get_mut(msg.killer).ok() else {
       // this means if bosses kills themselves, it wont count
       continue;
     };
 
     progger.bosses_killed += 1;
+    spawner.disabled = false;
 
     cmd.trigger(ShowBossKill {
       count: progger.bosses_killed,
@@ -193,7 +196,7 @@ pub fn update_boss_kill_text(
   mut commands: Commands,
   despawn_qry: Query<Entity, With<BossKillUi>>,
   mut query: Query<(&mut BossKillText, &mut TextColor)>,
-  time: Res<Time>,
+  time: Res<Time<Real>>,
 ) {
   for (mut text, mut color) in &mut query {
     text.timer.tick(time.delta());
