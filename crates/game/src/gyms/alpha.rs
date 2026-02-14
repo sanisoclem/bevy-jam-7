@@ -13,7 +13,7 @@ use sys_enemy::{EnemySpawner, EnemySpawnerState};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
-use sys_prog::levelup::LevelUp;
+use sys_prog::{Progger, levelup::LevelUp};
 use utils::diff::TEAM_PLAYER;
 
 pub struct AlphaGymPlugin;
@@ -103,6 +103,11 @@ pub fn create_player(
       Visibility::default(),
       Moveable::default(),
       Placeable::mid(IsoWorldCoords::default()),
+      Progger {
+        hp_gain: 100,
+        level: 0,
+        base_hp: 0,
+      },
     ),
     (SpellBook::default(), SpellBookState::default()),
     (
@@ -120,7 +125,7 @@ pub fn create_player(
       },
     ),
     (Combatant {
-      max_hp: 100000,
+      max_hp: 1,
       hitbox: HitTestableShape::Circle { radius: 21.0 },
       team: TEAM_PLAYER,
       regen: 0,

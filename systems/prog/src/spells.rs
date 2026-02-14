@@ -62,36 +62,37 @@ impl SpellBuilder {
       .filter(|(upgrade, roll)| !roll.is_downside && is_applicable(upgrade, current_spell))
       .collect();
 
-    fastrand::shuffle(&mut upgrade_pool);
-
-    let mut upgrades: Vec<(SpellUpgrade, f32, String)> = upgrade_pool
-      .into_iter()
-      .take(self.rolls_per_upgrade)
-      .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once(), roll.description.clone()))
-      .collect();
-
-    // roll downsides
-    let downside_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
+    let mut downside_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
       .rolls
       .iter()
-      .filter(|(_, roll)| roll.is_downside)
+      .filter(|(x, roll)| roll.is_downside && is_applicable(x, current_spell))
       .collect();
 
-    if !downside_pool.is_empty() {
+    let downsides_to_roll = if !downside_pool.is_empty() {
       let mut chance = self.downside_chance;
       let mut count = 0;
       while count < self.max_downside_rolls && fastrand::f32() < chance {
-        let idx = fastrand::usize(0..downside_pool.len());
-        let (upgrade, roll) = downside_pool[idx];
-        upgrades.push((
-          (*upgrade).clone(),
-          roll.roll_once(),
-          roll.description.clone(),
-        ));
         count += 1;
         chance *= self.downside_chance;
       }
-    }
+      count
+    } else {
+      0
+    };
+
+    fastrand::shuffle(&mut upgrade_pool);
+    fastrand::shuffle(&mut downside_pool);
+
+    let upgrades: Vec<(SpellUpgrade, f32, String)> = upgrade_pool
+      .into_iter()
+      .take(if downsides_to_roll > 0 {
+        self.rolls_per_upgrade + 1
+      } else {
+        self.rolls_per_upgrade
+      })
+      .chain(downside_pool.into_iter().take(downsides_to_roll))
+      .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once(), roll.description.clone()))
+      .collect();
 
     SpellUpgradePerk {
       upgrades,
@@ -126,7 +127,7 @@ impl SpellBuilder {
         ))?,
         lifetime: DEFAULT_SPELL_LIFETIME,
       }),
-      cooldown: Timer::from_seconds(2.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(2.3, TimerMode::Once),
       downside: Vec::new(),
     };
 
@@ -163,7 +164,7 @@ impl SpellBuilder {
           ChainlightningSpellRoll::BounceMult,
         ))?,
       }),
-      cooldown: Timer::from_seconds(2.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(1.8, TimerMode::Once),
       downside: Vec::new(),
     };
 
@@ -209,7 +210,7 @@ impl SpellBuilder {
           FrozenorbSpellRoll::ShardCount,
         ))?,
       }),
-      cooldown: Timer::from_seconds(2.0, TimerMode::Once),
+      cooldown: Timer::from_seconds(1.5, TimerMode::Once),
       downside: Vec::new(),
     };
 

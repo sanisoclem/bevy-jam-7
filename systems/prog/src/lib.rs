@@ -1,10 +1,15 @@
 use asset::{SpellBuilderConfig, SpellBuilderConfigLoader};
 use bevy::prelude::*;
 use serde::Deserialize;
+use sys_combat::KillCounter;
+use utils::colors::get_kills_needed_for_next;
 
 use crate::{
   asset::{LongTermProgConfig, LongTermProgConfigLoader},
-  levelup::ui::{levelup_ui_interaction, on_levelup_ui},
+  levelup::{
+    LevelUp, PendingLevelUp,
+    ui::{levelup_ui_interaction, on_levelup_ui},
+  },
   spells::SpellBuilder,
 };
 
@@ -28,6 +33,7 @@ impl Plugin for SysProgPlugin {
         Update,
         (levelup_ui_interaction, death::death_ui_interaction),
       )
+      .add_systems(FixedUpdate, (levelup,))
       .add_observer(on_levelup_ui)
       .add_observer(death::spawn_death_ui)
       .add_observer(levelup::on_levelup)
@@ -131,5 +137,19 @@ fn sync_lprog_config(
       };
       lprog.lprog_config = Some(config.clone());
     }
+  }
+}
+
+fn levelup(
+  mut cmd: Commands,
+  qry: Query<(Entity, &KillCounter, &Progger), Without<PendingLevelUp>>,
+) {
+  for (e, kc, prog) in qry {
+    if get_kills_needed_for_next(prog.level, kc.kills) > 0 {
+      continue;
+    };
+
+    info!("levelup!");
+    cmd.trigger(LevelUp { target: e });
   }
 }
