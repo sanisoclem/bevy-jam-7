@@ -15,6 +15,7 @@ use bevy::{
 pub struct FrozenOrbShard {
   pub radius: f32,
   pub intensity: f32,
+  pub direction: f32,
   pub team: u8,
 }
 
@@ -23,11 +24,12 @@ fn on_add_orb_shard(mut world: DeferredWorld, HookContext { entity, .. }: HookCo
   let team = fb.team as f32;
   let radius = fb.radius;
   let intensity = fb.intensity;
+  let direction = fb.direction;
   let mut meshes = world.resource_mut::<Assets<Mesh>>();
   let mesh = meshes.add(Circle::new(radius));
   let mut materials = world.resource_mut::<Assets<FrozenOrbShardMaterial>>();
   let material = materials.add(FrozenOrbShardMaterial {
-    data: Vec4::new(fastrand::f32(), intensity, team, 0.0),
+    data: Vec4::new(fastrand::f32(), intensity, team, direction),
   });
 
   world

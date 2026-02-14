@@ -113,7 +113,7 @@ impl FrozenorbSpellGenerator {
             team,
             intensity: self.base_damage,
           },
-          Transform::default().with_translation(Vec3::new(0.0, 8., 10.)),
+          Transform::default().with_translation(Vec3::new(0.0, 16. * 3., 10.)),
           Visibility::default(),
         ));
       });
@@ -165,7 +165,7 @@ pub fn on_frozenorb_detonate(
           CombatAreaEffect {
             owner: fp.caster,
             team: fp.team,
-            shape: HitTestableShape::Circle { radius: 5. },
+            shape: HitTestableShape::Circle { radius: 15. },
             effects: vec![CombatEffectBlueprint::Damage(fp.shard_damage)],
             effect_tick: Some(Timer::from_seconds(0.1, TimerMode::Repeating)),
             hit: false,
@@ -179,11 +179,12 @@ pub fn on_frozenorb_detonate(
           ));
           x2.spawn((
             FrozenOrbShard {
-              radius: 5.0,
+              radius: 15.0,
               team: fp.team,
               intensity: fp.shard_damage as f32,
+              direction: direction.to_angle(),
             },
-            Transform::default().with_translation(Vec3::new(0.0, 4., 10.)),
+            Transform::default().with_translation(Vec3::new(0.0, 16. * 3.0, 10.)),
             Visibility::default(),
           ));
         });

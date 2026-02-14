@@ -360,7 +360,7 @@ fn spawn_enemies(
         .with_children(|x2| {
           x2.spawn((
             Shadow {
-              radius: enemy.combatant.hitbox.bounding_radius() * (1. / enemy.scale.x) * 0.8,
+              radius: enemy.combatant.hitbox.bounding_radius() * (1. / enemy.scale.x) * 0.7,
             },
             Transform::default().with_translation(-Vec3::Z),
             Visibility::default(),

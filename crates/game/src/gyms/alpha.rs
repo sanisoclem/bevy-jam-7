@@ -67,7 +67,7 @@ fn on_level_loaded(
     .spawn(create_player(&asset_server, &mut layouts, spawned_level))
     .with_children(|x| {
       x.spawn((
-        Shadow { radius: 100. },
+        Shadow { radius: 150. },
         Transform::default().with_translation(-Vec3::Z),
         Visibility::default(),
       ));
@@ -99,7 +99,7 @@ pub fn create_player(
       ChildOf(spawn_parent),
       KillCounter { kills: 0 },
       CameraTarget,
-      Transform::default().with_scale(Vec3::splat(0.1)),
+      Transform::default().with_scale(Vec3::splat(0.3)),
       Visibility::default(),
       Moveable::default(),
       Placeable::mid(IsoWorldCoords::default()),
@@ -121,7 +121,7 @@ pub fn create_player(
     ),
     (Combatant {
       max_hp: 100000,
-      hitbox: HitTestableShape::Circle { radius: 7.0 },
+      hitbox: HitTestableShape::Circle { radius: 21.0 },
       team: TEAM_PLAYER,
       regen: 0,
       regen_delay: 0,

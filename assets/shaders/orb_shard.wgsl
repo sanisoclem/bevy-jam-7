@@ -108,7 +108,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time = globals.time + time_offset;
     
     var uv = (in.uv - 0.5) * 2.0;
-    let a2milk = (0.5 * 3.1416);
+    let a2milk = (data.w - 3.1416 / 2.0);
     uv = vec2<f32>(
           uv.x + uv.y / 0.5,
           uv.y / 0.5 - uv.x
@@ -118,9 +118,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         uv.x * cos(a2milk) - uv.y * sin(a2milk),
         uv.x * sin(a2milk) + uv.y * cos(a2milk)
     );
-
-
-
 
     let dist = length(uv);
     let angle = atan2(uv.y, uv.x);

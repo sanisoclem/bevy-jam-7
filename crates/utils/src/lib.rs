@@ -5,7 +5,7 @@ pub mod easing;
 pub mod diff {
   use bevy::prelude::*;
 
-  pub const MAX_PROJECTILE_TRAVEL: f32 = 5000.;
+  pub const MAX_PROJECTILE_TRAVEL: f32 = 15000.;
   pub const MAX_PROJECTILE_LIFETIME: f32 = 2.;
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
@@ -14,7 +14,7 @@ pub mod diff {
     ((kills.max(1.0).log10() - 1.0) * 4.0).max(1.0)
   }
   pub fn get_mobility_from_rangeness(power_budget: f32, rangeness_score: f32) -> f32 {
-    const MIN_MOBILITY: f32 = 20.0;
+    const MIN_MOBILITY: f32 = 60.0;
     const MIN_MOBILITY_AT_BUDGET_RATIO: f32 = 0.8;
 
     let capped_budget = power_budget.min(8.0);
@@ -32,13 +32,13 @@ pub mod diff {
     100 + (toughness_score * 500.).floor() as u32
   }
   pub fn get_effective_range_from_rangeness_score(rangeness_score: f32) -> f32 {
-    100. + rangeness_score * 200.
+    300. + rangeness_score * 600.
   }
   pub fn get_effective_dps_from_offense_score(offense_score: f32) -> f32 {
     10. + offense_score * 50.
   }
   pub fn get_density_ceiling_from_score(density_score: f32) -> f32 {
-    (density_score / 100000.).clamp(0.000001, 0.001)
+    (density_score / 1000000.).clamp(0.0000001, 0.0001)
   }
   pub fn get_enemy_size_from_toughness(toughness_score: f32) -> f32 {
     1.0 + toughness_score * 0.1
@@ -120,6 +120,7 @@ pub mod colors {
 }
 pub mod vecstuff {
   use bevy::prelude::*;
+  use std::f32::consts::{PI, TAU};
 
   pub fn subdivide_circle(north: Vec2, count: usize) -> Vec<Vec2> {
     if count == 0 {
@@ -127,12 +128,16 @@ pub mod vecstuff {
     }
 
     let north_angle = north.y.atan2(north.x);
-    let angle_step = std::f32::consts::TAU / count as f32;
+    let angle_step = TAU / count as f32;
 
     (0..count)
       .map(|i| {
-        // Start from opposite of north (PI radians away)
-        let angle = north_angle + std::f32::consts::PI + i as f32 * angle_step;
+        // special case for 2 shards
+        let angle = if count == 2 {
+          north_angle + (PI / 2.0) + i as f32 * angle_step
+        } else {
+          north_angle + PI + i as f32 * angle_step
+        };
         Vec2::from_angle(angle)
       })
       .collect()

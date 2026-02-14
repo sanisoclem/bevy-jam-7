@@ -24,7 +24,7 @@ fn on_add_orb(mut world: DeferredWorld, HookContext { entity, .. }: HookContext)
   let radius = fb.radius;
   let intensity = fb.intensity;
   let mut meshes = world.resource_mut::<Assets<Mesh>>();
-  let mesh = meshes.add(Circle::new(radius * 2.));
+  let mesh = meshes.add(Circle::new(radius));
   let mut materials = world.resource_mut::<Assets<FrozenOrbMaterial>>();
   let material = materials.add(FrozenOrbMaterial {
     data: Vec4::new(fastrand::f32(), intensity, team, 0.0),

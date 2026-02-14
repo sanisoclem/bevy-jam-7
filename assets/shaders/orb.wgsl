@@ -101,10 +101,23 @@ fn fbm(p: vec2<f32>) -> f32 {
     return value;
 }
 
+fn jaggedify(
+    dist: f32, 
+    desired_distance: f32, 
+    jaggedness: f32,
+    uv: vec2<f32>,
+    time: f32
+) -> f32 {
+    let noise_val = clamp(fbm(uv * jaggedness + vec2(time * 0.5, time * 0.3)), 0.0, 1.0) * 0.5 + 0.5;
+    let distorted_desired = desired_distance - noise_val * jaggedness * noise_val;
+    let fill = step(dist, distorted_desired);
+    return 1.0 - smoothstep(distorted_desired - 0.3, distorted_desired, dist);
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let time_offset = data.x;
-    let intensity = data.y;
+    let intensity = data.y  / 4.;
     let time = globals.time + time_offset;
     
     let uv = (in.uv - 0.5) * 2.0;
@@ -136,7 +149,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     
     color *= shimmer * intensity;
     
-    let alpha = smoothstep(1.0, 0.6, dist) * outer;
+    var alpha = smoothstep(1.0, 0.6, dist) * outer;
+    alpha = min(alpha, jaggedify(dist, 1.0, 0.7, uv, time));
     
     var final_color = vec4(color, alpha);
 

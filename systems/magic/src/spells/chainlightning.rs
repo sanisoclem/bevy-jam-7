@@ -31,6 +31,8 @@ pub struct ChainlightningSpellGenerator {
   pub bounce_mult: f32,
 }
 
+const SPARK_SIZE: f32 = 30.;
+
 impl ChainlightningSpellGenerator {
   pub fn cast(
     &self,
@@ -46,7 +48,7 @@ impl ChainlightningSpellGenerator {
     } else {
       caster_team
     };
-    let speed = 80. + self.speed;
+    let speed = 240. + self.speed;
     let max_lifetime = get_max_projectile_lifetime(speed);
 
     cmd.entity(spawn_parent).with_children(|x| {
@@ -63,7 +65,7 @@ impl ChainlightningSpellGenerator {
           team,
           bounce_mult: self.bounce_mult,
         },
-        Placeable::mid(caster.1.location + (IsoWorldCoords::from(direction * 30.))),
+        Placeable::mid(caster.1.location + (IsoWorldCoords::from(direction * 90.))),
         Moveable::default(),
         Projectile {
           lifetime: Timer::from_seconds(max_lifetime, TimerMode::Once),
@@ -74,7 +76,7 @@ impl ChainlightningSpellGenerator {
           owner: caster.0,
           team,
           shape: HitTestableShape::Obb {
-            half_extents: Vec2::new(10., 2.),
+            half_extents: Vec2::new(SPARK_SIZE, SPARK_SIZE / 5.),
             rotation: direction.to_angle(),
           },
           effects: vec![CombatEffectBlueprint::Damage(self.base_damage as u32)],
@@ -84,13 +86,8 @@ impl ChainlightningSpellGenerator {
       ))
       .with_children(|x2| {
         x2.spawn((
-          Shadow { radius: 5. * 0.8 },
-          Transform::default().with_translation(-Vec3::Z),
-          Visibility::default(),
-        ));
-        x2.spawn((
           LightningShard {
-            size: Vec2::new(10., 10.),
+            size: Vec2::new(SPARK_SIZE, SPARK_SIZE),
             team,
             intensity: 1.0,
             direction: direction.to_angle(),
@@ -131,7 +128,7 @@ pub fn on_detonate_chainlightning(
     .iter()
     .filter(|(c, pos)| {
       let dist_squared = evt.location.distance_squared(pos.location);
-      c.team != proj.team && dist_squared > 10000. && dist_squared <= max_range
+      c.team != proj.team && dist_squared > 90000. && dist_squared <= max_range
     })
     .take(proj.bounce_children)
     .for_each(|(_, pos)| {
@@ -161,7 +158,7 @@ pub fn on_detonate_chainlightning(
             owner: proj.caster,
             team: proj.team,
             shape: HitTestableShape::Obb {
-              half_extents: Vec2::new(10., 2.),
+              half_extents: Vec2::new(SPARK_SIZE, SPARK_SIZE / 5.),
               rotation: direction.to_angle(),
             },
             effects: vec![CombatEffectBlueprint::Damage(
@@ -173,13 +170,8 @@ pub fn on_detonate_chainlightning(
         ))
         .with_children(|x2| {
           x2.spawn((
-            Shadow { radius: 2. * 0.8 },
-            Transform::default().with_translation(-Vec3::Z),
-            Visibility::default(),
-          ));
-          x2.spawn((
             LightningShard {
-              size: Vec2::new(10., 10.),
+              size: Vec2::new(SPARK_SIZE, SPARK_SIZE),
               team: proj.team,
               intensity: proj.bounces as f32,
               direction: direction.to_angle(),

@@ -103,7 +103,7 @@ impl FireballSpellGenerator {
             intensity: self.base_damage as f32,
             team,
           },
-          Transform::default().with_translation(Vec3::new(0.0, 16., 0.)),
+          Transform::default().with_translation(Vec3::new(0.0, 16. * 3., 0.)),
           Visibility::default(),
         ));
       });

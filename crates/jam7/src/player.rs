@@ -161,7 +161,7 @@ fn apply_movement(
     mv.net_forces = Vec2::splat(0.);
   } else {
     let world_direction: Vec2 = *IsoWorldCoords::from_screen(movement.value, stage.aspect_ratio);
-    mv.net_forces = world_direction.normalize() * 200.;
+    mv.net_forces = world_direction.normalize() * 600.;
   }
 }
 
