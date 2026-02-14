@@ -1,8 +1,9 @@
 use crate::{
-  LongTermProgger,
+  LongTermProgger, Progger,
   spells::{SpellBuilder, SpellUpgrade, upgrade_spell},
 };
 use bevy::prelude::*;
+use sys_combat::{Combatant, CombatantGuages};
 use sys_magic::{EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator};
 
 pub mod ui;
@@ -136,10 +137,17 @@ pub fn on_levelup(
 pub fn on_apply_levelup(
   evt: On<ApplyLevelUp>,
   mut cmd: Commands,
-  mut qry: Query<(&mut SpellBook, &mut SpellBookState, &PendingLevelUp)>,
+  mut qry: Query<(
+    &mut SpellBook,
+    &mut Progger,
+    &mut Combatant,
+    &mut CombatantGuages,
+    &mut SpellBookState,
+    &PendingLevelUp,
+  )>,
   mut time: ResMut<Time<Virtual>>,
 ) {
-  let Some((mut sb, mut ss, pending)) = qry.get_mut(evt.target).ok() else {
+  let Some((mut sb, mut prog, mut c, mut g, mut ss, pending)) = qry.get_mut(evt.target).ok() else {
     return;
   };
 
@@ -147,6 +155,7 @@ pub fn on_apply_levelup(
     return;
   };
 
+  // upgrade spellbook
   match selection {
     LevelUpPerk::NewSpell(s, _) => {
       sb.spells.push(s.clone());
@@ -160,6 +169,14 @@ pub fn on_apply_levelup(
       upgrade_spell(existing, &u.upgrades);
     }
   }
+
+  // upgrade combatant
+  prog.level += 1;
+  c.max_hp += prog.hp_gain;
+  g.current_hp += prog.hp_gain;
+  g.reeling_timer = None;
+  g.stun_timer = None;
+
   cmd.entity(evt.target).remove::<PendingLevelUp>();
 
   time.unpause();

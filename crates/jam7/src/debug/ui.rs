@@ -2,10 +2,13 @@ use bevy::prelude::*;
 use bevy_egui::{EguiContexts, egui};
 use sys_combat::{Combatant, CombatantGuages, KillCounter};
 use sys_magic::SpellBook;
-use sys_prog::{LongTermProgger, levelup::LevelUp};
-use utils::diff::{
-  get_effective_dps_from_offense_score, get_effective_range_from_rangeness_score,
-  get_max_hp_from_toughness_score, get_power_budget_from_kills, normalize_scores,
+use sys_prog::{LongTermProgger, Progger, levelup::LevelUp};
+use utils::{
+  colors::get_kills_needed_for_next,
+  diff::{
+    get_effective_dps_from_offense_score, get_effective_range_from_rangeness_score,
+    get_max_hp_from_toughness_score, get_power_budget_from_kills, normalize_scores,
+  },
 };
 
 use crate::debug::DebugConfig;
@@ -19,11 +22,12 @@ pub fn debug_ui(
     &Combatant,
     &CombatantGuages,
     &KillCounter,
+    &Progger,
     &mut SpellBook,
   )>,
   lprog: Res<LongTermProgger>,
 ) -> Result {
-  let Some((entity, c, cg, kills, mut spellbook)) = qry.iter_mut().next() else {
+  let Some((entity, c, cg, kills, progger, mut spellbook)) = qry.iter_mut().next() else {
     return Ok(());
   };
   egui::Window::new("Debug")
@@ -64,8 +68,13 @@ pub fn debug_ui(
       egui::CollapsingHeader::new("Player")
         .default_open(true)
         .show(ui, |ui| {
+          ui.label(format!("Level {}", progger.level));
           ui.label(format!("HP {}/{}", cg.current_hp, c.max_hp));
           ui.label(format!("Kills {:.3}", kills.kills));
+          ui.label(format!(
+            "To next level {}",
+            get_kills_needed_for_next(progger.level, kills.kills)
+          ));
           ui.add(egui::Checkbox::new(
             &mut spellbook.disabled,
             "Disable spellbook",

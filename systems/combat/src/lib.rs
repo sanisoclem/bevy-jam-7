@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+  ecs::{lifecycle::HookContext, world::DeferredWorld},
+  prelude::*,
+};
 use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;
@@ -19,7 +22,6 @@ impl Plugin for SysCombatPlugin {
       .add_systems(
         FixedUpdate,
         (
-          create_combat_guages,
           test_hitboxes,
           tick_guages,
           despawn_respawn_dead,
@@ -42,6 +44,7 @@ impl Plugin for SysCombatPlugin {
 }
 
 #[derive(Component, Reflect, Debug, Clone)]
+#[component(on_insert=on_insert_combatant)]
 pub struct Combatant {
   pub team: u8,
   pub max_hp: u32,
@@ -135,33 +138,26 @@ pub struct CombatantKilled {
   pub killer: Entity,
   pub victim: Entity,
 }
+fn on_insert_combatant(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+  let combatant = world.get::<Combatant>(entity).unwrap();
+  let max_hp = combatant.max_hp;
 
-fn create_combat_guages(
-  mut cmd: Commands,
-  qry: Query<(Entity, &Combatant), Without<CombatantGuages>>,
-) {
-  for (entity, c) in qry {
-    let Ok(mut ecmd) = cmd.get_entity(entity) else {
-      continue;
-    };
-
-    ecmd.insert((
-      CombatantGuages {
-        current_hp: c.max_hp,
-        reeling_timer: None,
-        invulnerability_timer: None,
-        stun_timer: None,
-        death_timer: None,
-      },
-      CombatantState {
-        reeling: false,
-        stunned: false,
-        invulnerable: false,
-        dead: false,
-      },
-      CombatantRadar::default(),
-    ));
-  }
+  world.commands().entity(entity).insert((
+    CombatantGuages {
+      current_hp: max_hp,
+      reeling_timer: None,
+      invulnerability_timer: None,
+      stun_timer: None,
+      death_timer: None,
+    },
+    CombatantState {
+      reeling: false,
+      stunned: false,
+      invulnerable: false,
+      dead: false,
+    },
+    CombatantRadar::default(),
+  ));
 }
 
 fn tick_guages(qry: Query<&mut CombatantGuages>, time: Res<Time>) {

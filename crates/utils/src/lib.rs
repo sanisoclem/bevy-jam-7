@@ -6,7 +6,7 @@ pub mod diff {
   use bevy::prelude::*;
 
   pub const MAX_PROJECTILE_TRAVEL: f32 = 15000.;
-  pub const MAX_PROJECTILE_LIFETIME: f32 = 2.;
+  pub const MAX_PROJECTILE_LIFETIME: f32 = 5.;
   pub const TEAM_PLAYER: u8 = 1;
   pub const TEAM_ENEMY: u8 = 0;
   pub const TEAM_OTHER: u8 = 7;
@@ -116,6 +116,22 @@ pub mod colors {
   pub fn color_from_team(team: u8) -> Color {
     let index = (team as usize) % TEAM_COLOR_PALETTE.len();
     TEAM_COLOR_PALETTE[index]
+  }
+
+  const LEVEL_UP_BASE_KILLS: f32 = 1.0;
+  const LEVEL_UP_EXPONENT: f32 = 1.0;
+
+  pub fn kills_required_for_level(current_level: u32) -> u32 {
+    let kills = LEVEL_UP_BASE_KILLS * (current_level as f32).powf(LEVEL_UP_EXPONENT);
+    kills.ceil() as u32
+  }
+
+  pub fn get_kills_needed_for_next(current_level: u32, total_kills: u32) -> u32 {
+    let kills_for_current: u32 = (1..=current_level).map(kills_required_for_level).sum();
+    // fml
+    let kills_since_level = total_kills.saturating_sub(kills_for_current);
+    let kills_needed = kills_required_for_level(current_level + 1);
+    kills_needed.saturating_sub(kills_since_level)
   }
 }
 pub mod vecstuff {
