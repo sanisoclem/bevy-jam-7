@@ -1,6 +1,6 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use serde::Deserialize;
-use std::{hash::Hash, mem::discriminant};
+use std::hash::Hash;
 use sys_magic::{
   EquippedSpell, SpellDownside, SpellGenerator,
   spells::{

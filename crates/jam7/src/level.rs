@@ -6,9 +6,9 @@ use asset::LevelAsset;
 use bevy::{prelude::*, sprite_render::Material2dPlugin};
 use render::{ChunkMaterial, IsoTilemapChunkMeshCache, render_tile_data};
 use sys_chonker::SysChonkerPlugin;
-use sys_combat::{CombatantKilled, KillCounter};
+use sys_combat::CombatantKilled;
 use sys_prog::{
-  LongTermProgger, Progger,
+  Progger,
   death::{RequestGameRestart, ShowDeathUi},
 };
 

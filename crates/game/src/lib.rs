@@ -1,4 +1,4 @@
-use crate::gyms::{AlphaGymPlugin, beta::BetaGymPlugin};
+use crate::gyms::AlphaGymPlugin;
 use bevy::prelude::*;
 use jam7::prelude::*;
 

@@ -2,7 +2,7 @@ use bevy::{color::palettes::tailwind::PURPLE_500, platform::collections::HashMap
 use bevy_enhanced_input::prelude::*;
 use std::marker::PhantomData;
 use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
-use sys_combat::{CombatantState, KillCounter};
+use sys_combat::CombatantState;
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable};
 
 pub struct PlayerPlugin;
