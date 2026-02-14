@@ -8,6 +8,10 @@ use utils::colors::get_kills_needed_for_next;
 
 use crate::{
   asset::{LongTermProgConfig, LongTermProgConfigLoader},
+  boss::{
+    spawn_boss, spawn_boss_kill_text, update_animation_state, update_boss_kill_text,
+    update_boss_objectives, wait_for_boss_kills,
+  },
   levelup::{
     LevelUp, PendingLevelUp,
     ui::{levelup_ui_interaction, on_levelup_ui, reroll_interactions},
@@ -16,6 +20,7 @@ use crate::{
 };
 
 mod asset;
+pub mod boss;
 pub mod death;
 pub mod levelup;
 pub mod spells;
@@ -37,6 +42,11 @@ impl Plugin for SysProgPlugin {
           levelup_ui_interaction,
           death::death_ui_interaction,
           reroll_interactions,
+          spawn_boss,
+          update_animation_state,
+          update_boss_objectives,
+          update_boss_kill_text,
+          wait_for_boss_kills,
         ),
       )
       .add_systems(FixedUpdate, (levelup,))
@@ -44,7 +54,8 @@ impl Plugin for SysProgPlugin {
       .add_observer(death::spawn_death_ui)
       .add_observer(levelup::on_levelup)
       .add_observer(levelup::on_apply_levelup)
-      .add_observer(levelup::on_game_restart);
+      .add_observer(levelup::on_game_restart)
+      .add_observer(spawn_boss_kill_text);
   }
 }
 
@@ -52,6 +63,8 @@ impl Plugin for SysProgPlugin {
 pub struct Progger {
   pub level: u32,
   pub hp_gain: u32,
+  pub bosses_spawned: u32,
+  pub bosses_killed: u32,
 }
 
 pub enum ProggerTrophy {

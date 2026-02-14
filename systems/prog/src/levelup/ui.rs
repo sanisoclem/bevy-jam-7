@@ -124,7 +124,7 @@ pub fn on_levelup_ui(
           ))
           .with_children(|button| {
             button.spawn((
-              Text::new(format!("Reroll {}", lprog.reroll_cost())),
+              Text::new(format!("Reroll ({})", lprog.reroll_cost())),
               TextFont {
                 font: font.clone(),
                 font_size: 24.0,

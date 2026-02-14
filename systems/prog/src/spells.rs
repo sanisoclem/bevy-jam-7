@@ -1,6 +1,6 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use serde::Deserialize;
-use std::hash::Hash;
+use std::{hash::Hash, mem::discriminant};
 use sys_magic::{
   EquippedSpell, SpellDownside, SpellGenerator,
   spells::{
@@ -96,6 +96,18 @@ impl SpellBuilder {
       .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once(), roll.description.clone()))
       .collect();
 
+    let remove_downsides = upgrades
+      .iter()
+      .find(|x| matches!(x.0, SpellUpgrade::RemoveDownsides))
+      .cloned();
+
+    if let Some(x) = remove_downsides {
+      return SpellUpgradePerk {
+        upgrades: vec![x],
+        slot: spell_index,
+      };
+    }
+
     SpellUpgradePerk {
       upgrades,
       slot: spell_index,
@@ -121,9 +133,10 @@ impl SpellBuilder {
         explosion_radius: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionRadius,
         ))?,
-        explosion_damage_multiplier: get(SpellUpgrade::FireballSpellUpgrade(
-          FireballSpellRoll::ExplosionDamageMult,
-        ))?,
+        explosion_damage_multiplier: 1.
+          * get(SpellUpgrade::FireballSpellUpgrade(
+            FireballSpellRoll::ExplosionDamageMult,
+          ))?,
         explosion_lifetime: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionDuration,
         ))?,
@@ -329,7 +342,7 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
       (
         SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionDamageMult),
         SpellGenerator::Fireball(g),
-      ) => g.explosion_damage_multiplier += value,
+      ) => g.explosion_damage_multiplier *= value,
       (
         SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionDuration),
         SpellGenerator::Fireball(g),

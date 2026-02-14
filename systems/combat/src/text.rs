@@ -1,6 +1,10 @@
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, text::FontFeatures};
+use bevy::{
+  color::palettes::{css::BLACK, tailwind::AMBER_500},
+  prelude::*,
+  text::FontFeatures,
+};
 use sys_move::{IsoMovementStage, Placeable};
 use utils::colors::color_from_team;
 
@@ -48,6 +52,11 @@ pub fn spawn_damage_text(
       TextColor(color_from_team(msg.team)),
       TextLayout::new_with_justify(Justify::Center),
       TextShadow::default(),
+      Outline {
+        width: Val::Px(4.0),
+        offset: Val::Px(4.0),
+        color: AMBER_500.into(),
+      },
       Transform::from_translation((screen_pos + offset).extend(100.0)),
       DamageText {
         timer: Timer::from_seconds(1.0, TimerMode::Once),
@@ -71,7 +80,7 @@ pub fn update_damage_text(
 
     let remaining = damage_text.timer.remaining_secs();
 
-    const FADE_TIME: f32 = 1.0;
+    const FADE_TIME: f32 = 0.2;
     if remaining <= FADE_TIME {
       let alpha = remaining / FADE_TIME;
       color.0 = color.0.with_alpha(alpha);

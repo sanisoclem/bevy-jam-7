@@ -5210,6 +5210,7 @@ dependencies = [
  "serde",
  "sys_candy",
  "sys_combat",
+ "sys_enemy",
  "sys_magic",
  "sys_move",
  "utils",

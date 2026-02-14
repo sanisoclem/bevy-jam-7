@@ -109,7 +109,6 @@ fn wait_for_player_death(
   qry_player: Query<&Progger, With<Player>>,
   mut time: ResMut<Time<Virtual>>,
   mut cmd: Commands,
-  lprog: Res<LongTermProgger>,
   mut level_cmd: MessageWriter<LevelCommand>,
 ) {
   for msg in kill_reader.read() {

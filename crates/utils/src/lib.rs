@@ -29,7 +29,7 @@ pub mod diff {
     }
   }
   pub fn get_max_hp_from_toughness_score(toughness_score: f32) -> u32 {
-    100 + (toughness_score * 500.).floor() as u32
+    20 + (toughness_score * 300.).floor() as u32
   }
   pub fn get_effective_range_from_rangeness_score(rangeness_score: f32) -> f32 {
     300. + rangeness_score * 600.

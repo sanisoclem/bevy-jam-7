@@ -1,5 +1,6 @@
 use crate::{
   LongTermProgFeature, LongTermProgger, Progger,
+  boss::ShowBossKill,
   death::RequestGameRestart,
   spells::{SpellBuilder, SpellUpgrade, upgrade_spell},
 };

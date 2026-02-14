@@ -106,6 +106,8 @@ pub fn create_player(
       Progger {
         hp_gain: 100,
         level: 0,
+        bosses_spawned: 0,
+        bosses_killed: 0,
       },
     ),
     (SpellBook::default(), SpellBookState::default()),
