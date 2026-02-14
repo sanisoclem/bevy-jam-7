@@ -93,13 +93,6 @@ pub mod diff {
   pub fn get_max_projectile_lifetime(speed: f32) -> f32 {
     MAX_PROJECTILE_LIFETIME.min(MAX_PROJECTILE_TRAVEL / speed)
   }
-  const LUCIDITY_GAIN_EXPONENT: f32 = 1.0;
-
-  pub fn get_lucidity_gain(current_lucidity: u32, kills: u32) -> u32 {
-    // more lucidity, more kills needed for the next point
-    let kills_per_lucidity = (current_lucidity as f32 + 1.0).powf(1.0 / LUCIDITY_GAIN_EXPONENT);
-    100 + (kills as f32 / kills_per_lucidity).floor() as u32
-  }
 }
 pub mod colors {
   use bevy::color::Color;

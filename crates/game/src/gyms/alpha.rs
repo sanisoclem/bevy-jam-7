@@ -106,16 +106,15 @@ pub fn create_player(
       Progger {
         hp_gain: 100,
         level: 0,
-        base_hp: 0,
       },
     ),
     (SpellBook::default(), SpellBookState::default()),
     (
       EnemySpawner {
         spawn_parent,
-        despawn_radius: 1000,
-        no_spawn_radius: 400,
-        spawn_radius: 700,
+        despawn_radius: 5000,
+        no_spawn_radius: 1200,
+        spawn_radius: 2500,
         initial_cooldown: 1.,
         cooldown_decay_rate: 1.5,
       },

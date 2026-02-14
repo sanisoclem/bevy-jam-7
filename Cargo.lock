@@ -5126,6 +5126,8 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "fastrand",
+ "sys_cam",
+ "sys_combat",
  "sys_move",
 ]
 
@@ -5206,6 +5208,7 @@ dependencies = [
  "libnoise",
  "ron",
  "serde",
+ "sys_candy",
  "sys_combat",
  "sys_magic",
  "sys_move",

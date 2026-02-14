@@ -1,8 +1,10 @@
 use crate::{
-  LongTermProgger, Progger,
+  LongTermProgFeature, LongTermProgger, Progger,
+  death::RequestGameRestart,
   spells::{SpellBuilder, SpellUpgrade, upgrade_spell},
 };
 use bevy::prelude::*;
+use sys_candy::CandySettings;
 use sys_combat::{Combatant, CombatantGuages};
 use sys_magic::{EquippedSpell, EquippedSpellState, SpellBook, SpellBookState, SpellGenerator};
 
@@ -44,8 +46,13 @@ pub struct PendingLevelUp {
 fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<LevelUpPerk> {
   let max_new_spells = lprog.max_spells - sb.spells.len();
   let mut choices = Vec::new();
+  let num = if lprog.has_upgrade(LongTermProgFeature::MoreChoices) {
+    lprog.num_perk_choices * 2
+  } else {
+    lprog.num_perk_choices
+  };
 
-  for _ in 0..lprog.num_perk_choices {
+  for _ in 0..num {
     let pick_new = sb.spells.is_empty() || (max_new_spells > 0 && fastrand::f32() < 0.5);
 
     if pick_new && let Some(perk) = generate_new_spell_perk(sb, lprog) {
@@ -109,9 +116,11 @@ fn generate_upgrade_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Leve
 
   let idx = fastrand::usize(0..sb.spells.len());
   let equipped = &sb.spells[idx];
-  Some(LevelUpPerk::SpellUpgradePerk(
-    builder.create_upgrade(idx, equipped),
-  ))
+  Some(LevelUpPerk::SpellUpgradePerk(builder.create_upgrade(
+    idx,
+    equipped,
+    lprog.has_upgrade(LongTermProgFeature::BetterSpellUpgrades),
+  )))
 }
 
 pub fn on_levelup(
@@ -127,7 +136,7 @@ pub fn on_levelup(
 
   cmd
     .entity(evt.target)
-    .insert_if_new(PendingLevelUp {
+    .insert(PendingLevelUp {
       choices: generate_levelup_choices(sb, &lprog),
     })
     .trigger(ShowPendingLevelUpUi);
@@ -146,6 +155,7 @@ pub fn on_apply_levelup(
     &PendingLevelUp,
   )>,
   mut time: ResMut<Time<Virtual>>,
+  lprog: Res<LongTermProgger>,
 ) {
   let Some((mut sb, mut prog, mut c, mut g, mut ss, pending)) = qry.get_mut(evt.target).ok() else {
     return;
@@ -170,14 +180,28 @@ pub fn on_apply_levelup(
     }
   }
 
+  let more_hp = if lprog.has_upgrade(LongTermProgFeature::MoarHp) {
+    prog.hp_gain * 2
+  } else {
+    prog.hp_gain
+  };
+
   // upgrade combatant
   prog.level += 1;
-  c.max_hp += prog.hp_gain;
-  g.current_hp += prog.hp_gain;
+  c.max_hp += more_hp;
+  g.current_hp += more_hp;
   g.reeling_timer = None;
   g.stun_timer = None;
 
   cmd.entity(evt.target).remove::<PendingLevelUp>();
 
   time.unpause();
+}
+
+pub fn on_game_restart(
+  _evt: On<RequestGameRestart>,
+  mut candy: ResMut<CandySettings>,
+  lprog: Res<LongTermProgger>,
+) {
+  candy.aberrate_on_kill = lprog.has_upgrade(LongTermProgFeature::SeeInSingle);
 }

@@ -1,4 +1,8 @@
-use bevy::{prelude::*, time::Stopwatch};
+use bevy::{
+  ecs::{lifecycle::HookContext, world::DeferredWorld},
+  prelude::*,
+  time::Stopwatch,
+};
 
 mod iso;
 
@@ -13,10 +17,7 @@ impl Plugin for SysMovePlugin {
     app
       .add_observer(apply_impulse)
       .add_systems(FixedUpdate, update_moveable_state)
-      .add_systems(
-        Update,
-        (tick_impulses, add_moveable_state, update_transform),
-      );
+      .add_systems(Update, (tick_impulses, update_transform));
   }
 }
 
@@ -41,6 +42,7 @@ impl Placeable {
 }
 
 #[derive(Component, Debug, Clone, Reflect)]
+#[component(on_insert = on_insert_moveable)]
 pub struct Moveable {
   pub damping: f32,
   // pub mass: f32,
@@ -161,24 +163,18 @@ pub fn advance_stage_time(qry: Query<&mut IsoMovementStage>, time: Res<Time>) {
   }
 }
 
-pub fn add_moveable_state(
-  mut cmd: Commands,
-  qry: Query<Entity, (With<Moveable>, Without<MoveableVelocity>)>,
-) {
-  for entity in qry {
-    let mut ecmd = cmd.get_entity(entity).expect("entity should exist");
-    ecmd.insert((
-      MoveableVelocity {
-        world_velocity: Vec2::splat(0.),
-        screen_velocity: Vec2::splat(0.),
-      },
-      MoveState {
-        is_moving: false,
-        is_moving_voluntary: false,
-        direction: MoveDirection::North,
-      },
-    ));
-  }
+fn on_insert_moveable(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+  world.commands().entity(entity).insert((
+    MoveableVelocity {
+      world_velocity: Vec2::splat(0.),
+      screen_velocity: Vec2::splat(0.),
+    },
+    MoveState {
+      is_moving: false,
+      is_moving_voluntary: false,
+      direction: MoveDirection::North,
+    },
+  ));
 }
 pub fn update_moveable_state(
   mut qry: Query<(

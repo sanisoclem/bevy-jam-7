@@ -55,6 +55,7 @@ impl SpellBuilder {
     &self,
     spell_index: usize,
     current_spell: &EquippedSpell,
+    more_rolls: bool,
   ) -> SpellUpgradePerk {
     let mut upgrade_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
       .rolls
@@ -85,10 +86,11 @@ impl SpellBuilder {
 
     let upgrades: Vec<(SpellUpgrade, f32, String)> = upgrade_pool
       .into_iter()
-      .take(if downsides_to_roll > 0 {
-        self.rolls_per_upgrade + 1
-      } else {
-        self.rolls_per_upgrade
+      .take(match (more_rolls, downsides_to_roll > 0) {
+        (true, true) => self.rolls_per_upgrade + 3,
+        (true, false) => self.rolls_per_upgrade + 2,
+        (false, true) => self.rolls_per_upgrade + 2,
+        _ => self.rolls_per_upgrade,
       })
       .chain(downside_pool.into_iter().take(downsides_to_roll))
       .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once(), roll.description.clone()))

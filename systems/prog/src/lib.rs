@@ -1,3 +1,5 @@
+use std::mem::discriminant;
+
 use asset::{SpellBuilderConfig, SpellBuilderConfigLoader};
 use bevy::prelude::*;
 use serde::Deserialize;
@@ -8,7 +10,7 @@ use crate::{
   asset::{LongTermProgConfig, LongTermProgConfigLoader},
   levelup::{
     LevelUp, PendingLevelUp,
-    ui::{levelup_ui_interaction, on_levelup_ui},
+    ui::{levelup_ui_interaction, on_levelup_ui, reroll_interactions},
   },
   spells::SpellBuilder,
 };
@@ -31,20 +33,24 @@ impl Plugin for SysProgPlugin {
       .add_systems(Update, (sync_spell_builders, sync_lprog_config))
       .add_systems(
         Update,
-        (levelup_ui_interaction, death::death_ui_interaction),
+        (
+          levelup_ui_interaction,
+          death::death_ui_interaction,
+          reroll_interactions,
+        ),
       )
       .add_systems(FixedUpdate, (levelup,))
       .add_observer(on_levelup_ui)
       .add_observer(death::spawn_death_ui)
       .add_observer(levelup::on_levelup)
-      .add_observer(levelup::on_apply_levelup);
+      .add_observer(levelup::on_apply_levelup)
+      .add_observer(levelup::on_game_restart);
   }
 }
 
 #[derive(Component)]
 pub struct Progger {
   pub level: u32,
-  pub base_hp: u32,
   pub hp_gain: u32,
 }
 
@@ -56,8 +62,12 @@ pub enum ProggerTrophy {
 
 #[derive(Deserialize, Debug, Clone)]
 pub enum LongTermProgFeature {
-  ExtraSpellSlot,
-  DecipherSpellName,
+  BetterSpellUpgrades,
+  MoreChoices,
+  SeeInSingle,
+  SpellInfo,
+  MoarHp,
+  CheaperRerolls,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -72,6 +82,7 @@ pub struct LongTermProgger {
   pub max_spells: usize,
   pub num_perk_choices: usize,
   pub lucidty: u32,
+  pub reroll_cost: u32,
   pub runs: u32,
   pub trophies: Vec<ProggerTrophy>,
   pub active_lprog_features: Vec<LongTermProgDescriptor>,
@@ -80,6 +91,21 @@ pub struct LongTermProgger {
   pub lprog_config: Option<LongTermProgConfig>,
   pub spell_builder_config: Handle<SpellBuilderConfig>,
   pub spell_builder: Option<SpellBuilder>,
+}
+impl LongTermProgger {
+  pub fn has_upgrade(&self, upgrade: LongTermProgFeature) -> bool {
+    self
+      .active_lprog_features
+      .iter()
+      .any(|x| discriminant(&x.feature) == discriminant(&upgrade))
+  }
+  pub fn reroll_cost(&self) -> u32 {
+    if self.has_upgrade(crate::LongTermProgFeature::CheaperRerolls) {
+      self.reroll_cost / 2
+    } else {
+      self.reroll_cost
+    }
+  }
 }
 impl FromWorld for LongTermProgger {
   fn from_world(world: &mut World) -> Self {
@@ -101,6 +127,7 @@ impl FromWorld for LongTermProgger {
       lprog_config_handle: lprog_config,
       active_lprog_features: vec![],
       used_lucidty: 0,
+      reroll_cost: 0,
     }
   }
 }
@@ -136,6 +163,7 @@ fn sync_lprog_config(
         continue;
       };
       lprog.lprog_config = Some(config.clone());
+      lprog.reroll_cost = config.reroll_cost;
     }
   }
 }

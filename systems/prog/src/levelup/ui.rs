@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use sys_magic::SpellGenerator;
 
-use crate::levelup::{ApplyLevelUp, LevelUpPerk, PendingLevelUp, ShowPendingLevelUpUi};
+use crate::{
+  LongTermProgger,
+  levelup::{ApplyLevelUp, LevelUp, LevelUpPerk, PendingLevelUp, ShowPendingLevelUpUi},
+};
 
 #[derive(Component)]
 pub struct LevelUpUI;
@@ -10,21 +13,26 @@ pub struct LevelUpUI;
 pub struct PerkCard(Entity, pub usize);
 
 #[derive(Component)]
-pub struct LevelUpUiShown;
+pub struct RerollButton(Entity);
 
 pub fn on_levelup_ui(
   evt: On<ShowPendingLevelUpUi>,
   mut cmd: Commands,
-  qry: Query<(Entity, &PendingLevelUp), Without<LevelUpUiShown>>,
+  qry: Query<(Entity, &PendingLevelUp)>,
+  ui_root: Query<Entity, With<LevelUpUI>>,
   asset_server: Res<AssetServer>,
+  lprog: Res<LongTermProgger>,
 ) {
   let Some((entity, pending)) = qry.get(evt.0).ok() else {
     return;
   };
 
+  for entity in &ui_root {
+    cmd.entity(entity).despawn();
+  }
+
   let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
 
-  cmd.entity(entity).insert(LevelUpUiShown);
   cmd
     .spawn((
       LevelUpUI,
@@ -99,6 +107,32 @@ pub fn on_levelup_ui(
               });
           }
         });
+
+      if lprog.used_lucidty + lprog.reroll_cost() <= lprog.lucidty {
+        root
+          .spawn((
+            Button,
+            RerollButton(evt.0),
+            Node {
+              padding: UiRect::axes(Val::Px(32.0), Val::Px(16.0)),
+              border: UiRect::all(Val::Px(2.0)),
+              border_radius: BorderRadius::all(Val::Px(8.0)),
+              ..default()
+            },
+            BackgroundColor(Color::srgb(0.2, 0.5, 0.8)),
+            BorderColor::all(Color::srgb(0.4, 0.7, 1.0)),
+          ))
+          .with_children(|button| {
+            button.spawn((
+              Text::new(format!("Reroll {}", lprog.reroll_cost())),
+              TextFont {
+                font: font.clone(),
+                font_size: 24.0,
+                ..default()
+              },
+            ));
+          });
+      }
     });
 }
 
@@ -160,10 +194,45 @@ pub fn levelup_ui_interaction(
           target: pending_entity,
           slot: card.1,
         });
-        cmd.entity(pending_entity).remove::<LevelUpUiShown>();
         for entity in &ui_root {
           cmd.entity(entity).despawn();
         }
+      }
+    }
+  }
+}
+
+pub fn reroll_interactions(
+  mut cmd: Commands,
+  button_query: Query<
+    (
+      &Interaction,
+      &mut BackgroundColor,
+      &mut BorderColor,
+      &RerollButton,
+    ),
+    (Changed<Interaction>, With<Button>),
+  >,
+  mut lprog: ResMut<LongTermProgger>,
+) {
+  for (interaction, mut bg, mut border, rr) in button_query {
+    match interaction {
+      Interaction::Hovered => {
+        *bg = BackgroundColor(Color::srgb(0.16, 0.16, 0.22));
+        *border = BorderColor::all(Color::srgb(0.5, 0.5, 0.6));
+      }
+      Interaction::None => {
+        *bg = BackgroundColor(Color::srgb(0.12, 0.12, 0.16));
+        *border = BorderColor::all(Color::srgb(0.3, 0.3, 0.4));
+      }
+      Interaction::Pressed => {
+        let cost = lprog.reroll_cost();
+
+        if lprog.used_lucidty + cost > lprog.lucidty {
+          continue;
+        }
+        lprog.used_lucidty += cost;
+        cmd.trigger(LevelUp { target: rr.0 });
       }
     }
   }
