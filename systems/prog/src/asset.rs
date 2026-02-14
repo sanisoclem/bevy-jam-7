@@ -35,6 +35,7 @@ impl AssetLoader for SpellBuilderConfigLoader {
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
 pub struct LongTermProgConfig {
   pub features: Vec<LongTermProgDescriptor>,
+  pub reroll_cost: u32,
 }
 #[derive(Default, TypePath)]
 pub struct LongTermProgConfigLoader;

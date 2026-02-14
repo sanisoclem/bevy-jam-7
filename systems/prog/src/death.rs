@@ -245,7 +245,7 @@ pub fn death_ui_interaction(
         *border = BorderColor::all(Color::srgb(0.3, 0.3, 0.4));
       }
       Interaction::Pressed => {
-        if lprog.used_lucidty + checkbox.feature.cost > lprog.lucidty {
+        if !checkbox.is_checked && lprog.used_lucidty + checkbox.feature.cost > lprog.lucidty {
           continue;
         }
 

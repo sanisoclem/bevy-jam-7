@@ -8,10 +8,9 @@ use render::{ChunkMaterial, IsoTilemapChunkMeshCache, render_tile_data};
 use sys_chonker::SysChonkerPlugin;
 use sys_combat::{CombatantKilled, KillCounter};
 use sys_prog::{
-  LongTermProgger,
+  LongTermProgger, Progger,
   death::{RequestGameRestart, ShowDeathUi},
 };
-use utils::diff::get_lucidity_gain;
 
 pub struct LevelPlugin;
 
@@ -107,21 +106,20 @@ pub fn process_level_commands(
 
 fn wait_for_player_death(
   mut kill_reader: MessageReader<CombatantKilled>,
-  qry_player: Query<&KillCounter, With<Player>>,
+  qry_player: Query<&Progger, With<Player>>,
   mut time: ResMut<Time<Virtual>>,
   mut cmd: Commands,
-  lprog: Res<LongTermProgger>,
   mut level_cmd: MessageWriter<LevelCommand>,
 ) {
   for msg in kill_reader.read() {
-    let Some(kc) = qry_player.get(msg.victim).ok() else {
+    let Some(prog) = qry_player.get(msg.victim).ok() else {
       continue;
     };
 
     time.pause();
     level_cmd.write(LevelCommand::UnloadLevel("alpha".to_owned()));
     cmd.trigger(ShowDeathUi {
-      accumulated_lucidty: get_lucidity_gain(lprog.lucidty, kc.kills),
+      accumulated_lucidty: prog.level,
     });
   }
 }

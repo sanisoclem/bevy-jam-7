@@ -13,4 +13,6 @@ fastrand.workspace = true
 sys_move = { path = "../move", version = "0.1.0" }
 sys_combat = { path = "../combat", version = "0.1.0" }
 sys_magic = { path = "../magic", version = "0.1.0" }
+sys_candy = { path = "../candy", version = "0.1.0" }
+sys_enemy = { path = "../enemy", version = "0.1.0" }
 utils = { path = "../../crates/utils", version = "0.1.0" }

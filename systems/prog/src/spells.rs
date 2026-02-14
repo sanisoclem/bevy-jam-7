@@ -1,6 +1,6 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use serde::Deserialize;
-use std::hash::Hash;
+use std::{hash::Hash, mem::discriminant};
 use sys_magic::{
   EquippedSpell, SpellDownside, SpellGenerator,
   spells::{
@@ -55,6 +55,7 @@ impl SpellBuilder {
     &self,
     spell_index: usize,
     current_spell: &EquippedSpell,
+    more_rolls: bool,
   ) -> SpellUpgradePerk {
     let mut upgrade_pool: Vec<(&SpellUpgrade, &SpellRoll)> = self
       .rolls
@@ -85,14 +86,27 @@ impl SpellBuilder {
 
     let upgrades: Vec<(SpellUpgrade, f32, String)> = upgrade_pool
       .into_iter()
-      .take(if downsides_to_roll > 0 {
-        self.rolls_per_upgrade + 1
-      } else {
-        self.rolls_per_upgrade
+      .take(match (more_rolls, downsides_to_roll > 0) {
+        (true, true) => self.rolls_per_upgrade + 3,
+        (true, false) => self.rolls_per_upgrade + 2,
+        (false, true) => self.rolls_per_upgrade + 2,
+        _ => self.rolls_per_upgrade,
       })
       .chain(downside_pool.into_iter().take(downsides_to_roll))
       .map(|(upgrade, roll)| (upgrade.clone(), roll.roll_once(), roll.description.clone()))
       .collect();
+
+    let remove_downsides = upgrades
+      .iter()
+      .find(|x| matches!(x.0, SpellUpgrade::RemoveDownsides))
+      .cloned();
+
+    if let Some(x) = remove_downsides {
+      return SpellUpgradePerk {
+        upgrades: vec![x],
+        slot: spell_index,
+      };
+    }
 
     SpellUpgradePerk {
       upgrades,
@@ -119,9 +133,10 @@ impl SpellBuilder {
         explosion_radius: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionRadius,
         ))?,
-        explosion_damage_multiplier: get(SpellUpgrade::FireballSpellUpgrade(
-          FireballSpellRoll::ExplosionDamageMult,
-        ))?,
+        explosion_damage_multiplier: 1.
+          * get(SpellUpgrade::FireballSpellUpgrade(
+            FireballSpellRoll::ExplosionDamageMult,
+          ))?,
         explosion_lifetime: get(SpellUpgrade::FireballSpellUpgrade(
           FireballSpellRoll::ExplosionDuration,
         ))?,
@@ -327,7 +342,7 @@ pub fn upgrade_spell(spell: &mut EquippedSpell, upgrades: &Vec<(SpellUpgrade, f3
       (
         SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionDamageMult),
         SpellGenerator::Fireball(g),
-      ) => g.explosion_damage_multiplier += value,
+      ) => g.explosion_damage_multiplier *= value,
       (
         SpellUpgrade::FireballSpellUpgrade(FireballSpellRoll::ExplosionDuration),
         SpellGenerator::Fireball(g),

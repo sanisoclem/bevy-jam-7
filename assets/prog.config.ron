@@ -1,14 +1,35 @@
 LongTermProgConfig (
+  reroll_cost: 5,
   features: [
     (
-      feature: ExtraSpellSlot,
-      description: "An extra spell slot",
-      cost: 500
+      feature: BetterSpellUpgrades,
+      description: "More stats",
+      cost: 10
     ),
     (
-      feature: DecipherSpellName,
-      description: "Decipher spell names",
-      cost: 50
+      feature: MoreChoices,
+      description: "Analysis Paralysis",
+      cost: 10
+    ),
+    (
+      feature: SeeInSingle,
+      description: "Select this when you start to see double",
+      cost: 10
+    ),
+    (
+      feature: SpellInfo,
+      description: "What even is happening",
+      cost: 10
+    ),
+    (
+      feature: MoarHp,
+      description: "Less die",
+      cost: 10
+    ),
+    (
+      feature: CheaperRerolls,
+      description: "Rolls for days",
+      cost: 10
     ),
   ]
 )
