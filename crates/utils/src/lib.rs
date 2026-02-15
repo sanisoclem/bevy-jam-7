@@ -37,8 +37,8 @@ pub mod diff {
   pub fn get_effective_dps_from_offense_score(offense_score: f32) -> f32 {
     10. + offense_score * 200.
   }
-  pub fn get_density_ceiling_from_score(density_score: f32) -> f32 {
-    (density_score / 1000000.).clamp(0.0000001, 0.0001)
+  pub fn get_enemy_count_from_density_score(density_score: f32) -> f32 {
+    (density_score * 12.).clamp(4., 80.)
   }
   pub fn get_enemy_size_from_toughness(toughness_score: f32) -> f32 {
     1.0 + toughness_score * 0.1
@@ -112,7 +112,7 @@ pub mod colors {
   }
 
   const LEVEL_UP_BASE_KILLS: f32 = 3.0;
-  const LEVEL_UP_EXPONENT: f32 = 1.5;
+  const LEVEL_UP_EXPONENT: f32 = 1.3;
 
   pub fn kills_required_for_level(current_level: u32) -> u32 {
     let kills = LEVEL_UP_BASE_KILLS * (current_level as f32).powf(LEVEL_UP_EXPONENT);

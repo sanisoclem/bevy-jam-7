@@ -4,7 +4,7 @@ use bevy::{
   prelude::*,
 };
 use rodio::source::from_iter;
-use std::{hash::Hash, marker::PhantomData, time::Duration};
+use std::{hash::Hash, marker::PhantomData};
 use utils::assets::{AssetBarrier, AssetBarrierGuard};
 
 pub struct AudioPlugin<L: AudioLibrary, C: AudioChannelLayout> {
@@ -218,14 +218,6 @@ fn process_assets<L, C>(
     }
   }
   audio_lib.processed = Some(h);
-}
-
-fn assets_loaded<L, C>(audio_lib: Res<AudioLibraryResource<L, C>>) -> bool
-where
-  L: AudioLibrary,
-  C: AudioChannelLayout,
-{
-  audio_lib.barrier.is_ready() && audio_lib.processed.is_some()
 }
 
 pub fn process_audio_commands<L, C>(

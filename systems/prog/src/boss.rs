@@ -41,12 +41,9 @@ pub fn spawn_boss(
       continue;
     }
 
-    let Some((enemy, enemy_pos, c, cs)) = qry_enemy.iter().next() else {
+    let Some((enemy, enemy_pos, c, _cs)) = qry_enemy.iter().next() else {
       continue;
     };
-    if cs.current_hp < 50 {
-      continue;
-    }
 
     prog.bosses_spawned += 1;
     spawner.disabled = true;

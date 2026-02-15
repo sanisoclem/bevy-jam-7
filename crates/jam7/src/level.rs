@@ -1,17 +1,11 @@
 pub mod asset;
 pub mod render;
 
-use crate::player::Player;
 use asset::LevelAsset;
 use bevy::{prelude::*, sprite_render::Material2dPlugin};
 use render::{ChunkMaterial, IsoTilemapChunkMeshCache, render_tile_data};
-use sys_audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary};
 use sys_chonker::SysChonkerPlugin;
-use sys_combat::{CombatantGuages, CombatantKilled, DamageTaken};
-use sys_prog::{
-  Progger,
-  death::{RequestGameRestart, ShowDeathUi},
-};
+use sys_prog::death::{RequestGameRestart, ShowDeathUi};
 
 pub struct LevelPlugin;
 

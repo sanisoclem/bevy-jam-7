@@ -126,7 +126,7 @@ impl EnemyRegistry {
   }
   pub fn get_enemy(
     &self,
-    current_density: f32,
+    current_enemy_count: usize,
     total_kills: u32,
     location: &IsoWorldCoords,
     descriptors: &Assets<EnemyDescriptor>,
@@ -149,15 +149,10 @@ impl EnemyRegistry {
     //   density_score, rangeness_score, toughness_score, offense_score
     // );
 
-    let max_density = diff::get_density_ceiling_from_score(density_score);
-    if current_density > max_density {
+    let max_count = diff::get_enemy_count_from_density_score(density_score);
+    if current_enemy_count + 1 > max_count.floor() as usize {
       return None;
     }
-    debug!(
-      "current enemy density {} vs max {}",
-      current_density * 10000.,
-      max_density * 10000.
-    );
 
     let hp = get_max_hp_from_toughness_score(toughness_score);
     let effective_range = get_effective_range_from_rangeness_score(rangeness_score);
@@ -166,7 +161,7 @@ impl EnemyRegistry {
     let (spellbook, sb_state) =
       self
         .sb_generator
-        .create_spellbook(1, effective_range, effective_dps, power_budget);
+        .create_spellbook(1, effective_range, effective_dps, power_budget / 3.);
 
     let descriptor = self.get_enemy_descriptor(descriptors, location)?;
 
@@ -307,8 +302,6 @@ fn spawn_enemies(
         })
         .count();
 
-      let current_enemy_density = enemy_count as f32 / (spawner.spawn_radius as f32 * 2.).powi(2);
-
       // find spawn location
       let angle = fastrand::f32() * std::f32::consts::TAU;
       let min_dist = spawner.no_spawn_radius as f32;
@@ -319,7 +312,7 @@ fn spawn_enemies(
       let location = spawner_pos.location + IsoWorldCoords::from(offset);
 
       let Some(enemy) = registry.get_enemy(
-        current_enemy_density,
+        enemy_count,
         kills.kills,
         &location,
         &descriptors,
