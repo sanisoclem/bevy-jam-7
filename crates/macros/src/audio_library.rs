@@ -142,23 +142,23 @@ pub fn derive_audio_library(ast: DeriveInput) -> Result<TokenStream> {
 
     match def {
       AudioDefInfo::Once { asset_path } => quote! {
-        retval.insert(#enum_name::#variant_name, sys_audio::AudioDef::Once(asset_server.load_acquire(#asset_path, guard.clone())));
+        retval.insert(#enum_name::#variant_name, crate::AudioDef::Once(asset_server.load_acquire(#asset_path, guard.clone())));
       },
       AudioDefInfo::Loop { asset_path } => quote! {
-        retval.insert(#enum_name::#variant_name, sys_audio::AudioDef::Looped(asset_server.load_acquire(#asset_path, guard.clone())));
+        retval.insert(#enum_name::#variant_name, crate::AudioDef::Looped(asset_server.load_acquire(#asset_path, guard.clone())));
       },
       AudioDefInfo::IntroLoop {
         start_path,
         main_path,
       } => quote! {
-        retval.insert(#enum_name::#variant_name, sys_audio::AudioDef::IntroLooped { intro: asset_server.load_acquire(#start_path, guard.clone()), main: asset_server.load_acquire(#main_path, guard.clone()) });
+        retval.insert(#enum_name::#variant_name, crate::AudioDef::IntroLooped { intro: asset_server.load_acquire(#start_path, guard.clone()), main: asset_server.load_acquire(#main_path, guard.clone()) });
       },
     }
   });
 
   Ok(quote! {
-      impl #impl_generics sys_audio::AudioLibrary for #enum_name #type_generics #where_clause {
-        fn load_all(asset_server: &bevy::asset::AssetServer, guard: utils::assets::AssetBarrierGuard) -> bevy::platform::collections::HashMap<Self, sys_audio::AudioDef> {
+      impl #impl_generics crate::AudioLibrary for #enum_name #type_generics #where_clause {
+        fn load_all(asset_server: &bevy::asset::AssetServer, guard: utils::assets::AssetBarrierGuard) -> bevy::platform::collections::HashMap<Self, crate::AudioDef> {
             let mut retval = bevy::platform::collections::HashMap::new();
 
             #(#nested_from_arms)*

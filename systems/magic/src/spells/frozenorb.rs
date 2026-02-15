@@ -45,6 +45,7 @@ impl FrozenorbSpellGenerator {
     downside: &Option<SpellDownside>,
     direction: Vec2,
     target: Entity,
+    sfx: Handle<AudioSource>,
   ) {
     let team = if let Some(SpellDownside::FriendFire) = downside {
       TEAM_OTHER
@@ -96,6 +97,10 @@ impl FrozenorbSpellGenerator {
           effect_tick: Some(Timer::from_seconds(0.1, TimerMode::Repeating)),
           hit: false,
         },
+        AudioPlayer::new(sfx),
+        PlaybackSettings::default()
+          .with_spatial(true)
+          .with_speed(fastrand::f32() * 0.1 + 0.9),
       ))
       .with_children(|x2| {
         x2.spawn((
@@ -133,9 +138,18 @@ pub fn on_frozenorb_detonate(
   evt: On<DetonatePayload>,
   mut cmd: Commands,
   qry: Query<(&ChildOf, &FrozenorbProjectile, &Moveable)>,
+  asset_server: Res<AssetServer>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((parent, fp, mov)) = qry.get(evt.target).ok() else {
     return;
+  };
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/POWERUP-7C63F39C804399D.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
   };
 
   subdivide_circle(mov.net_forces.normalize_or(Vec2::Y), fp.num_shards)
@@ -168,6 +182,10 @@ pub fn on_frozenorb_detonate(
             effect_tick: Some(Timer::from_seconds(0.1, TimerMode::Repeating)),
             hit: false,
           },
+          AudioPlayer::new(sfx_handle.clone()),
+          PlaybackSettings::default()
+            .with_spatial(true)
+            .with_speed(fastrand::f32() * 0.1 + 0.9),
         ))
         .with_children(|x2| {
           x2.spawn((
@@ -199,6 +217,8 @@ pub fn cast_frozenorb(
     &ChildOf,
     &mut SpellBookState,
   )>,
+  asset_server: Res<AssetServer>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
@@ -211,6 +231,13 @@ pub fn cast_frozenorb(
   };
 
   debug!("Casting frozenorb");
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/EXPLOSION-3069A7E3E2A80A33.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
+  };
 
   ss.cooldown = Some(evt.cooldown.clone());
 
@@ -247,5 +274,6 @@ pub fn cast_frozenorb(
       .cloned(),
     direction,
     nearest_entity,
+    sfx_handle,
   );
 }

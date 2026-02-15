@@ -261,6 +261,9 @@ fn apply_combat_effects(
   mut qry: Query<(&Combatant, &mut CombatantGuages, &CombatantState)>,
   mut msg_writer: MessageWriter<DamageTaken>,
   mut kill_writer: MessageWriter<CombatantKilled>,
+  mut cmd: Commands,
+  asset_server: Res<AssetServer>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
     return;
@@ -268,6 +271,14 @@ fn apply_combat_effects(
   if s.dead || s.invulnerable {
     return;
   }
+
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/POWERUP-77F96078AB56D8DA.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
+  };
 
   for eff in msg.effects.iter() {
     match eff {
@@ -302,6 +313,13 @@ fn apply_combat_effects(
             killer: msg.source,
             victim: msg.target,
           });
+
+          cmd.entity(msg.target).insert_if_new((
+            AudioPlayer::new(sfx_handle.clone()),
+            PlaybackSettings::default()
+              .with_spatial(true)
+              .with_speed(fastrand::f32() * 0.1 + 0.9),
+          ));
         }
       }
       CombatEffect::Reeling(duration) => {

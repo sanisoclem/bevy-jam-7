@@ -1,6 +1,5 @@
 use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use jam7::{
-  audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary},
   level::{
     Level, LevelCommand, LevelResourcesLoaded, asset::LevelAsset, render::ChunkMeshGenerator,
   },
@@ -9,6 +8,7 @@ use jam7::{
     ui::{DespawnStatsUI, SpawnStatsUI},
   },
 };
+use sys_audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary};
 use sys_cam::CameraTarget;
 use sys_candy::Shadow;
 use sys_chonker::ChunkGenerator;
@@ -51,7 +51,6 @@ fn on_level_loaded(
   mut layouts: ResMut<Assets<TextureAtlasLayout>>,
   asset_server: Res<AssetServer>,
   levels: Res<Assets<LevelAsset>>,
-  mut music_cmd: MessageWriter<GameAudioCommand>,
 ) {
   let Some(level) = qry.get(evt.0).ok() else {
     return;
@@ -101,7 +100,7 @@ fn on_level_loaded(
     player_entity: player,
   });
   cmd.trigger(LevelUp { target: player });
-  music_cmd.write(GameAudioCommand::ReplaceAllAndFadeInto(
+  cmd.trigger(GameAudioCommand::ReplaceAllAndFadeInto(
     GameAudioLibrary::Lofi,
     GameAudioChannels::Music,
   ));
@@ -133,6 +132,7 @@ pub fn create_player(
         bosses_spawned: 0,
         bosses_killed: 0,
       },
+      SpatialListener::new(400.),
     ),
     (SpellBook::default(), SpellBookState::default()),
     (
@@ -156,10 +156,7 @@ pub fn create_player(
       team: TEAM_PLAYER,
       regen: 0,
       regen_delay: 0,
-      death_behavior: DeathBehavior::Respawn(
-        Timer::from_seconds(5.0, TimerMode::Once),
-        Timer::from_seconds(2.0, TimerMode::Once),
-      ),
+      death_behavior: DeathBehavior::Despawn(Timer::from_seconds(5.0, TimerMode::Once)),
     }),
     (
       create_player_animations(asset_server, layouts),

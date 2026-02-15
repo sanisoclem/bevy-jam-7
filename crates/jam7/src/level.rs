@@ -5,8 +5,9 @@ use crate::player::Player;
 use asset::LevelAsset;
 use bevy::{prelude::*, sprite_render::Material2dPlugin};
 use render::{ChunkMaterial, IsoTilemapChunkMeshCache, render_tile_data};
+use sys_audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary};
 use sys_chonker::SysChonkerPlugin;
-use sys_combat::CombatantKilled;
+use sys_combat::{CombatantGuages, CombatantKilled, DamageTaken};
 use sys_prog::{
   Progger,
   death::{RequestGameRestart, ShowDeathUi},
@@ -28,13 +29,9 @@ impl Plugin for LevelPlugin {
       .add_observer(on_game_restart)
       .add_systems(
         Update,
-        (
-          check_level_loaded,
-          process_level_commands,
-          render_tile_data,
-          wait_for_player_death,
-        ),
-      );
+        (check_level_loaded, process_level_commands, render_tile_data),
+      )
+      .add_observer(on_show_death_ui);
   }
 }
 
@@ -104,24 +101,8 @@ pub fn process_level_commands(
   }
 }
 
-fn wait_for_player_death(
-  mut kill_reader: MessageReader<CombatantKilled>,
-  qry_player: Query<&Progger, With<Player>>,
-  mut time: ResMut<Time<Virtual>>,
-  mut cmd: Commands,
-  mut level_cmd: MessageWriter<LevelCommand>,
-) {
-  for msg in kill_reader.read() {
-    let Some(prog) = qry_player.get(msg.victim).ok() else {
-      continue;
-    };
-
-    time.pause();
-    level_cmd.write(LevelCommand::UnloadLevel("alpha".to_owned()));
-    cmd.trigger(ShowDeathUi {
-      accumulated_lucidty: prog.level,
-    });
-  }
+fn on_show_death_ui(_trigger: On<ShowDeathUi>, mut level_cmd: MessageWriter<LevelCommand>) {
+  level_cmd.write(LevelCommand::UnloadLevel("alpha".to_owned()));
 }
 
 pub fn on_game_restart(_evt: On<RequestGameRestart>, mut level_cmd: MessageWriter<LevelCommand>) {

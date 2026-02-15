@@ -1,7 +1,10 @@
 use std::mem::discriminant;
 
 use asset::{SpellBuilderConfig, SpellBuilderConfigLoader};
-use bevy::prelude::*;
+use bevy::{
+  ecs::{lifecycle::HookContext, world::DeferredWorld},
+  prelude::*,
+};
 use serde::Deserialize;
 use sys_combat::KillCounter;
 use utils::colors::get_kills_needed_for_next;
@@ -12,6 +15,7 @@ use crate::{
     spawn_boss, spawn_boss_kill_text, update_animation_state, update_boss_kill_text,
     update_boss_objectives, wait_for_boss_kills,
   },
+  death::ShowDeathUi,
   levelup::{
     LevelUp, PendingLevelUp,
     ui::{levelup_ui_interaction, on_levelup_ui, reroll_interactions},
@@ -64,11 +68,14 @@ impl Plugin for SysProgPlugin {
       .add_observer(spells::ui::on_despawn_spell_bar_ui)
       .add_observer(boss::ui::on_hide_boss_health_bar)
       .add_observer(boss::ui::on_game_restart_hide_boss_ui)
-      .add_observer(boss::ui::on_show_boss_health_bar);
+      .add_observer(boss::ui::on_show_boss_health_bar)
+      .add_observer(boss::on_boss_spawned)
+      .add_observer(boss::on_boss_killed);
   }
 }
 
 #[derive(Component)]
+#[component(on_remove = on_despawn_player)]
 pub struct Progger {
   pub level: u32,
   pub hp_gain: u32,
@@ -155,7 +162,15 @@ impl FromWorld for LongTermProgger {
     }
   }
 }
+fn on_despawn_player(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+  info!("Entity {:?} is about to be despawned!", entity);
+  let prog = world.get::<Progger>(entity).unwrap();
+  let level = prog.level;
 
+  world.commands().trigger(ShowDeathUi {
+    accumulated_lucidty: level,
+  });
+}
 fn sync_spell_builders(
   mut lprog: ResMut<LongTermProgger>,
   mut msgs: MessageReader<AssetEvent<SpellBuilderConfig>>,

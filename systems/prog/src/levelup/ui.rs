@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use sys_audio::GameAudioCommand;
 use sys_magic::{SpellBook, SpellGenerator};
 
 use crate::{
@@ -235,6 +236,10 @@ pub fn levelup_ui_interaction(
           return;
         };
 
+        cmd.trigger(GameAudioCommand::InsertOnce(
+          sys_audio::GameAudioLibrary::ButtonEffect,
+          sys_audio::GameAudioChannels::UI,
+        ));
         cmd.trigger(ApplyLevelUp {
           target: pending_entity,
           slot: card.1,

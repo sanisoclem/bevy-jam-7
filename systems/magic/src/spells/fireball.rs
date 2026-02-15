@@ -1,6 +1,6 @@
-use std::f32::consts::{PI, TAU};
-
 use bevy::{ecs::relationship::Relationship, prelude::*};
+use std::f32::consts::PI;
+use sys_audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary};
 use sys_candy::{FireballBody, FireballExplosionBody, Shadow};
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
@@ -45,6 +45,7 @@ impl FireballSpellGenerator {
     downside: &Option<SpellDownside>,
     direction: Vec2,
     target: Entity,
+    sfx: Handle<AudioSource>,
   ) {
     let team = if let Some(SpellDownside::FriendFire) = downside {
       TEAM_OTHER
@@ -96,6 +97,10 @@ impl FireballSpellGenerator {
           effect_tick: None,
           hit: false,
         },
+        AudioPlayer::new(sfx),
+        PlaybackSettings::default()
+          .with_spatial(true)
+          .with_speed(fastrand::f32() * 0.1 + 0.9),
       ))
       .with_children(|x2| {
         x2.spawn((
@@ -123,11 +128,24 @@ pub fn on_fireball_detonate(
   evt: On<DetonatePayload>,
   mut cmd: Commands,
   qry: Query<(&ChildOf, &FireballProjectile)>,
+  asset_server: Res<AssetServer>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((parent, fb)) = qry.get(evt.target).ok() else {
     return;
   };
   cmd.entity(evt.target).despawn();
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/EXPLOSION-424ED9E91B552907.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
+  };
+  // cmd.trigger(GameAudioCommand::InsertOnce(
+  //   GameAudioLibrary::Explosion1,
+  //   GameAudioChannels::Effects,
+  // ));
   cmd.entity(parent.get()).with_children(|x| {
     x.spawn((
       FireballExplosion,
@@ -157,6 +175,10 @@ pub fn on_fireball_detonate(
         effect_tick: Some(Timer::from_seconds(0.5, TimerMode::Repeating)),
         hit: false,
       },
+      AudioPlayer::new(sfx_handle.clone()),
+      PlaybackSettings::default()
+        .with_spatial(true)
+        .with_speed(fastrand::f32() * 0.1 + 0.9),
     ))
     .with_children(|x2| {
       x2.spawn(FireballExplosionBody {
@@ -171,6 +193,7 @@ pub fn on_fireball_detonate(
 
 pub fn cast_fireball(
   evt: On<SpellReady<FireballSpellGenerator>>,
+  asset_server: Res<AssetServer>,
   mut cmd: Commands,
   mut qry: Query<(
     &Combatant,
@@ -179,6 +202,7 @@ pub fn cast_fireball(
     &ChildOf,
     &mut SpellBookState,
   )>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
@@ -196,6 +220,14 @@ pub fn cast_fireball(
   }
 
   debug!("Casting fireball");
+
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/HIT-7ADF155E1C30D4BC.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
+  };
 
   ss.cooldown = Some(evt.cooldown.clone());
   let direction = (nearest - pos.location).normalize_or(Vec2::Y);
@@ -230,5 +262,6 @@ pub fn cast_fireball(
       .cloned(),
     direction,
     nearest_entity,
+    sfx_handle,
   );
 }

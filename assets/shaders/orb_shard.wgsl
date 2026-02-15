@@ -141,9 +141,15 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let bright_cyan = vec3(0.7, 1.0, 1.0);
     let cyan = vec3(0.4, 0.85, 1.0);
     let ice_blue = vec3(0.6, 0.9, 1.0);
+    var halo = vec3(0.9, 0.1, 0.2);
+    if data.z > 0.0 {
+        halo = vec3(0.0, 0.4, 0.7);
+    } else if data.w > 5.0 {
+        halo = vec3(0.9, 0.8, 0.9);
+    }
     
     var color = vec3(0.0);
-    color = mix(ice_blue, cyan, core);
+    color = mix(halo, cyan, core);
     color = mix(color, bright_cyan, core * 0.7);
     color += crystals * white;
     color += edge_glow * bright_cyan;

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use sys_combat::{Combatant, CombatantGuages, CombatantKilled, CombatantState, KillCounter};
+use sys_audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary};
+use sys_combat::{Combatant, CombatantGuages, CombatantKilled, KillCounter};
 use sys_enemy::{Enemy, EnemyAnimationState, EnemySpawner};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveState, Moveable, Placeable};
@@ -100,7 +101,7 @@ pub fn wait_for_boss_kills(
     let Some(_boss) = qry.get(msg.victim).ok() else {
       continue;
     };
-    if let Some((mut progger, _)) = qry_prog.get_mut(msg.killer).ok() {
+    if let Ok((mut progger, _)) = qry_prog.get_mut(msg.killer) {
       // this means if bosses kills themselves, it wont count
       info!("Boss killed themselves!");
       progger.bosses_killed += 1;
@@ -237,4 +238,17 @@ pub fn update_boss_kill_text(
       }
     }
   }
+}
+
+pub fn on_boss_spawned(_evt: On<BossSpawned>, mut cmd: Commands) {
+  cmd.trigger(GameAudioCommand::ReplaceAllAndFadeInto(
+    GameAudioLibrary::Boss,
+    GameAudioChannels::Music,
+  ));
+}
+pub fn on_boss_killed(_evt: On<BossKilled>, mut cmd: Commands) {
+  cmd.trigger(GameAudioCommand::ReplaceAllAndFadeInto(
+    GameAudioLibrary::Lofi,
+    GameAudioChannels::Music,
+  ));
 }

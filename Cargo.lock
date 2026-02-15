@@ -5108,6 +5108,8 @@ name = "sys_audio"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "fastrand",
+ "macros",
  "rodio",
  "utils",
 ]
@@ -5173,7 +5175,9 @@ name = "sys_magic"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "fastrand",
  "serde",
+ "sys_audio",
  "sys_candy",
  "sys_combat",
  "sys_move",
@@ -5208,6 +5212,7 @@ dependencies = [
  "libnoise",
  "ron",
  "serde",
+ "sys_audio",
  "sys_candy",
  "sys_combat",
  "sys_enemy",

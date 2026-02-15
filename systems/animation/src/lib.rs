@@ -13,7 +13,7 @@ pub struct SysAnimationPlugin<T: Component + Hash + Eq> {
 impl<T: Component + Hash + Eq> Plugin for SysAnimationPlugin<T> {
   fn build(&self, app: &mut App) {
     app
-      .add_systems(Update, (update_animation_state::<T>))
+      .add_systems(Update, (update_animation_state::<T>,))
       .add_systems(FixedUpdate, (update_sprite,))
       .world_mut()
       .register_component_hooks::<T>()

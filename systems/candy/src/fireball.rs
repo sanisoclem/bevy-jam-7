@@ -1,9 +1,13 @@
 use bevy::{
   ecs::{lifecycle::HookContext, world::DeferredWorld},
+  mesh::MeshVertexBufferLayoutRef,
   prelude::*,
-  render::render_resource::AsBindGroup,
+  render::render_resource::{
+    AsBindGroup, BlendComponent, BlendFactor, BlendOperation, BlendState, RenderPipelineDescriptor,
+    SpecializedMeshPipelineError,
+  },
   shader::ShaderRef,
-  sprite_render::{AlphaMode2d, Material2d},
+  sprite_render::{AlphaMode2d, Material2d, Material2dKey},
 };
 
 #[derive(Component)]
@@ -44,5 +48,29 @@ impl Material2d for FireballMaterial {
   }
   fn alpha_mode(&self) -> AlphaMode2d {
     AlphaMode2d::Blend
+  }
+  fn specialize(
+    descriptor: &mut RenderPipelineDescriptor,
+    _layout: &MeshVertexBufferLayoutRef,
+    _key: Material2dKey<Self>,
+  ) -> Result<(), SpecializedMeshPipelineError> {
+    if let Some(fragment) = &mut descriptor.fragment
+      && let Some(Some(target)) = fragment.targets.get_mut(0)
+    {
+      target.blend = Some(BlendState {
+        color: BlendComponent {
+          src_factor: BlendFactor::SrcAlpha,
+          dst_factor: BlendFactor::One,
+          operation: BlendOperation::Add,
+        },
+        alpha: BlendComponent {
+          src_factor: BlendFactor::One,
+          dst_factor: BlendFactor::One,
+          operation: BlendOperation::Add,
+        },
+      });
+    }
+
+    Ok(())
   }
 }

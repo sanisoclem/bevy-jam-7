@@ -6,6 +6,8 @@ edition = "2024"
 [dependencies]
 bevy.workspace = true
 rodio.workspace = true
+fastrand.workspace = true
 
 
 utils = { path = "../../crates/utils", version = "0.1.0" }
+macros = { path = "../../crates/macros", version = "0.1.0" }

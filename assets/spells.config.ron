@@ -75,7 +75,7 @@ SpellBuilderConfig(
             FireballSpellUpgrade(ExplosionDamageMult): (
                 description: "Explosion damage ×{}",
                 min_value: 1.1,
-                max_value: 2.0,
+                max_value: 3.0,
                 min_rolls: 1,
                 is_downside: false,
             ),

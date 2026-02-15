@@ -1,5 +1,8 @@
 use crate::gyms::AlphaGymPlugin;
-use bevy::prelude::*;
+use bevy::{
+  audio::{AudioPlugin, SpatialScale},
+  prelude::*,
+};
 use jam7::prelude::*;
 
 pub struct GamePlugin;
@@ -7,13 +10,21 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-          canvas: Some("#main-canvas".into()),
-          ..default()
-        }),
-        ..default()
-      }))
+      .add_plugins(
+        DefaultPlugins
+          .set(WindowPlugin {
+            primary_window: Some(Window {
+              canvas: Some("#main-canvas".into()),
+              ..default()
+            }),
+
+            ..default()
+          })
+          .set(AudioPlugin {
+            default_spatial_scale: SpatialScale::new_2d(1. / 100.),
+            ..default()
+          }),
+      )
       .add_plugins(Jam7Plugin)
       // .add_plugins(BetaGymPlugin);
       .add_plugins(AlphaGymPlugin);

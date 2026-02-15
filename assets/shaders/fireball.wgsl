@@ -138,7 +138,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let angle = atan2(in.uv.x, in.uv.y);
     color = clamp((alpha *- angle) * -color, vec3(0.0), vec3(1.0)); 
     
-    var final_color = vec4(color, alpha);
+    var final_color = vec4(color, alpha * 2.0);
 
 #ifdef TONEMAP_IN_SHADER
     final_color = tonemapping::tone_mapping(final_color, view.color_grading);

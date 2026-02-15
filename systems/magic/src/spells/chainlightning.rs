@@ -1,4 +1,5 @@
 use bevy::{ecs::relationship::Relationship, prelude::*};
+use sys_audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary};
 use sys_candy::LightningShard;
 use sys_combat::{
   ApplyCombatEffect, CombatAreaEffect, CombatEffect, CombatEffectBlueprint, Combatant,
@@ -44,6 +45,7 @@ impl ChainlightningSpellGenerator {
     spawn_parent: Entity,
     downside: &Option<SpellDownside>,
     direction: Vec2,
+    sfx: Handle<AudioSource>,
   ) {
     let team = if let Some(SpellDownside::FriendFire) = downside {
       TEAM_OTHER
@@ -88,6 +90,10 @@ impl ChainlightningSpellGenerator {
           effect_tick: None,
           hit: false,
         },
+        AudioPlayer::new(sfx),
+        PlaybackSettings::default()
+          .with_spatial(true)
+          .with_speed(fastrand::f32() * 0.1 + 0.9),
       ))
       .with_children(|x2| {
         x2.spawn((
@@ -110,11 +116,13 @@ pub fn on_detonate_chainlightning(
   mut cmd: Commands,
   qry: Query<(&ChildOf, &ChainlightningProjectile)>,
   qry_combatants: Query<(Entity, &Combatant, &CombatantGuages, &Placeable)>,
+  asset_server: Res<AssetServer>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((parent, proj)) = qry.get(evt.target).ok() else {
     return;
   };
-  let Some((_, hit_c, cs, hit_pos)) = evt.hit.as_ref().and_then(|x| qry_combatants.get(*x).ok())
+  let Some((_, hit_c, _cs, hit_pos)) = evt.hit.as_ref().and_then(|x| qry_combatants.get(*x).ok())
   else {
     return;
   };
@@ -125,6 +133,13 @@ pub fn on_detonate_chainlightning(
   if proj.bounces_left == 0 {
     return;
   }
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/LASER-258A35D90FA90195.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
+  };
 
   let detonate_origin = hit_pos.location;
   let detonate_offset = hit_c.hitbox.bounding_radius() * 2.;
@@ -141,6 +156,10 @@ pub fn on_detonate_chainlightning(
     })
     .take(proj.bounce_children)
     .for_each(|(_, _, _, pos)| {
+      // cmd.trigger(GameAudioCommand::InsertOnce(
+      //   GameAudioLibrary::Laser,
+      //   GameAudioChannels::Effects,
+      // ));
       cmd.entity(parent.get()).with_children(|x| {
         let direction = (pos.location - detonate_origin).normalize();
         x.spawn((
@@ -177,6 +196,10 @@ pub fn on_detonate_chainlightning(
             effect_tick: None,
             hit: false,
           },
+          AudioPlayer::new(sfx_handle.clone()),
+          PlaybackSettings::default()
+            .with_spatial(true)
+            .with_speed(fastrand::f32() * 0.1 + 0.9),
         ))
         .with_children(|x2| {
           x2.spawn((
@@ -204,6 +227,8 @@ pub fn cast_chainlightning(
     &ChildOf,
     &mut SpellBookState,
   )>,
+  asset_server: Res<AssetServer>,
+  mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
@@ -216,6 +241,11 @@ pub fn cast_chainlightning(
   };
 
   debug!("Casting chainlightning");
+
+  // cmd.trigger(GameAudioCommand::InsertOnce(
+  //   GameAudioLibrary::Laser,
+  //   GameAudioChannels::Effects,
+  // ));
 
   ss.cooldown = Some(evt.cooldown.clone());
 
@@ -240,6 +270,14 @@ pub fn cast_chainlightning(
     }
   }
 
+  let sfx_handle = if sfx.is_none() {
+    let new_value = asset_server.load("audio/LASER-258A35D90FA90195.ogg");
+    *sfx = Some(new_value.clone());
+    new_value
+  } else {
+    sfx.as_ref().unwrap().clone()
+  };
+
   evt.generator.cast(
     &mut cmd,
     (evt.caster, pos),
@@ -251,5 +289,6 @@ pub fn cast_chainlightning(
       .find(|f| matches!(f, SpellDownside::FriendFire))
       .cloned(),
     direction,
+    sfx_handle,
   );
 }

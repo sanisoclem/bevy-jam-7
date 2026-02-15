@@ -1,8 +1,9 @@
 #[cfg(feature = "dev")]
 use crate::debug::DebugPlugin;
-use crate::{audio::AudioPlugin, level::LevelPlugin, player::PlayerPlugin};
+use crate::{level::LevelPlugin, player::PlayerPlugin};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
+use sys_audio::SysAudioPlugin;
 use sys_cam::SysCamPlugin;
 use sys_candy::SysCandyPlugin;
 use sys_combat::SysCombatPlugin;
@@ -17,9 +18,9 @@ impl Plugin for Jam7Plugin {
   fn build(&self, app: &mut App) {
     app.add_plugins((
       EnhancedInputPlugin,
-      AudioPlugin,
       LevelPlugin,
       PlayerPlugin,
+      SysAudioPlugin,
       SysMovePlugin,
       SysCamPlugin,
       SysCombatPlugin,

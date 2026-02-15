@@ -4,37 +4,37 @@ LongTermProgConfig (
     (
       feature: BetterSpellUpgrades,
       description: "More stat rolls",
-      cost: 10
+      cost: 5
     ),
     (
       feature: MoreChoices,
       description: "More choices",
-      cost: 10
+      cost: 5
     ),
     (
       feature: SeeInSingle,
       description: "Less seeing double",
-      cost: 10
+      cost: 1
     ),
     (
       feature: MoarHp,
       description: "Less die",
-      cost: 10
+      cost: 3
     ),
     (
       feature: CheaperRerolls,
       description: "More rerolls",
-      cost: 10
+      cost: 3
     ),
     (
       feature: SpellSlot2,
       description: "More spells",
-      cost: 10
+      cost: 2
     ),
     (
       feature: SpellSlot3,
       description: "Even more spells",
-      cost: 10
+      cost: 3
     ),
   ]
 )
