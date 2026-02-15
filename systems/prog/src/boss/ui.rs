@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use sys_combat::{Combatant, CombatantGuages};
 
-use crate::boss::{BossKilled, BossSpawned};
+use crate::{
+  boss::{BossKilled, BossSpawned},
+  death::RequestGameRestart,
+};
 
 #[derive(Component)]
 pub struct BossHealthBarUI;
@@ -82,6 +85,15 @@ pub fn on_show_boss_health_bar(
 
 pub fn on_hide_boss_health_bar(
   _trigger: On<BossKilled>,
+  mut commands: Commands,
+  ui: Query<Entity, With<BossHealthBarUI>>,
+) {
+  for entity in &ui {
+    commands.entity(entity).despawn();
+  }
+}
+pub fn on_game_restart_hide_boss_ui(
+  _evt: On<RequestGameRestart>,
   mut commands: Commands,
   ui: Query<Entity, With<BossHealthBarUI>>,
 ) {

@@ -271,10 +271,10 @@ pub fn process_audio_commands<L, C>(
           .spawn(AudioPlayer(handle.clone()))
           .insert(AudioController {
             channel: *channel,
-            volume: 0.0,
+            volume: 0.1,
             current_volume_cmd: Some(EasingGoal::Fade(
               Timer::from_seconds(3.0, TimerMode::Once),
-              EasingCurve::new(0.0, 1.0, EaseFunction::Linear),
+              EasingCurve::new(0.1, 1.0, EaseFunction::Linear),
             )),
             despawn_on_stop: true,
             despawn_on_zero_volume: true,
@@ -371,8 +371,7 @@ pub fn update_sink_volumes<L, C>(
     if (sink.is_paused() && ctl.despawn_on_stop)
       || (sink.volume().to_linear() <= 0.01 && ctl.despawn_on_zero_volume)
     {
-      // info!("despawning audio!");
-      // cmd.entity(e).despawn();
+      cmd.entity(e).despawn();
     }
   }
 }

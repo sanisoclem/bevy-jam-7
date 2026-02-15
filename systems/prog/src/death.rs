@@ -65,8 +65,8 @@ pub fn spawn_death_ui(
           top.spawn((
             ImageNode::from_atlas_image(texture_handle, TextureAtlas::default()),
             Node {
-              width: px(240),
-              height: px(240),
+              width: px(180),
+              height: px(180),
               ..default()
             },
           ));

@@ -118,7 +118,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let intensity = data.y;
     let radius = 0.8; // use uvs, ignore radius uniform
 
-    let num_slices = 20.;
+    let num_slices = 5.;
     let uv = in.uv;
 
     // normalize uvs 

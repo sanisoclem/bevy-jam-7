@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use sys_combat::{Combatant, CombatantGuages, CombatantKilled, KillCounter};
+use sys_combat::{Combatant, CombatantGuages, CombatantKilled, CombatantState, KillCounter};
 use sys_enemy::{Enemy, EnemyAnimationState, EnemySpawner};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveState, Moveable, Placeable};
@@ -32,17 +32,20 @@ pub fn spawn_boss(
     &SpellBookState,
     &Placeable,
   )>,
-  qry_enemy: Query<(Entity, &Transform, &Combatant), With<Enemy>>,
+  qry_enemy: Query<(Entity, &Transform, &Combatant, &CombatantGuages), With<Enemy>>,
   mut cmd: Commands,
 ) {
   for (kc, mut prog, mut spawner, sb, sbs, pos) in query {
-    if kc.kills / (100 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
+    if kc.kills / (60 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
       continue;
     }
 
-    let Some((enemy, enemy_pos, c)) = qry_enemy.iter().next() else {
+    let Some((enemy, enemy_pos, c, cs)) = qry_enemy.iter().next() else {
       continue;
     };
+    if cs.current_hp < 50 {
+      continue;
+    }
 
     prog.bosses_spawned += 1;
     spawner.disabled = true;
@@ -97,18 +100,20 @@ pub fn wait_for_boss_kills(
     let Some(_boss) = qry.get(msg.victim).ok() else {
       continue;
     };
-    let Some((mut progger, mut spawner)) = qry_prog.get_mut(msg.killer).ok() else {
+    if let Some((mut progger, _)) = qry_prog.get_mut(msg.killer).ok() {
       // this means if bosses kills themselves, it wont count
-      continue;
+      info!("Boss killed themselves!");
+      progger.bosses_killed += 1;
+      cmd.trigger(ShowBossKill {
+        count: progger.bosses_killed,
+      });
     };
 
-    progger.bosses_killed += 1;
-    spawner.disabled = false;
+    if let Some((_, mut spawner)) = qry_prog.iter_mut().next() {
+      spawner.disabled = false;
+    }
 
     cmd.trigger(BossKilled);
-    cmd.trigger(ShowBossKill {
-      count: progger.bosses_killed,
-    });
   }
 }
 

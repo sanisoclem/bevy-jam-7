@@ -63,6 +63,7 @@ impl Plugin for SysProgPlugin {
       .add_observer(spells::ui::on_spawn_spell_bar_ui)
       .add_observer(spells::ui::on_despawn_spell_bar_ui)
       .add_observer(boss::ui::on_hide_boss_health_bar)
+      .add_observer(boss::ui::on_game_restart_hide_boss_ui)
       .add_observer(boss::ui::on_show_boss_health_bar);
   }
 }

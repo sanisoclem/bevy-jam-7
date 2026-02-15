@@ -84,7 +84,9 @@ fn on_insert_atlas_animation<T: Component + Hash + Eq>(
   HookContext { entity, .. }: HookContext,
 ) {
   let state_component = world.get::<T>(entity);
-  let anim = world.get::<AtlasAnimation<T>>(entity).unwrap();
+  let Some(anim) = world.get::<AtlasAnimation<T>>(entity) else {
+    return;
+  };
 
   let to_play = state_component
     .and_then(|t| anim.animations.get(t))
