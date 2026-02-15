@@ -50,7 +50,7 @@ pub fn spawn_boss(
     prog.bosses_spawned += 1;
     spawner.disabled = true;
 
-    let spells_to_take = (prog.bosses_spawned / 3).max(1) as usize;
+    let spells_to_take = (prog.bosses_spawned / 2).max(1) as usize;
     let sbclone = SpellBook {
       spells: sb.spells.iter().take(spells_to_take).cloned().collect(),
       disabled: false,
@@ -63,7 +63,7 @@ pub fn spawn_boss(
         .cloned()
         .collect(),
     };
-    let max_hp = (c.max_hp * (10 * prog.bosses_spawned)).max(1000);
+    let max_hp = 10u32.pow(prog.bosses_spawned) * 100;
     let mut cclone = c.clone();
     cclone.max_hp = max_hp;
 
