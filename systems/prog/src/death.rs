@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::CRIMSON, prelude::*};
+use bevy::prelude::*;
 use std::mem::discriminant;
 
 use crate::{LongTermProgDescriptor, LongTermProgger};
@@ -27,7 +27,6 @@ pub fn spawn_death_ui(
   evt: On<ShowDeathUi>,
   mut cmd: Commands,
   asset_server: Res<AssetServer>,
-  mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
   mut lprog: ResMut<LongTermProgger>,
 ) {
   info!(
@@ -38,8 +37,6 @@ pub fn spawn_death_ui(
   let lucidity = lprog.lucidty;
   let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
   let texture_handle = asset_server.load("ui/death.png");
-  let texture_atlas = TextureAtlasLayout::from_grid(UVec2::splat(460), 8, 5, None, None);
-  let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
   cmd
     .spawn((
@@ -66,13 +63,12 @@ pub fn spawn_death_ui(
         })
         .with_children(|top| {
           top.spawn((
-            ImageNode::from_atlas_image(texture_handle, TextureAtlas::from(texture_atlas_handle)),
+            ImageNode::from_atlas_image(texture_handle, TextureAtlas::default()),
             Node {
-              width: px(256),
-              height: px(256),
+              width: px(240),
+              height: px(240),
               ..default()
             },
-            Outline::new(px(8), Val::ZERO, CRIMSON.into()),
           ));
 
           top.spawn((
@@ -121,63 +117,78 @@ pub fn spawn_death_ui(
             },
             TextColor(Color::srgb(0.6, 0.6, 0.7)),
           ));
-
-          for feat in lprog
-            .lprog_config
-            .as_ref()
-            .expect("Need to have lprog config")
-            .features
-            .iter()
-          {
-            let is_checked = lprog
-              .active_lprog_features
-              .iter()
-              .any(|x| discriminant(&x.feature) == discriminant(&feat.feature));
-            mid
-              .spawn((
-                LucidityCheckbox {
-                  feature: feat.clone(),
-                  is_checked,
-                },
-                Button,
-                Node {
-                  flex_direction: FlexDirection::Row,
-                  align_items: AlignItems::Center,
-                  column_gap: Val::Px(12.0),
-                  padding: UiRect::all(Val::Px(12.0)),
-                  border: UiRect::all(Val::Px(1.0)),
-                  border_radius: BorderRadius::all(Val::Px(4.0)),
-                  ..default()
-                },
-                BackgroundColor(Color::srgb(0.12, 0.12, 0.16)),
-                BorderColor::all(Color::srgb(0.3, 0.3, 0.4)),
-              ))
-              .with_children(|checkbox_row| {
-                // checkbox indicator
-                checkbox_row.spawn((
-                  Node {
-                    width: Val::Px(20.0),
-                    height: Val::Px(20.0),
-                    border: UiRect::all(Val::Px(2.0)),
-                    ..default()
-                  },
-                  (if is_checked {
-                    BackgroundColor(Color::srgb(0.2, 0.7, 0.3))
-                  } else {
-                    BackgroundColor(Color::srgb(0.05, 0.05, 0.08))
-                  }),
-                  BorderColor::all(Color::srgb(0.5, 0.5, 0.6)),
-                ));
-                checkbox_row.spawn((
-                  Text::new(format!("{} ({})", feat.description, feat.cost)),
-                  TextFont {
-                    font: font.clone(),
-                    font_size: 16.0,
-                    ..default()
-                  },
-                ));
-              });
-          }
+          mid
+            .spawn((
+              Node {
+                flex_direction: FlexDirection::Column,
+                flex_wrap: FlexWrap::Wrap,
+                align_items: AlignItems::Start,
+                max_height: Val::Px(200.0),
+                row_gap: Val::Px(16.0),
+                column_gap: Val::Px(16.0),
+                ..default()
+              },
+              BackgroundColor(Color::srgb(0.08, 0.08, 0.12)),
+              BorderColor::all(Color::srgb(0.4, 0.4, 0.5)),
+            ))
+            .with_children(|feats| {
+              for feat in lprog
+                .lprog_config
+                .as_ref()
+                .expect("Need to have lprog config")
+                .features
+                .iter()
+              {
+                let is_checked = lprog
+                  .active_lprog_features
+                  .iter()
+                  .any(|x| discriminant(&x.feature) == discriminant(&feat.feature));
+                feats
+                  .spawn((
+                    LucidityCheckbox {
+                      feature: feat.clone(),
+                      is_checked,
+                    },
+                    Button,
+                    Node {
+                      flex_direction: FlexDirection::Row,
+                      align_items: AlignItems::Center,
+                      column_gap: Val::Px(12.0),
+                      padding: UiRect::all(Val::Px(12.0)),
+                      border: UiRect::all(Val::Px(1.0)),
+                      border_radius: BorderRadius::all(Val::Px(4.0)),
+                      ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.12, 0.12, 0.16)),
+                    BorderColor::all(Color::srgb(0.3, 0.3, 0.4)),
+                  ))
+                  .with_children(|checkbox_row| {
+                    // checkbox indicator
+                    checkbox_row.spawn((
+                      Node {
+                        width: Val::Px(20.0),
+                        height: Val::Px(20.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                      },
+                      (if is_checked {
+                        BackgroundColor(Color::srgb(0.2, 0.7, 0.3))
+                      } else {
+                        BackgroundColor(Color::srgb(0.05, 0.05, 0.08))
+                      }),
+                      BorderColor::all(Color::srgb(0.5, 0.5, 0.6)),
+                    ));
+                    checkbox_row.spawn((
+                      Text::new(format!("{} ({})", feat.description, feat.cost)),
+                      TextFont {
+                        font: font.clone(),
+                        font_size: 16.0,
+                        ..default()
+                      },
+                    ));
+                  });
+              }
+            });
         });
 
       root

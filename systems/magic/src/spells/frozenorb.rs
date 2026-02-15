@@ -221,7 +221,7 @@ pub fn cast_frozenorb(
       cmd.trigger(ApplyCombatEffect {
         target: evt.caster,
         effects: vec![CombatEffect::Damage(
-          (evt.generator.base_damage * *strength) as u32,
+          (c.max_hp as f32 * (*strength / 100.)) as u32,
         )],
         source: evt.caster,
       });

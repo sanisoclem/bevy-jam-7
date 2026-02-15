@@ -1,9 +1,13 @@
 use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use jam7::{
+  audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary},
   level::{
     Level, LevelCommand, LevelResourcesLoaded, asset::LevelAsset, render::ChunkMeshGenerator,
   },
-  player::{Player, PlayerAnimationState, create_player_animations, create_player_controls},
+  player::{
+    Player, PlayerAnimationState, create_player_animations, create_player_controls,
+    ui::{DespawnStatsUI, SpawnStatsUI},
+  },
 };
 use sys_cam::CameraTarget;
 use sys_candy::Shadow;
@@ -13,7 +17,12 @@ use sys_enemy::{EnemySpawner, EnemySpawnerState};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
-use sys_prog::{Progger, levelup::LevelUp};
+use sys_prog::{
+  Progger,
+  death::ShowDeathUi,
+  levelup::LevelUp,
+  spells::ui::{DespawnSpellBarUI, SpawnSpellBarUI},
+};
 use utils::diff::TEAM_PLAYER;
 
 pub struct AlphaGymPlugin;
@@ -22,7 +31,8 @@ impl Plugin for AlphaGymPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(Startup, setup)
-      .add_observer(on_level_loaded);
+      .add_observer(on_level_loaded)
+      .add_observer(on_death_ui);
   }
 }
 #[derive(Component, Reflect)]
@@ -41,6 +51,7 @@ fn on_level_loaded(
   mut layouts: ResMut<Assets<TextureAtlasLayout>>,
   asset_server: Res<AssetServer>,
   levels: Res<Assets<LevelAsset>>,
+  mut music_cmd: MessageWriter<GameAudioCommand>,
 ) {
   let Some(level) = qry.get(evt.0).ok() else {
     return;
@@ -85,7 +96,20 @@ fn on_level_loaded(
     .despawn_children()
     .replace_children(&[spawned_level]);
 
+  cmd.trigger(SpawnStatsUI);
+  cmd.trigger(SpawnSpellBarUI {
+    player_entity: player,
+  });
   cmd.trigger(LevelUp { target: player });
+  music_cmd.write(GameAudioCommand::ReplaceAllAndFadeInto(
+    GameAudioLibrary::Lofi,
+    GameAudioChannels::Music,
+  ));
+}
+
+fn on_death_ui(_trigger: On<ShowDeathUi>, mut cmd: Commands) {
+  cmd.trigger(DespawnStatsUI);
+  cmd.trigger(DespawnSpellBarUI);
 }
 
 pub fn create_player(

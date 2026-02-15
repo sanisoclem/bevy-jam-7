@@ -6,11 +6,22 @@ use sys_move::{IsoWorldCoords, MoveState, Moveable, Placeable};
 
 use crate::Progger;
 
+pub mod ui;
+
 #[derive(Component)]
 pub struct BossEnemy {
   focus: IsoWorldCoords,
   focus_timer: Timer,
 }
+
+#[derive(EntityEvent)]
+pub struct BossSpawned {
+  #[event_target]
+  pub boss_entity: Entity,
+}
+
+#[derive(Event)]
+pub struct BossKilled;
 
 pub fn spawn_boss(
   query: Query<(
@@ -25,7 +36,7 @@ pub fn spawn_boss(
   mut cmd: Commands,
 ) {
   for (kc, mut prog, mut spawner, sb, sbs, pos) in query {
-    if kc.kills / (100 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
+    if kc.kills / (1 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
       continue;
     }
 
@@ -49,7 +60,11 @@ pub fn spawn_boss(
         .cloned()
         .collect(),
     };
+    let max_hp = (c.max_hp * (10 * prog.bosses_spawned)).max(1000);
+    let mut cclone = c.clone();
+    cclone.max_hp = max_hp;
 
+    cmd.trigger(BossSpawned { boss_entity: enemy });
     cmd.entity(enemy).remove::<Enemy>().insert((
       BossEnemy {
         focus: pos.location,
@@ -57,8 +72,9 @@ pub fn spawn_boss(
       },
       sbclone,
       sbsclone,
+      cclone,
       CombatantGuages {
-        current_hp: c.max_hp * (10 * prog.bosses_spawned),
+        current_hp: max_hp,
         invulnerability_timer: Some(Timer::from_seconds(5.0, TimerMode::Once)),
         reeling_timer: None,
         stun_timer: None,
@@ -89,6 +105,7 @@ pub fn wait_for_boss_kills(
     progger.bosses_killed += 1;
     spawner.disabled = false;
 
+    cmd.trigger(BossKilled);
     cmd.trigger(ShowBossKill {
       count: progger.bosses_killed,
     });

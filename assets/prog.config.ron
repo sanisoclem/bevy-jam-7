@@ -17,11 +17,6 @@ LongTermProgConfig (
       cost: 10
     ),
     (
-      feature: SpellInfo,
-      description: "TODO",
-      cost: 10
-    ),
-    (
       feature: MoarHp,
       description: "Less die",
       cost: 10
@@ -29,6 +24,16 @@ LongTermProgConfig (
     (
       feature: CheaperRerolls,
       description: "More rerolls",
+      cost: 10
+    ),
+    (
+      feature: SpellSlot2,
+      description: "More spells",
+      cost: 10
+    ),
+    (
+      feature: SpellSlot3,
+      description: "Even more spells",
       cost: 10
     ),
   ]

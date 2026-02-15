@@ -10,20 +10,21 @@ impl SpellBookGenerator {
     _num_spells: u32,
     effective_range: f32,
     effective_dps: f32,
+    aps: f32,
   ) -> (SpellBook, SpellBookState) {
     (
       SpellBook {
         spells: vec![EquippedSpell {
           generator: SpellGenerator::Fireball(FireballSpellGenerator {
-            radius: 12.,
-            base_damage: 10,
+            radius: 8. + (effective_dps / 30.),
+            base_damage: (effective_dps / aps) as u32,
             lifetime: 2.,
             speed: effective_range / 2.,
             explosion_lifetime: 1.,
             explosion_damage_multiplier: 2.5,
             explosion_radius: 30. + (effective_dps),
           }),
-          cooldown: Timer::from_seconds(10. / effective_dps, TimerMode::Repeating),
+          cooldown: Timer::from_seconds(1. / aps, TimerMode::Repeating),
           downside: Vec::new(),
         }],
         disabled: false,

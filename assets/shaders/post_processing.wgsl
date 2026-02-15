@@ -14,7 +14,7 @@ struct PostProcessSettings {
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     // Chromatic aberration strength
-    let offset_strength = clamp(settings.intensity, 0.001, 0.005);
+    let offset_strength = clamp(settings.intensity, 0.0, 0.005);
 
     // Sample each color channel with an arbitrary shift
     return vec4<f32>(

@@ -1,9 +1,10 @@
 use bevy::prelude::*;
-use sys_magic::SpellGenerator;
+use sys_magic::{SpellBook, SpellGenerator};
 
 use crate::{
   LongTermProgger,
   levelup::{ApplyLevelUp, LevelUp, LevelUpPerk, PendingLevelUp, ShowPendingLevelUpUi},
+  spells::SpellUpgrade,
 };
 
 #[derive(Component)]
@@ -18,12 +19,12 @@ pub struct RerollButton(Entity);
 pub fn on_levelup_ui(
   evt: On<ShowPendingLevelUpUi>,
   mut cmd: Commands,
-  qry: Query<(Entity, &PendingLevelUp)>,
+  qry: Query<(Entity, &PendingLevelUp, &SpellBook)>,
   ui_root: Query<Entity, With<LevelUpUI>>,
   asset_server: Res<AssetServer>,
   lprog: Res<LongTermProgger>,
 ) {
-  let Some((entity, pending)) = qry.get(evt.0).ok() else {
+  let Some((entity, pending, sb)) = qry.get(evt.0).ok() else {
     return;
   };
 
@@ -66,6 +67,17 @@ pub fn on_levelup_ui(
         })
         .with_children(|row| {
           for (i, choice) in pending.choices.iter().enumerate() {
+            let generator = match &choice {
+              LevelUpPerk::NewSpell(e, _) => &e.generator,
+              LevelUpPerk::SpellUpgradePerk(e) => &sb.spells[e.slot].generator,
+            };
+            let tex = match generator {
+              sys_magic::SpellGenerator::Fireball(_) => "fireball_big",
+              sys_magic::SpellGenerator::Chainlightning(_) => "lightning",
+              sys_magic::SpellGenerator::Frozenorb(_) => "frozenorb",
+            };
+
+            let texture_handle = asset_server.load(format!("ui/{}.png", tex));
             let texts = perk_display_text(choice);
             row
               .spawn((
@@ -74,10 +86,6 @@ pub fn on_levelup_ui(
                 Node {
                   width: Val::Px(220.0),
                   min_height: Val::Px(160.0),
-                  flex_direction: FlexDirection::Column,
-                  align_items: AlignItems::FlexStart,
-                  padding: UiRect::all(Val::Px(18.0)),
-                  row_gap: Val::Px(8.0),
                   border: UiRect::all(Val::Px(2.0)),
                   border_radius: BorderRadius::all(Val::Px(8.0)),
                   ..default()
@@ -87,23 +95,51 @@ pub fn on_levelup_ui(
               ))
               .with_children(|card| {
                 card.spawn((
-                  Text::new(texts.title),
-                  TextFont {
-                    font: font.clone(),
-                    font_size: 20.0,
+                  ImageNode::from_atlas_image(texture_handle.clone(), TextureAtlas::default()),
+                  Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    bottom: Val::Px(0.0),
                     ..default()
                   },
+                  Pickable::IGNORE,
                 ));
-                for t in texts.line_items {
-                  card.spawn((
-                    Text::new(t),
-                    TextFont {
-                      font: font.clone(),
-                      font_size: 13.0,
-                      ..default()
-                    },
-                  ));
-                }
+                card
+                  .spawn((Node {
+                    width: Val::Px(220.0),
+                    min_height: Val::Px(160.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::FlexStart,
+                    padding: UiRect::all(Val::Px(18.)),
+                    row_gap: Val::Px(8.0),
+                    ..default()
+                  },))
+                  .with_children(|desc| {
+                    desc.spawn((
+                      Text::new(texts.title),
+                      TextFont {
+                        font: font.clone(),
+                        font_size: 20.0,
+                        ..default()
+                      },
+                    ));
+                    for (t, downgrade) in texts.line_items {
+                      desc.spawn((
+                        Text::new(t),
+                        TextFont {
+                          font: font.clone(),
+                          font_size: 13.0,
+                          ..default()
+                        },
+                        (if downgrade {
+                          TextColor(Color::srgb(0.9, 0.1, 0.1))
+                        } else {
+                          TextColor(Color::srgb(0.9, 0.9, 0.9))
+                        }),
+                      ));
+                    }
+                  });
               });
           }
         });
@@ -142,16 +178,16 @@ pub fn on_levelup_ui(
 
 pub struct PerkItemDisplay {
   pub title: String,
-  pub line_items: Vec<String>,
+  pub line_items: Vec<(String, bool)>,
 }
 fn perk_display_text(perk: &LevelUpPerk) -> PerkItemDisplay {
   let title = match perk {
     LevelUpPerk::NewSpell(p, _) => match &p.generator {
-      SpellGenerator::Fireball(_) => "Fireball".to_owned(),
-      SpellGenerator::Chainlightning(_) => "Lightning".to_owned(),
-      SpellGenerator::Frozenorb(_) => "FrozenOrb".to_owned(),
+      SpellGenerator::Fireball(_) => "Marshmallow".to_owned(),
+      SpellGenerator::Chainlightning(_) => "Candy Cane".to_owned(),
+      SpellGenerator::Frozenorb(_) => "Cotton Candy".to_owned(),
     },
-    LevelUpPerk::SpellUpgradePerk(x) => format!("Slot {} Upgrade", x.slot),
+    LevelUpPerk::SpellUpgradePerk(_x) => "Upgrade".to_owned(),
   };
 
   let line_items = match perk {
@@ -159,7 +195,12 @@ fn perk_display_text(perk: &LevelUpPerk) -> PerkItemDisplay {
     LevelUpPerk::SpellUpgradePerk(x) => &x.upgrades,
   }
   .iter()
-  .map(|(_, v, d)| d.replace("{}", &format!("{:.1}", v)))
+  .map(|(x, v, d)| {
+    (
+      d.replace("{}", &format!("{:.1}", v)),
+      matches!(x, SpellUpgrade::SpellDownsideUpgrade(_)),
+    )
+  })
   .collect();
 
   PerkItemDisplay { title, line_items }

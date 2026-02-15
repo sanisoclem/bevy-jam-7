@@ -47,6 +47,10 @@ impl Plugin for SysProgPlugin {
           update_boss_objectives,
           update_boss_kill_text,
           wait_for_boss_kills,
+          boss::ui::update_boss_health_bar,
+          spells::ui::update_spell_bar_ui,
+          spells::ui::update_spells_changed,
+          spells::ui::handle_spell_tooltip,
         ),
       )
       .add_systems(FixedUpdate, (levelup,))
@@ -55,7 +59,11 @@ impl Plugin for SysProgPlugin {
       .add_observer(levelup::on_levelup)
       .add_observer(levelup::on_apply_levelup)
       .add_observer(levelup::on_game_restart)
-      .add_observer(spawn_boss_kill_text);
+      .add_observer(spawn_boss_kill_text)
+      .add_observer(spells::ui::on_spawn_spell_bar_ui)
+      .add_observer(spells::ui::on_despawn_spell_bar_ui)
+      .add_observer(boss::ui::on_hide_boss_health_bar)
+      .add_observer(boss::ui::on_show_boss_health_bar);
   }
 }
 
@@ -81,6 +89,8 @@ pub enum LongTermProgFeature {
   SpellInfo,
   MoarHp,
   CheaperRerolls,
+  SpellSlot2,
+  SpellSlot3,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -129,9 +139,9 @@ impl FromWorld for LongTermProgger {
     let lprog_config = asset_server.load("prog.config.ron");
 
     Self {
-      max_spells: 3,
+      max_spells: 1,
       num_perk_choices: 2,
-      lucidty: 0,
+      lucidty: 100,
       runs: 0,
       trophies: Vec::new(),
       spell_builder_config: builder_config,

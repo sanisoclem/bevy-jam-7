@@ -1,4 +1,8 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{
+  ecs::{lifecycle::HookContext, world::DeferredWorld},
+  platform::collections::HashMap,
+  prelude::*,
+};
 use serde::{Deserialize, Serialize};
 use std::{hash::Hash, marker::PhantomData};
 
@@ -9,11 +13,11 @@ pub struct SysAnimationPlugin<T: Component + Hash + Eq> {
 impl<T: Component + Hash + Eq> Plugin for SysAnimationPlugin<T> {
   fn build(&self, app: &mut App) {
     app
-      .add_systems(
-        Update,
-        (create_animation_state::<T>, update_animation_state::<T>),
-      )
-      .add_systems(FixedUpdate, (update_sprite,));
+      .add_systems(Update, (update_animation_state::<T>))
+      .add_systems(FixedUpdate, (update_sprite,))
+      .world_mut()
+      .register_component_hooks::<T>()
+      .on_insert(on_insert_atlas_animation::<T>);
   }
 }
 
@@ -74,36 +78,44 @@ impl AnimationPlaybackSpeed {
     Timer::from_seconds(self.get_seconds_per_frame(num_frames), TimerMode::Repeating)
   }
 }
-pub fn create_animation_state<T: Component + Hash + Eq>(
-  mut cmd: Commands,
-  qry: Query<(Entity, &T, &AtlasAnimation<T>), Without<AnimationState>>,
+
+fn on_insert_atlas_animation<T: Component + Hash + Eq>(
+  mut world: DeferredWorld,
+  HookContext { entity, .. }: HookContext,
 ) {
-  for (entity, t, anim) in qry.iter() {
-    let Ok(mut cmd_entity) = cmd.get_entity(entity) else {
-      continue;
-    };
-    let to_play = anim.animations.get(t).unwrap_or(&anim.default_animation);
-    cmd_entity.insert((
-      AnimationState {
-        current_animation: to_play.clone(),
-        current_frame_index: 0,
-        timer: to_play.create_timer(),
-        done: false,
-      },
-      Sprite {
-        image: to_play.spritesheet.clone(),
-        texture_atlas: Some(TextureAtlas {
-          layout: to_play.layout.clone(),
-          index: *to_play
-            .frames
-            .first()
-            .expect("Animations must have at least one frame"),
-        }),
-        color: anim.tint.unwrap_or_default(),
-        ..default()
-      },
-    ));
-  }
+  let state_component = world.get::<T>(entity);
+  let anim = world.get::<AtlasAnimation<T>>(entity).unwrap();
+
+  let to_play = state_component
+    .and_then(|t| anim.animations.get(t))
+    .unwrap_or(&anim.default_animation);
+
+  let tint = anim.tint;
+  let animation = to_play.clone();
+  let first_frame = *animation
+    .frames
+    .first()
+    .expect("Animations must have at least one frame");
+  let spritesheet = animation.spritesheet.clone();
+  let layout = animation.layout.clone();
+
+  world.commands().entity(entity).insert((
+    AnimationState {
+      current_animation: animation.clone(),
+      current_frame_index: 0,
+      timer: animation.create_timer(),
+      done: false,
+    },
+    Sprite {
+      image: spritesheet,
+      texture_atlas: Some(TextureAtlas {
+        layout,
+        index: first_frame,
+      }),
+      color: tint.unwrap_or_default(),
+      ..default()
+    },
+  ));
 }
 
 pub fn update_animation_state<T: Component + Hash + Eq>(

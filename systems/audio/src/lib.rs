@@ -161,7 +161,7 @@ pub struct AudioChannelSettings {
 
 pub enum EasingGoal {
   Instant(f32),
-  // Linear(f32, Timer)
+  Fade(Timer, EasingCurve<f32>),
 }
 
 impl<T, C> FromWorld for AudioLibraryResource<T, C>
@@ -259,18 +259,23 @@ pub fn process_audio_commands<L, C>(
           if &ctl.channel != channel {
             continue;
           }
-          ctl.current_volume_cmd = Some(EasingGoal::Instant(0.));
+          ctl.current_volume_cmd = Some(EasingGoal::Fade(
+            Timer::from_seconds(3.0, TimerMode::Once),
+            EasingCurve::new(ctl.volume, 0.0, EaseFunction::Linear),
+          ));
         }
         let Some(handle) = lib.get(to_play) else {
           continue;
         };
-        // TODO: set initial volume to 0 and set an easing goal to 1.0
         commands
           .spawn(AudioPlayer(handle.clone()))
           .insert(AudioController {
             channel: *channel,
-            volume: 1.0,
-            current_volume_cmd: None,
+            volume: 0.0,
+            current_volume_cmd: Some(EasingGoal::Fade(
+              Timer::from_seconds(3.0, TimerMode::Once),
+              EasingCurve::new(0.0, 1.0, EaseFunction::Linear),
+            )),
             despawn_on_stop: true,
             despawn_on_zero_volume: true,
           });
@@ -293,13 +298,15 @@ pub fn process_audio_commands<L, C>(
   }
 }
 
-pub fn update_channel_volume<L, C>(mut audio_lib: ResMut<AudioLibraryResource<L, C>>)
-where
+pub fn update_channel_volume<L, C>(
+  mut audio_lib: ResMut<AudioLibraryResource<L, C>>,
+  time: Res<Time<Real>>,
+) where
   L: AudioLibrary,
   C: AudioChannelLayout,
 {
   for (_k, ctl) in audio_lib.channels.iter_mut() {
-    let Some(cmd) = &ctl.current_vol_cmd else {
+    let Some(cmd) = &mut ctl.current_vol_cmd else {
       continue;
     };
     match cmd {
@@ -307,24 +314,39 @@ where
         ctl.volume = *new_value;
         ctl.current_vol_cmd = None;
       }
+      EasingGoal::Fade(timer, curve) => {
+        timer.tick(time.delta());
+        ctl.volume = curve.sample(timer.fraction()).unwrap_or(0.0);
+        if timer.just_finished() {
+          ctl.current_vol_cmd = None;
+        }
+      }
     };
   }
 }
 
-pub fn update_entity_volumes<L, C>(mut qry: Query<&mut AudioController<C>>)
+pub fn update_entity_volumes<L, C>(mut qry: Query<&mut AudioController<C>>, time: Res<Time<Real>>)
 where
   L: AudioLibrary,
   C: AudioChannelLayout,
 {
   for mut ctl in qry.iter_mut() {
-    let Some(cmd) = &ctl.current_volume_cmd else {
+    let Some(cmd) = &mut ctl.current_volume_cmd else {
       continue;
     };
-    match cmd {
-      EasingGoal::Instant(new_value) => {
-        ctl.volume = *new_value;
-        ctl.current_volume_cmd = None;
+    let (new_volume, reset_cmd) = match cmd {
+      EasingGoal::Instant(new_value) => (*new_value, true),
+      EasingGoal::Fade(timer, curve) => {
+        timer.tick(time.delta());
+        (
+          curve.sample(timer.fraction()).unwrap_or(0.0),
+          timer.is_finished(),
+        )
       }
+    };
+    ctl.volume = new_volume;
+    if reset_cmd {
+      ctl.current_volume_cmd = None;
     }
   }
 }
@@ -349,7 +371,8 @@ pub fn update_sink_volumes<L, C>(
     if (sink.is_paused() && ctl.despawn_on_stop)
       || (sink.volume().to_linear() <= 0.01 && ctl.despawn_on_zero_volume)
     {
-      cmd.entity(e).despawn();
+      // info!("despawning audio!");
+      // cmd.entity(e).despawn();
     }
   }
 }
