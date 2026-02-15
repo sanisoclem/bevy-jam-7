@@ -36,7 +36,7 @@ pub fn spawn_boss(
   mut cmd: Commands,
 ) {
   for (kc, mut prog, mut spawner, sb, sbs, pos) in query {
-    if kc.kills / (1 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
+    if kc.kills / (100 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
       continue;
     }
 
