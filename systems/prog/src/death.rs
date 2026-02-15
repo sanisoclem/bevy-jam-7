@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::CRIMSON, prelude::*};
+use bevy::prelude::*;
 use std::mem::discriminant;
 
 use crate::{LongTermProgDescriptor, LongTermProgger};

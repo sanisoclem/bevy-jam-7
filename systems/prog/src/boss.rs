@@ -4,7 +4,7 @@ use sys_enemy::{Enemy, EnemyAnimationState, EnemySpawner};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveState, Moveable, Placeable};
 
-use crate::{Progger, boss::ui::ShowBossHealthBar};
+use crate::Progger;
 
 pub mod ui;
 
@@ -13,6 +13,15 @@ pub struct BossEnemy {
   focus: IsoWorldCoords,
   focus_timer: Timer,
 }
+
+#[derive(EntityEvent)]
+pub struct BossSpawned {
+  #[event_target]
+  pub boss_entity: Entity,
+}
+
+#[derive(Event)]
+pub struct BossKilled;
 
 pub fn spawn_boss(
   query: Query<(
@@ -27,7 +36,7 @@ pub fn spawn_boss(
   mut cmd: Commands,
 ) {
   for (kc, mut prog, mut spawner, sb, sbs, pos) in query {
-    if kc.kills / (100 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
+    if kc.kills / (1 * (prog.bosses_spawned + 1)) < prog.bosses_spawned + 1 {
       continue;
     }
 
@@ -55,7 +64,7 @@ pub fn spawn_boss(
     let mut cclone = c.clone();
     cclone.max_hp = max_hp;
 
-    cmd.trigger(ShowBossHealthBar { boss_entity: enemy });
+    cmd.trigger(BossSpawned { boss_entity: enemy });
     cmd.entity(enemy).remove::<Enemy>().insert((
       BossEnemy {
         focus: pos.location,
@@ -96,6 +105,7 @@ pub fn wait_for_boss_kills(
     progger.bosses_killed += 1;
     spawner.disabled = false;
 
+    cmd.trigger(BossKilled);
     cmd.trigger(ShowBossKill {
       count: progger.bosses_killed,
     });

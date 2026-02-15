@@ -1,5 +1,6 @@
 use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
 use jam7::{
+  audio::{GameAudioChannels, GameAudioCommand, GameAudioLibrary},
   level::{
     Level, LevelCommand, LevelResourcesLoaded, asset::LevelAsset, render::ChunkMeshGenerator,
   },
@@ -50,6 +51,7 @@ fn on_level_loaded(
   mut layouts: ResMut<Assets<TextureAtlasLayout>>,
   asset_server: Res<AssetServer>,
   levels: Res<Assets<LevelAsset>>,
+  mut music_cmd: MessageWriter<GameAudioCommand>,
 ) {
   let Some(level) = qry.get(evt.0).ok() else {
     return;
@@ -99,6 +101,10 @@ fn on_level_loaded(
     player_entity: player,
   });
   cmd.trigger(LevelUp { target: player });
+  music_cmd.write(GameAudioCommand::ReplaceAllAndFadeInto(
+    GameAudioLibrary::Lofi,
+    GameAudioChannels::Music,
+  ));
 }
 
 fn on_death_ui(_trigger: On<ShowDeathUi>, mut cmd: Commands) {

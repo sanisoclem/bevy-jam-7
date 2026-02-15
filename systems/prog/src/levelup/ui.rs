@@ -72,7 +72,7 @@ pub fn on_levelup_ui(
               LevelUpPerk::SpellUpgradePerk(e) => &sb.spells[e.slot].generator,
             };
             let tex = match generator {
-              sys_magic::SpellGenerator::Fireball(_) => "fireball",
+              sys_magic::SpellGenerator::Fireball(_) => "fireball_big",
               sys_magic::SpellGenerator::Chainlightning(_) => "lightning",
               sys_magic::SpellGenerator::Frozenorb(_) => "frozenorb",
             };
@@ -187,7 +187,7 @@ fn perk_display_text(perk: &LevelUpPerk) -> PerkItemDisplay {
       SpellGenerator::Chainlightning(_) => "Candy Cane".to_owned(),
       SpellGenerator::Frozenorb(_) => "Cotton Candy".to_owned(),
     },
-    LevelUpPerk::SpellUpgradePerk(x) => "Upgrade".to_owned(),
+    LevelUpPerk::SpellUpgradePerk(_x) => "Upgrade".to_owned(),
   };
 
   let line_items = match perk {

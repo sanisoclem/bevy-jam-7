@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use sys_combat::{Combatant, CombatantGuages};
 
+use crate::boss::{BossKilled, BossSpawned};
+
 #[derive(Component)]
 pub struct BossHealthBarUI;
 
@@ -13,17 +15,8 @@ pub struct BossNameText;
 #[derive(Component)]
 pub struct BossHealthBarTarget(Entity);
 
-#[derive(EntityEvent)]
-pub struct ShowBossHealthBar {
-  #[event_target]
-  pub boss_entity: Entity,
-}
-
-#[derive(Event)]
-pub struct HideBossHealthBar;
-
 pub fn on_show_boss_health_bar(
-  evt: On<ShowBossHealthBar>,
+  evt: On<BossSpawned>,
   mut commands: Commands,
   asset_server: Res<AssetServer>,
   existing: Query<Entity, With<BossHealthBarUI>>,
@@ -88,7 +81,7 @@ pub fn on_show_boss_health_bar(
 }
 
 pub fn on_hide_boss_health_bar(
-  _trigger: On<HideBossHealthBar>,
+  _trigger: On<BossKilled>,
   mut commands: Commands,
   ui: Query<Entity, With<BossHealthBarUI>>,
 ) {
@@ -101,14 +94,12 @@ pub fn update_boss_health_bar(
   boss_bar: Query<&BossHealthBarTarget, With<BossHealthBarUI>>,
   bosses: Query<(&CombatantGuages, &Combatant)>,
   mut health_fill: Query<&mut Node, With<BossHealthFill>>,
-  mut commands: Commands,
 ) {
   let Some(target) = boss_bar.iter().next() else {
     return;
   };
 
   let Ok((guages, combatant)) = bosses.get(target.0) else {
-    commands.trigger(HideBossHealthBar);
     return;
   };
 
