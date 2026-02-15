@@ -54,7 +54,8 @@ impl FireballSpellGenerator {
     let payload_damage =
       (self.base_damage as f32 * self.explosion_damage_multiplier).floor() as u32;
 
-    let cast_location = caster.1.location + (IsoWorldCoords::from(direction * self.radius * 2.));
+    let cast_location =
+      caster.1.location + (IsoWorldCoords::from(direction * ((self.radius * 2.) + 30.)));
 
     cmd.entity(spawn_parent).with_children(|x| {
       x.spawn((
@@ -202,7 +203,9 @@ pub fn cast_fireball(
     if let SpellDownside::HpDrain { strength } = downside {
       cmd.trigger(ApplyCombatEffect {
         target: evt.caster,
-        effects: vec![CombatEffect::Damage(c.max_hp * *strength as u32)],
+        effects: vec![CombatEffect::Damage(
+          (c.max_hp as f32 * (*strength / 100.)) as u32,
+        )],
         source: evt.caster,
       });
     }

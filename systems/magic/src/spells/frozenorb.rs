@@ -220,7 +220,9 @@ pub fn cast_frozenorb(
     if let SpellDownside::HpDrain { strength } = downside {
       cmd.trigger(ApplyCombatEffect {
         target: evt.caster,
-        effects: vec![CombatEffect::Damage(c.max_hp * *strength as u32)],
+        effects: vec![CombatEffect::Damage(
+          (c.max_hp as f32 * (*strength / 100.)) as u32,
+        )],
         source: evt.caster,
       });
     }

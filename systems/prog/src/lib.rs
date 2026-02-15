@@ -50,6 +50,7 @@ impl Plugin for SysProgPlugin {
           boss::ui::update_boss_health_bar,
           spells::ui::update_spell_bar_ui,
           spells::ui::update_spells_changed,
+          spells::ui::handle_spell_tooltip,
         ),
       )
       .add_systems(FixedUpdate, (levelup,))
