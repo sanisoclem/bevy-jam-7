@@ -149,7 +149,7 @@ impl FromWorld for LongTermProgger {
     Self {
       max_spells: 1,
       num_perk_choices: 2,
-      lucidty: 100,
+      lucidty: 0,
       runs: 0,
       trophies: Vec::new(),
       spell_builder_config: builder_config,
@@ -171,6 +171,7 @@ fn on_despawn_player(mut world: DeferredWorld, HookContext { entity, .. }: HookC
     accumulated_lucidty: level,
   });
 }
+
 fn sync_spell_builders(
   mut lprog: ResMut<LongTermProgger>,
   mut msgs: MessageReader<AssetEvent<SpellBuilderConfig>>,
