@@ -166,7 +166,7 @@ impl EnemyRegistry {
     let (spellbook, sb_state) =
       self
         .sb_generator
-        .create_spellbook(1, effective_range, effective_dps);
+        .create_spellbook(1, effective_range, effective_dps, power_budget);
 
     let descriptor = self.get_enemy_descriptor(descriptors, location)?;
 

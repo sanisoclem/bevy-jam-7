@@ -1,3 +1,5 @@
+use std::f32::consts::{PI, TAU};
+
 use bevy::{ecs::relationship::Relationship, prelude::*};
 use sys_candy::{FireballBody, FireballExplosionBody, Shadow};
 use sys_combat::{
@@ -42,6 +44,7 @@ impl FireballSpellGenerator {
     spawn_parent: Entity,
     downside: &Option<SpellDownside>,
     direction: Vec2,
+    target: Entity,
   ) {
     let team = if let Some(SpellDownside::FriendFire) = downside {
       TEAM_OTHER
@@ -76,7 +79,11 @@ impl FireballSpellGenerator {
         Projectile {
           lifetime: Timer::from_seconds(self.lifetime, TimerMode::Once),
           detonate_trigger: DetonationTrigger::Contact,
-          movement: ProjectileMovement::Straight(direction * self.speed),
+          movement: ProjectileMovement::Seek {
+            target,
+            max_angular_velocity: PI * (1. - (self.speed / 1000.)).max(0.),
+            speed: self.speed,
+          },
         },
         CombatAreaEffect {
           owner: caster.0,
@@ -175,7 +182,7 @@ pub fn cast_fireball(
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {
     return;
   };
-  let Some((_, nearest)) = radar.nearest else {
+  let Some((nearest_entity, nearest)) = radar.nearest else {
     return;
   };
   let Some(ss) = sbs.spells_states.get_mut(evt.spell_slot) else {
@@ -190,14 +197,12 @@ pub fn cast_fireball(
   debug!("Casting fireball");
 
   ss.cooldown = Some(evt.cooldown.clone());
-  let direction = dist.normalize_or(Vec2::Y);
+  let direction = (nearest - pos.location).normalize_or(Vec2::Y);
   for downside in evt.downside.iter() {
     if let SpellDownside::HpDrain { strength } = downside {
       cmd.trigger(ApplyCombatEffect {
         target: evt.caster,
-        effects: vec![CombatEffect::Damage(
-          (evt.generator.base_damage as f32 * *strength) as u32,
-        )],
+        effects: vec![CombatEffect::Damage(c.max_hp * *strength as u32)],
         source: evt.caster,
       });
     }
@@ -221,5 +226,6 @@ pub fn cast_fireball(
       .find(|f| matches!(f, SpellDownside::FriendFire))
       .cloned(),
     direction,
+    nearest_entity,
   );
 }

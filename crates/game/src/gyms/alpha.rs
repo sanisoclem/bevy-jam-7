@@ -16,7 +16,12 @@ use sys_enemy::{EnemySpawner, EnemySpawnerState};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
-use sys_prog::{Progger, death::ShowDeathUi, levelup::LevelUp};
+use sys_prog::{
+  Progger,
+  death::ShowDeathUi,
+  levelup::LevelUp,
+  spells::ui::{DespawnSpellBarUI, SpawnSpellBarUI},
+};
 use utils::diff::TEAM_PLAYER;
 
 pub struct AlphaGymPlugin;
@@ -90,11 +95,15 @@ fn on_level_loaded(
     .replace_children(&[spawned_level]);
 
   cmd.trigger(SpawnStatsUI);
+  cmd.trigger(SpawnSpellBarUI {
+    player_entity: player,
+  });
   cmd.trigger(LevelUp { target: player });
 }
 
 fn on_death_ui(_trigger: On<ShowDeathUi>, mut cmd: Commands) {
   cmd.trigger(DespawnStatsUI);
+  cmd.trigger(DespawnSpellBarUI);
 }
 
 pub fn create_player(

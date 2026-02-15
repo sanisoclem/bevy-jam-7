@@ -9,6 +9,8 @@ use sys_magic::{
   },
 };
 
+pub mod ui;
+
 use crate::levelup::SpellUpgradePerk;
 
 const DEFAULT_SPELL_LIFETIME: f32 = 2.0;
@@ -88,7 +90,7 @@ impl SpellBuilder {
       .into_iter()
       .take(match (more_rolls, downsides_to_roll > 0) {
         (true, true) => self.rolls_per_upgrade + 3,
-        (true, false) => self.rolls_per_upgrade + 2,
+        (true, false) => self.rolls_per_upgrade + 1,
         (false, true) => self.rolls_per_upgrade + 2,
         _ => self.rolls_per_upgrade,
       })

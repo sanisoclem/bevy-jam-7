@@ -30,8 +30,8 @@ SpellBuilderConfig(
             ),
             SpellDownsideUpgrade(DownsideForceMovement): (
                 description: "Downside: Knockback",
-                min_value: 50.0,
-                max_value: 100.0,
+                min_value: 250.0,
+                max_value: 500.0,
                 min_rolls: 0,
                 is_downside: true,
             ),
@@ -68,14 +68,14 @@ SpellBuilderConfig(
             FireballSpellUpgrade(ExplosionRadius): (
                 description: "Explosion size +{}",
                 min_value: 60.0,
-                max_value: 75.0,
+                max_value: 100.0,
                 min_rolls: 1,
                 is_downside: false,
             ),
             FireballSpellUpgrade(ExplosionDamageMult): (
                 description: "Explosion damage ×{}",
                 min_value: 1.1,
-                max_value: 1.5,
+                max_value: 2.0,
                 min_rolls: 1,
                 is_downside: false,
             ),

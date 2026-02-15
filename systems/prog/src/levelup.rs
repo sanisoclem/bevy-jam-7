@@ -44,7 +44,15 @@ pub struct PendingLevelUp {
 }
 
 fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<LevelUpPerk> {
-  let max_new_spells = lprog.max_spells - sb.spells.len();
+  let add_spells = match (
+    lprog.has_upgrade(LongTermProgFeature::SpellSlot2),
+    lprog.has_upgrade(LongTermProgFeature::SpellSlot3),
+  ) {
+    (true, false) | (false, true) => 1,
+    (false, false) => 0,
+    (true, true) => 2,
+  };
+  let max_new_spells = (lprog.max_spells + add_spells) - sb.spells.len();
   let mut choices = Vec::new();
   let num = if lprog.has_upgrade(LongTermProgFeature::MoreChoices) {
     lprog.num_perk_choices * 2

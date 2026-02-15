@@ -49,7 +49,7 @@ pub fn on_show_boss_health_bar(
         row_gap: Val::Px(8.0),
         ..default()
       },
-      Transform::from_xyz(-200.0, 0.0, 0.0),
+      Transform::default(),
     ))
     .with_children(|root| {
       root.spawn((

@@ -94,7 +94,6 @@ pub fn on_spawn_stats_ui(
               BorderColor::all(Color::WHITE),
             ))
             .with_children(|bar_container| {
-              // Health bar fill
               bar_container.spawn((
                 HealthBarFill,
                 Node {

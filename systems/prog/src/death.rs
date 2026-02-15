@@ -27,7 +27,6 @@ pub fn spawn_death_ui(
   evt: On<ShowDeathUi>,
   mut cmd: Commands,
   asset_server: Res<AssetServer>,
-  mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
   mut lprog: ResMut<LongTermProgger>,
 ) {
   info!(
@@ -38,8 +37,6 @@ pub fn spawn_death_ui(
   let lucidity = lprog.lucidty;
   let font: Handle<Font> = asset_server.load("fonts/FiraSans-Bold.ttf");
   let texture_handle = asset_server.load("ui/death.png");
-  let texture_atlas = TextureAtlasLayout::from_grid(UVec2::splat(460), 8, 5, None, None);
-  let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
   cmd
     .spawn((
@@ -66,13 +63,12 @@ pub fn spawn_death_ui(
         })
         .with_children(|top| {
           top.spawn((
-            ImageNode::from_atlas_image(texture_handle, TextureAtlas::from(texture_atlas_handle)),
+            ImageNode::from_atlas_image(texture_handle, TextureAtlas::default()),
             Node {
-              width: px(256),
-              height: px(256),
+              width: px(240),
+              height: px(240),
               ..default()
             },
-            Outline::new(px(8), Val::ZERO, CRIMSON.into()),
           ));
 
           top.spawn((
