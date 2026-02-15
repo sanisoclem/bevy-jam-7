@@ -3,7 +3,10 @@ use jam7::{
   level::{
     Level, LevelCommand, LevelResourcesLoaded, asset::LevelAsset, render::ChunkMeshGenerator,
   },
-  player::{Player, PlayerAnimationState, create_player_animations, create_player_controls},
+  player::{
+    Player, PlayerAnimationState, create_player_animations, create_player_controls,
+    ui::{DespawnStatsUI, SpawnStatsUI},
+  },
 };
 use sys_cam::CameraTarget;
 use sys_candy::Shadow;
@@ -13,7 +16,7 @@ use sys_enemy::{EnemySpawner, EnemySpawnerState};
 use sys_magic::{SpellBook, SpellBookState};
 use sys_move::{IsoMovementStage, IsoWorldCoords, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
-use sys_prog::{Progger, levelup::LevelUp};
+use sys_prog::{Progger, death::ShowDeathUi, levelup::LevelUp};
 use utils::diff::TEAM_PLAYER;
 
 pub struct AlphaGymPlugin;
@@ -22,7 +25,8 @@ impl Plugin for AlphaGymPlugin {
   fn build(&self, app: &mut App) {
     app
       .add_systems(Startup, setup)
-      .add_observer(on_level_loaded);
+      .add_observer(on_level_loaded)
+      .add_observer(on_death_ui);
   }
 }
 #[derive(Component, Reflect)]
@@ -85,7 +89,12 @@ fn on_level_loaded(
     .despawn_children()
     .replace_children(&[spawned_level]);
 
+  cmd.trigger(SpawnStatsUI);
   cmd.trigger(LevelUp { target: player });
+}
+
+fn on_death_ui(_trigger: On<ShowDeathUi>, mut cmd: Commands) {
+  cmd.trigger(DespawnStatsUI);
 }
 
 pub fn create_player(

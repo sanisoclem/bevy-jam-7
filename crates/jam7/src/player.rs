@@ -5,6 +5,10 @@ use sys_animation::{AnimationDefinition, AtlasAnimation, SysAnimationPlugin};
 use sys_combat::CombatantState;
 use sys_move::{IsoMovementStage, IsoWorldCoords, MoveDirection, MoveState, Moveable};
 
+use crate::player::ui::{on_despawn_stats_ui, on_spawn_stats_ui, update_stats_ui};
+
+pub mod ui;
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -12,9 +16,11 @@ impl Plugin for PlayerPlugin {
     app
       .add_plugins(SysAnimationPlugin::<PlayerAnimationState>::default())
       .add_input_context::<Player>()
-      .add_systems(Update, update_animation_state)
+      .add_systems(Update, (update_animation_state, update_stats_ui))
       .add_observer(apply_movement)
-      .add_observer(stop_movement);
+      .add_observer(stop_movement)
+      .add_observer(on_spawn_stats_ui)
+      .add_observer(on_despawn_stats_ui);
   }
 }
 

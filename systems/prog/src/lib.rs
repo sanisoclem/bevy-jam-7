@@ -47,6 +47,7 @@ impl Plugin for SysProgPlugin {
           update_boss_objectives,
           update_boss_kill_text,
           wait_for_boss_kills,
+          boss::ui::update_boss_health_bar,
         ),
       )
       .add_systems(FixedUpdate, (levelup,))
@@ -55,7 +56,9 @@ impl Plugin for SysProgPlugin {
       .add_observer(levelup::on_levelup)
       .add_observer(levelup::on_apply_levelup)
       .add_observer(levelup::on_game_restart)
-      .add_observer(spawn_boss_kill_text);
+      .add_observer(spawn_boss_kill_text)
+      .add_observer(boss::ui::on_hide_boss_health_bar)
+      .add_observer(boss::ui::on_show_boss_health_bar);
   }
 }
 
@@ -129,8 +132,8 @@ impl FromWorld for LongTermProgger {
     let lprog_config = asset_server.load("prog.config.ron");
 
     Self {
-      max_spells: 3,
-      num_perk_choices: 2,
+      max_spells: 1,
+      num_perk_choices: 3,
       lucidty: 0,
       runs: 0,
       trophies: Vec::new(),

@@ -52,10 +52,14 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
     lprog.num_perk_choices
   };
 
-  for _ in 0..num {
-    let pick_new = sb.spells.is_empty() || (max_new_spells > 0 && fastrand::f32() < 0.5);
+  if sb.spells.is_empty() {
+    return generate_new_spell_perk(sb, lprog, 3);
+  }
 
-    if pick_new && let Some(perk) = generate_new_spell_perk(sb, lprog) {
+  for _ in 0..num {
+    let pick_new = max_new_spells > 0 && fastrand::f32() < 0.5;
+
+    if pick_new && let Some(perk) = generate_new_spell_perk(sb, lprog, 1).into_iter().next() {
       choices.push(perk);
       continue;
     }
@@ -70,8 +74,14 @@ fn generate_levelup_choices(sb: &SpellBook, lprog: &LongTermProgger) -> Vec<Leve
   choices
 }
 
-fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<LevelUpPerk> {
-  let builder = lprog.spell_builder.as_ref()?;
+fn generate_new_spell_perk(
+  sb: &SpellBook,
+  lprog: &LongTermProgger,
+  count: usize,
+) -> Vec<LevelUpPerk> {
+  let Some(builder) = lprog.spell_builder.as_ref() else {
+    return vec![];
+  };
 
   let has_fireball = sb
     .spells
@@ -85,7 +95,6 @@ fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Le
     .spells
     .iter()
     .any(|s| matches!(s.generator, SpellGenerator::Frozenorb(_)));
-  // let has_fireball = true;
 
   let mut available: Vec<
     fn(&SpellBuilder) -> Option<(EquippedSpell, Vec<(SpellUpgrade, f32, String)>)>,
@@ -101,11 +110,19 @@ fn generate_new_spell_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<Le
   }
 
   if available.is_empty() {
-    return None;
+    return vec![];
   }
 
-  let idx = fastrand::usize(0..available.len());
-  available[idx](builder).map(|(x, y)| LevelUpPerk::NewSpell(x, y))
+  // allow dups
+  // let idx = fastrand::usize(0..available.len());
+  // available[idx](builder).map(|(x, y)| LevelUpPerk::NewSpell(x, y))
+
+  fastrand::shuffle(&mut available);
+  available
+    .into_iter()
+    .take(count)
+    .flat_map(|x| x(builder).map(|(x, y)| LevelUpPerk::NewSpell(x, y)))
+    .collect()
 }
 
 fn generate_upgrade_perk(sb: &SpellBook, lprog: &LongTermProgger) -> Option<LevelUpPerk> {
