@@ -2,6 +2,7 @@ use bevy::{
   ecs::{lifecycle::HookContext, world::DeferredWorld},
   prelude::*,
 };
+use sys_asset::{AssetBundle, SysAssetPlugin};
 use sys_move::{IsoWorldCoords, Placeable};
 
 mod hittest;
@@ -10,12 +11,14 @@ mod text;
 
 pub use hittest::HitTestableShape;
 pub use projectile::{DetonatePayload, DetonationTrigger, Projectile, ProjectileMovement};
+pub use text::CombatAssets;
 
 pub struct SysCombatPlugin;
 
 impl Plugin for SysCombatPlugin {
   fn build(&self, app: &mut App) {
     app
+      .add_plugins(SysAssetPlugin::<CombatAssets>::default())
       .add_message::<DamageTaken>()
       .add_message::<CombatantKilled>()
       .add_systems(Update, update_kill_counters)
@@ -138,6 +141,7 @@ pub struct CombatantKilled {
   pub killer: Entity,
   pub victim: Entity,
 }
+
 fn on_insert_combatant(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
   let combatant = world.get::<Combatant>(entity).unwrap();
   let max_hp = combatant.max_hp;
@@ -262,23 +266,17 @@ fn apply_combat_effects(
   mut msg_writer: MessageWriter<DamageTaken>,
   mut kill_writer: MessageWriter<CombatantKilled>,
   mut cmd: Commands,
-  asset_server: Res<AssetServer>,
-  mut sfx: Local<Option<Handle<AudioSource>>>,
+  assets: Res<AssetBundle<CombatAssets>>,
 ) {
+  let AssetBundle::Loaded(assets) = assets.as_ref() else {
+    return;
+  };
   let Ok((c, mut g, s)) = qry.get_mut(msg.target) else {
     return;
   };
   if s.dead || s.invulnerable {
     return;
   }
-
-  let sfx_handle = if sfx.is_none() {
-    let new_value = asset_server.load("audio/POWERUP-77F96078AB56D8DA.ogg");
-    *sfx = Some(new_value.clone());
-    new_value
-  } else {
-    sfx.as_ref().unwrap().clone()
-  };
 
   for eff in msg.effects.iter() {
     match eff {
@@ -315,7 +313,7 @@ fn apply_combat_effects(
           });
 
           cmd.entity(msg.target).insert_if_new((
-            AudioPlayer::new(sfx_handle.clone()),
+            AudioPlayer::new(assets.death_sfx.clone()),
             PlaybackSettings::default()
               .with_spatial(true)
               .with_speed(fastrand::f32() * 0.1 + 0.9),

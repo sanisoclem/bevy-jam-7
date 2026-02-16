@@ -1,8 +1,9 @@
 use std::f32::consts::PI;
 
 use bevy::{color::palettes::tailwind::AMBER_500, prelude::*};
+use sys_asset::{AssetBundle, IAssetBundle};
 use sys_move::{IsoMovementStage, Placeable};
-use utils::colors::color_from_team;
+use utils::{assets::AssetBarrier, colors::color_from_team};
 
 use crate::DamageTaken;
 
@@ -13,13 +14,34 @@ pub struct DamageText {
   pub scale_curve: EasingCurve<f32>,
 }
 
+pub struct CombatAssets {
+  pub font: Handle<Font>,
+  pub death_sfx: Handle<AudioSource>,
+}
+
+impl IAssetBundle for CombatAssets {
+  fn load_all(asset_server: &AssetServer) -> (AssetBarrier, Self) {
+    let (barrier, guard) = AssetBarrier::new();
+    (
+      barrier,
+      Self {
+        font: asset_server.load_acquire("fonts/Roboto-Black.ttf", guard),
+        death_sfx: asset_server.load("audio/POWERUP-77F96078AB56D8DA.ogg"),
+      },
+    )
+  }
+}
+
 pub fn spawn_damage_text(
-  asset_server: Res<AssetServer>,
   mut commands: Commands,
   stage: Query<&IsoMovementStage>,
   mut qry: Query<&Placeable>,
   mut msg_reader: MessageReader<DamageTaken>,
+  assets: Res<AssetBundle<CombatAssets>>,
 ) {
+  let AssetBundle::Loaded(assets) = assets.as_ref() else {
+    return;
+  };
   let Some(stage) = stage.iter().next() else {
     return;
   };
@@ -34,9 +56,8 @@ pub fn spawn_damage_text(
       (fastrand::f32() - 0.5) * 10.0,
     );
 
-    let font = asset_server.load("fonts/Roboto-Black.ttf");
     let text_font = TextFont {
-      font: font.clone(),
+      font: assets.font.clone(),
       font_size: 28.0,
       ..default()
     };

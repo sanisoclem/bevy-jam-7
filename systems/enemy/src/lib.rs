@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
-use bevy::{prelude::*, sprite::Anchor, time::Stopwatch};
+use bevy::{math::VectorSpace, prelude::*, sprite::Anchor, time::Stopwatch};
 use sys_animation::{AtlasAnimation, SysAnimationPlugin};
 use sys_candy::Shadow;
-use sys_combat::{Combatant, KillCounter};
+use sys_combat::{Combatant, CombatantState, KillCounter};
 use sys_magic::{SpellBook, SpellBookGenerator, SpellBookState};
 use sys_move::{IsoWorldCoords, MoveDirection, MoveState, Moveable, Placeable};
 use sys_procgen::ProceduralLevel;
@@ -188,7 +188,7 @@ impl EnemyRegistry {
         max_hp: hp,
         hitbox: descriptor.hitbox.clone(),
         death_behavior: sys_combat::DeathBehavior::Despawn(Timer::from_seconds(
-          1.0,
+          2.0,
           TimerMode::Once,
         )),
         regen: 0,
@@ -208,7 +208,7 @@ impl EnemyRegistry {
 #[derive(Component, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct EnemyAnimationState {
   pub facing: sys_move::MoveDirection,
-  // pub dead: bool,
+  pub dead: bool,
   // pub stunned: bool,
   // pub reeling: bool,
   pub moving: bool,
@@ -349,6 +349,7 @@ fn spawn_enemies(
           EnemyAnimationState {
             facing: MoveDirection::Southeast,
             moving: false,
+            dead: false,
           },
         ))
         .with_children(|x2| {
@@ -386,7 +387,13 @@ fn despawn_enemies(
   }
 }
 fn update_enemy_objectives(
-  qry_enemies: Query<(&Enemy, &mut EnemyState, &Placeable, &mut Moveable)>,
+  qry_enemies: Query<(
+    &Enemy,
+    &mut EnemyState,
+    &Placeable,
+    &mut Moveable,
+    &CombatantState,
+  )>,
   player: Query<&Placeable, With<EnemySpawner>>,
   time: Res<Time>,
 ) {
@@ -394,7 +401,11 @@ fn update_enemy_objectives(
     return;
   };
 
-  for (enemy, mut state, placeable, mut mov) in qry_enemies {
+  for (enemy, mut state, placeable, mut mov, cs) in qry_enemies {
+    if cs.dead {
+      mov.net_forces = Vec2::ZERO;
+      return;
+    }
     let dist_to_player = placeable.location.distance(player_pos);
     let player_dist_from_spawn = enemy.spawned_at.distance(player_pos);
     let is_player_nearby = dist_to_player <= enemy.desired_range * 1.2;
@@ -447,9 +458,12 @@ fn update_enemy_objectives(
     mov.net_forces = (*random_offset).normalize() * enemy.mobility;
   }
 }
-fn update_animation_state(qry: Query<(&mut EnemyAnimationState, &MoveState), With<Enemy>>) {
-  for (mut anim, mov) in qry {
+fn update_animation_state(
+  qry: Query<(&mut EnemyAnimationState, &MoveState, &CombatantState), With<Enemy>>,
+) {
+  for (mut anim, mov, cs) in qry {
     anim.moving = mov.is_moving_voluntary;
     anim.facing = mov.direction.clone();
+    anim.dead = cs.dead;
   }
 }

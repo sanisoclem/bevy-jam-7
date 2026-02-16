@@ -31,6 +31,7 @@ pub struct Player;
 pub struct PlayerAnimationState {
   pub is_moving: bool,
   pub direction: MoveDirection,
+  pub dead: bool,
 }
 
 #[derive(InputAction)]
@@ -42,6 +43,7 @@ pub fn create_player_animations(
   layouts: &mut Assets<TextureAtlasLayout>,
 ) -> AtlasAnimation<PlayerAnimationState> {
   let idle_image = asset_server.load("char/placeholder/idle.png");
+  let die_image = asset_server.load("char/placeholder/die.png");
   let run_image = asset_server.load("char/placeholder/run.png");
   let idle_layout = layouts.add(TextureAtlasLayout::from_grid(
     UVec2::splat(460),
@@ -53,6 +55,13 @@ pub fn create_player_animations(
   let run_layout = layouts.add(TextureAtlasLayout::from_grid(
     UVec2::splat(460),
     4,
+    5,
+    None,
+    None,
+  ));
+  let die_layout = layouts.add(TextureAtlasLayout::from_grid(
+    UVec2::splat(460),
+    6,
     5,
     None,
     None,
@@ -74,6 +83,7 @@ pub fn create_player_animations(
       PlayerAnimationState {
         is_moving: false,
         direction: d.clone(),
+        dead: false,
       },
       AnimationDefinition {
         layout: idle_layout.clone(),
@@ -94,6 +104,7 @@ pub fn create_player_animations(
       PlayerAnimationState {
         is_moving: true,
         direction: d.clone(),
+        dead: false,
       },
       AnimationDefinition {
         layout: run_layout.clone(),
@@ -108,8 +119,49 @@ pub fn create_player_animations(
       },
     )
   });
+  let d1 = dirs.iter().map(|(d, row, flip)| {
+    (
+      PlayerAnimationState {
+        is_moving: true,
+        direction: d.clone(),
+        dead: true,
+      },
+      AnimationDefinition {
+        layout: die_layout.clone(),
+        spritesheet: die_image.clone(),
+        frames: vec![0, 1, 2, 3, 4, 5]
+          .into_iter()
+          .map(|x| (row * 6) + x)
+          .collect(),
+        playback_speed: sys_animation::AnimationPlaybackSpeed::Fps(5),
+        playback_loop: false,
+        flip_vertical: *flip,
+      },
+    )
+  });
+  let d2 = dirs.iter().map(|(d, row, flip)| {
+    (
+      PlayerAnimationState {
+        is_moving: false,
+        direction: d.clone(),
+        dead: true,
+      },
+      AnimationDefinition {
+        layout: die_layout.clone(),
+        spritesheet: die_image.clone(),
+        frames: vec![0, 1, 2, 3, 4, 5]
+          .into_iter()
+          .map(|x| (row * 6) + x)
+          .collect(),
+        playback_speed: sys_animation::AnimationPlaybackSpeed::Fps(5),
+        playback_loop: false,
+        flip_vertical: *flip,
+      },
+    )
+  });
 
-  let animations: HashMap<PlayerAnimationState, AnimationDefinition> = idles.chain(runs).collect();
+  let animations: HashMap<PlayerAnimationState, AnimationDefinition> =
+    idles.chain(runs).chain(d1).chain(d2).collect();
   let default_animation = animations
     .get(&PlayerAnimationState::default())
     .unwrap()
@@ -144,10 +196,13 @@ pub fn create_player_controls() -> impl Bundle {
   )
 }
 
-fn update_animation_state(qry: Query<(&mut PlayerAnimationState, &MoveState), With<Player>>) {
-  for (mut anim, mov) in qry {
+fn update_animation_state(
+  qry: Query<(&mut PlayerAnimationState, &MoveState, &CombatantState), With<Player>>,
+) {
+  for (mut anim, mov, cs) in qry {
     anim.is_moving = mov.is_moving_voluntary;
     anim.direction = mov.direction.clone();
+    anim.dead = cs.dead;
   }
 }
 

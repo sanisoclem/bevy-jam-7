@@ -5,6 +5,7 @@ use bevy::{
 };
 use rodio::source::from_iter;
 use std::{hash::Hash, marker::PhantomData};
+use sys_asset::{AssetBundle, AssetLoaded, IAssetBundle, SysAssetPlugin};
 use utils::assets::{AssetBarrier, AssetBarrierGuard};
 
 pub struct AudioPlugin<L: AudioLibrary, C: AudioChannelLayout> {
@@ -24,12 +25,8 @@ impl<L: AudioLibrary, C: AudioChannelLayout> Plugin for AudioPlugin<L, C> {
     // initialized
     // TODO: (optimization) process_assets should be a one shot system
     app
+      .add_plugins(SysAssetPlugin::<AudioLibraryResource<L, C>>::default())
       .add_audio_source::<ProcessedAudio>()
-      .init_resource::<AudioLibraryResource<L, C>>()
-      .add_systems(
-        Update,
-        process_assets::<L, C>.run_if(should_process_assets::<L, C>),
-      )
       .add_systems(
         Update,
         (
@@ -39,7 +36,8 @@ impl<L: AudioLibrary, C: AudioChannelLayout> Plugin for AudioPlugin<L, C> {
         )
           .chain(),
       )
-      .add_observer(process_audio_commands::<L, C>);
+      .add_observer(process_audio_commands::<L, C>)
+      .add_observer(process_assets::<L, C>);
     // .add_systems(Update, fade)
   }
 }
@@ -142,12 +140,10 @@ impl Decodable for ProcessedAudio {
   }
 }
 
-#[derive(Resource)]
 pub struct AudioLibraryResource<T, C> {
   definitions: HashMap<T, AudioDef>,
   processed: Option<HashMap<T, Handle<ProcessedAudio>>>,
   channels: HashMap<C, AudioChannelSettings>,
-  barrier: AssetBarrier,
 }
 
 #[derive(Default)]
@@ -161,28 +157,25 @@ pub enum EasingGoal {
   Fade(Timer, EasingCurve<f32>),
 }
 
-impl<T, C> FromWorld for AudioLibraryResource<T, C>
+impl<T, C> IAssetBundle for AudioLibraryResource<T, C>
 where
   T: AudioLibrary,
   C: AudioChannelLayout,
 {
-  fn from_world(world: &mut World) -> Self {
+  fn load_all(asset_server: &AssetServer) -> (AssetBarrier, Self) {
     let (barrier, guard) = AssetBarrier::new();
-    let asset_server = world
-      .get_resource::<AssetServer>()
-      .expect("Unable to get AssetServer");
-
     let defs = <T as AudioLibrary>::load_all(asset_server, guard);
 
-    Self {
-      definitions: defs,
-      processed: default(),
-      channels: C::initial_state(),
+    (
       barrier,
-    }
+      Self {
+        definitions: defs,
+        processed: default(),
+        channels: C::initial_state(),
+      },
+    )
   }
 }
-
 #[derive(Event, Debug)]
 pub enum AudioCommand<L, C> {
   StopAllInChannel(C),
@@ -192,25 +185,18 @@ pub enum AudioCommand<L, C> {
   // MuteChannel(C, bool),
 }
 
-fn should_process_assets<L, C>(audio_lib: Res<AudioLibraryResource<L, C>>) -> bool
-where
-  L: AudioLibrary,
-  C: AudioChannelLayout,
-{
-  audio_lib.barrier.is_ready() && audio_lib.processed.is_none()
-}
-
 fn process_assets<L, C>(
-  mut audio_lib: ResMut<AudioLibraryResource<L, C>>,
+  _trigger: On<AssetLoaded<AudioLibraryResource<L, C>>>,
+  mut audio_lib_bundle: ResMut<AssetBundle<AudioLibraryResource<L, C>>>,
   asset_server: Res<AssetServer>,
   audio_assets: Res<Assets<AudioSource>>,
 ) where
   L: AudioLibrary,
   C: AudioChannelLayout,
 {
-  if !audio_lib.barrier.is_ready() || audio_lib.processed.is_some() {
+  let AssetBundle::Loaded(audio_lib) = audio_lib_bundle.as_mut() else {
     return;
-  }
+  };
   let mut h = HashMap::new();
   for (k, v) in audio_lib.definitions.iter() {
     if let Some(p) = v.try_into_processed_audio(&asset_server, &audio_assets) {
@@ -224,11 +210,14 @@ pub fn process_audio_commands<L, C>(
   evt: On<AudioCommand<L, C>>,
   mut commands: Commands,
   mut qry: Query<&mut AudioController<C>>,
-  audio_lib: Res<AudioLibraryResource<L, C>>,
+  audio_lib_bundle: Res<AssetBundle<AudioLibraryResource<L, C>>>,
 ) where
   L: AudioLibrary,
   C: AudioChannelLayout,
 {
+  let AssetBundle::Loaded(audio_lib) = audio_lib_bundle.as_ref() else {
+    return;
+  };
   let Some(lib) = &audio_lib.processed else {
     return;
   };
@@ -290,12 +279,15 @@ pub fn process_audio_commands<L, C>(
 }
 
 pub fn update_channel_volume<L, C>(
-  mut audio_lib: ResMut<AudioLibraryResource<L, C>>,
+  mut audio_lib_bundle: ResMut<AssetBundle<AudioLibraryResource<L, C>>>,
   time: Res<Time<Real>>,
 ) where
   L: AudioLibrary,
   C: AudioChannelLayout,
 {
+  let AssetBundle::Loaded(audio_lib) = audio_lib_bundle.as_mut() else {
+    return;
+  };
   for (_k, ctl) in audio_lib.channels.iter_mut() {
     let Some(cmd) = &mut ctl.current_vol_cmd else {
       continue;
@@ -344,12 +336,15 @@ where
 
 pub fn update_sink_volumes<L, C>(
   mut cmd: Commands,
-  audio_lib: Res<AudioLibraryResource<L, C>>,
+  audio_lib_bundle: Res<AssetBundle<AudioLibraryResource<L, C>>>,
   mut qry: Query<(Entity, &mut AudioSink, &AudioController<C>)>,
 ) where
   L: AudioLibrary,
   C: AudioChannelLayout,
 {
+  let AssetBundle::Loaded(audio_lib) = audio_lib_bundle.as_ref() else {
+    return;
+  };
   for (e, mut sink, ctl) in qry.iter_mut() {
     let Some(channel_settings) = audio_lib.channels.get(&ctl.channel) else {
       continue;

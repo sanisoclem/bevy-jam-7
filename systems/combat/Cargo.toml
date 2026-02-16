@@ -11,3 +11,4 @@ fastrand.workspace = true
 sys_move = { path = "../move", version = "0.1.0" }
 
 utils = { path = "../../crates/utils", version = "0.1.0" }
+sys_asset = { path = "../asset", version = "0.1.0" }

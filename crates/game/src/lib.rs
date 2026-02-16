@@ -1,4 +1,4 @@
-use crate::gyms::AlphaGymPlugin;
+use crate::gyms::{AlphaGymPlugin, main::MainGymPlugin};
 use bevy::{
   audio::{AudioPlugin, SpatialScale},
   prelude::*,
@@ -27,7 +27,7 @@ impl Plugin for GamePlugin {
       )
       .add_plugins(Jam7Plugin)
       // .add_plugins(BetaGymPlugin);
-      .add_plugins(AlphaGymPlugin);
+      .add_plugins(MainGymPlugin);
 
     #[cfg(feature = "dev")]
     app.add_plugins(dev::DevGamePlugin);

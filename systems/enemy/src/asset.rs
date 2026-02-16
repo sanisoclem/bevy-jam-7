@@ -38,6 +38,7 @@ pub struct EnemyDescriptorRon {
 pub struct EnemyAnimationRon {
   pub facing: MoveDirection,
   pub is_moving: bool,
+  pub is_dead: bool,
   pub spritesheet_index: usize,
   pub frames: Vec<usize>,
   pub playback_speed: AnimationPlaybackSpeed,
@@ -84,6 +85,7 @@ impl AssetLoader for EnemyDescriptorAssetLoader {
           EnemyAnimationState {
             facing: x.facing,
             moving: x.is_moving,
+            dead: x.is_dead,
           },
           AnimationDefinition {
             spritesheet: s.clone(),

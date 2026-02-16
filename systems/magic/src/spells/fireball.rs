@@ -192,7 +192,6 @@ pub fn on_fireball_detonate(
 
 pub fn cast_fireball(
   evt: On<SpellReady<FireballSpellGenerator>>,
-  asset_server: Res<AssetServer>,
   mut cmd: Commands,
   mut qry: Query<(
     &Combatant,
@@ -201,6 +200,7 @@ pub fn cast_fireball(
     &ChildOf,
     &mut SpellBookState,
   )>,
+  asset_server: Res<AssetServer>,
   mut sfx: Local<Option<Handle<AudioSource>>>,
 ) {
   let Some((c, radar, pos, parent, mut sbs)) = qry.get_mut(evt.caster).ok() else {

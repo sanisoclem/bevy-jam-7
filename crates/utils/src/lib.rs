@@ -38,7 +38,7 @@ pub mod diff {
     10. + offense_score * 200.
   }
   pub fn get_enemy_count_from_density_score(density_score: f32) -> f32 {
-    (density_score * 12.).clamp(4., 80.)
+    (density_score * 12.).clamp(4., 50.)
   }
   pub fn get_enemy_size_from_toughness(toughness_score: f32) -> f32 {
     1.0 + toughness_score * 0.1

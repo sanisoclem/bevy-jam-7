@@ -2787,6 +2787,7 @@ dependencies = [
  "fastrand",
  "jam7",
  "sys_animation",
+ "sys_asset",
  "sys_audio",
  "sys_cam",
  "sys_candy",
@@ -5104,6 +5105,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sys_asset"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "serde",
+ "utils",
+]
+
+[[package]]
 name = "sys_audio"
 version = "0.1.0"
 dependencies = [
@@ -5111,6 +5121,7 @@ dependencies = [
  "fastrand",
  "macros",
  "rodio",
+ "sys_asset",
  "utils",
 ]
 
@@ -5148,6 +5159,7 @@ dependencies = [
  "bevy",
  "fastrand",
  "serde",
+ "sys_asset",
  "sys_move",
  "utils",
 ]
