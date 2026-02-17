@@ -112,7 +112,7 @@ pub mod colors {
   }
 
   const LEVEL_UP_BASE_KILLS: f32 = 3.0;
-  const LEVEL_UP_EXPONENT: f32 = 1.3;
+  const LEVEL_UP_EXPONENT: f32 = 1.2;
 
   pub fn kills_required_for_level(current_level: u32) -> u32 {
     let kills = LEVEL_UP_BASE_KILLS * (current_level as f32).powf(LEVEL_UP_EXPONENT);

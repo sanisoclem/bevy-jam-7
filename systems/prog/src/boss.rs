@@ -61,7 +61,7 @@ pub fn spawn_boss(
         .cloned()
         .collect(),
     };
-    let max_hp = 10u32.pow(prog.bosses_spawned) * 100;
+    let max_hp = 10u32.pow(prog.bosses_spawned) * 50;
     let mut cclone = c.clone();
     cclone.max_hp = max_hp;
 

@@ -371,9 +371,9 @@ pub fn create_player(
     (
       EnemySpawner {
         spawn_parent,
-        despawn_radius: 2500,
-        no_spawn_radius: 1200,
-        spawn_radius: 1000,
+        despawn_radius: 5000,
+        no_spawn_radius: 2000,
+        spawn_radius: 3000,
         initial_cooldown: 1.,
         cooldown_decay_rate: 1.5,
         disabled: false,
